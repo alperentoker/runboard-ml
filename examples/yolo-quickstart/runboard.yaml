@@ -1,0 +1,43 @@
+# Minimal runboard project: YOLO11n on Ultralytics' tiny coco8 dataset (downloads itself, ~1 MB).
+#   pip install ultralytics
+#   runboard add examples/yolo-quickstart
+name: YOLO quickstart
+description: Tiny example — trains YOLO11n on coco8 locally or on Kaggle and reports progress with rb.py.
+color: "#2558a8"
+
+runs:
+  file: runs.yaml
+  section: runs
+  defaults: defaults
+  name: "{id}-{model|stem}-s{seed}"
+  fields: [model, epochs, seed]
+  extras:
+    prefix: X
+    fields:
+      model: {choices: [yolo11n.pt, yolo11s.pt, yolov8n.pt], default: yolo11n.pt}
+      epochs: {int: [1, 100], default: 5}
+      seed: {int: [0, 9], default: 0}
+
+default_backend: local
+backends:
+  local:
+    command: '"{python}" -u train.py --run {id}'
+    output_dir: runs/local
+  kaggle:
+    kernel: "rb-quickstart-{id|lower}"
+    files: {train.py: train.py, rb.py: ../../runboard/rb.py, runs.yaml: runs.yaml}
+    setup: ["pip install -q ultralytics"]
+    command: "python -u train.py --run {id} --out /kaggle/working"
+    output_dir: runs/kaggle
+
+results:
+  report: "{out}/summary.json"
+  metrics: {primary: map50_95, secondary: map50, best_epoch: best_epoch, epochs: epochs, hours: hours}
+  labels: {primary: mAP50-95, secondary: mAP50}
+  curves: {file: "{out}/results.csv", format: ultralytics}
+
+phases:
+  - {title: Baselines, runs: [nano, small]}
+
+tables:
+  - {title: Model size, runs: [nano, small]}

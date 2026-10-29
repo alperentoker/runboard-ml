@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#121211">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="runboard">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg">
+<link rel="apple-touch-icon" href="/icon.svg">
+<title>runboard · live</title>
+<style>
+:root { --bg: #121211; --card: #1b1b1a; --ink: #ededea; --muted: #93938c; --line: #2a2a28; --accent: #6cc3a6; --run: #82abef; --bad: #ef7f74; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 15px/1.4 "Segoe UI", system-ui, -apple-system, sans-serif; }
+main { max-width: 460px; margin: 0 auto; padding: 14px 14px 20px; }
+.proj { color: var(--muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+.top { display: flex; align-items: baseline; gap: 10px; margin-top: 2px; }
+.id { font-size: 26px; font-weight: 700; }
+.st { font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 99px; background: var(--line); color: var(--muted); }
+.st.on { background: #1b2840; color: var(--run); } .st.ok { background: #1b322c; color: var(--accent); } .st.bad { background: #3a1d1a; color: var(--bad); }
+.sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.bar { height: 12px; background: var(--line); border-radius: 6px; overflow: hidden; margin: 14px 0 4px; }
+.bar i { display: block; height: 100%; background: var(--accent); border-radius: 6px; transition: width 1s linear; }
+.lbl { display: flex; justify-content: space-between; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.g { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.s { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.s span { display: block; color: var(--muted); font-size: 12px; }
+.s b { font-size: 22px; font-variant-numeric: tabular-nums; }
+.stage { color: var(--muted); font-size: 13px; margin-top: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+button, a.b { font: inherit; font-size: 14px; border: 1px solid var(--line); background: var(--card); color: var(--ink); padding: 8px 12px; border-radius: 8px; cursor: pointer; text-decoration: none; }
+button.p { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
+.help { color: var(--muted); font-size: 12px; margin-top: 10px; }
+canvas, video { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <div class="proj" id="proj">runboard</div>
+  <div class="top"><span class="id" id="id">—</span><span class="st" id="st"></span></div>
+  <div class="sub" id="sub"></div>
+  <div class="bar"><i id="bar" style="width:0"></i></div>
+  <div class="lbl"><span id="ep">—</span><span id="pct">—</span></div>
+  <div class="g">
+    <div class="s"><span id="l1">score</span><b id="map">—</b></div>
+    <div class="s"><span id="l2">best</span><b id="best">—</b></div>
+    <div class="s"><span id="l3">left</span><b id="left">—</b></div>
+    <div class="s"><span id="l4">ETA</span><b id="fin">—</b></div>
+  </div>
+  <div class="stage" id="stage"></div>
+  <div class="btns"><button class="p" id="pip">Picture-in-picture</button><a class="b" href="/" id="full">Dashboard</a></div>
+  <div class="help" id="help"></div>
+  <canvas id="cv" width="480" height="270"></canvas>
+  <video id="vid" muted playsinline></video>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+let LANG = (() => { try { return localStorage.getItem("rb-lang"); } catch { return null; } })() || ((navigator.language || "en").startsWith("tr") ? "tr" : "en");
+const TT = {en: {best: "best", left: "left", eta: "ETA", last: "last", none: "No active run", pip: "Picture-in-picture", close: "Close window", full: "Dashboard", val: "validating",
+                 help: "Picture-in-picture floats this view over other apps; the same button (or closing the window) brings it back. Add to home screen from the browser menu.",
+                 nopip: "This browser has no picture-in-picture for pages; use split screen / a floating window instead.", conn: "no connection",
+                 QUEUED: "queued", STARTING: "starting", RUNNING: "running", COMPLETE: "complete", ERROR: "error", CANCELLED: "cancelled", CANCELLING: "cancelling"},
+            tr: {best: "en iyi", left: "kalan", eta: "bitiş", last: "son", none: "Çalışan koşu yok", pip: "Küçük pencere", close: "Pencereyi kapat", full: "Tam panel", val: "doğrulama",
+                 help: "\"Küçük pencere\" bu ekranı diğer uygulamaların üstünde yüzen bir pencereye taşır; aynı düğmeyle ya da pencereyi kapatarak geri alınır. Ana ekrana eklemek için tarayıcı menüsünden \"Ana ekrana ekle\".",
+                 nopip: "Bu tarayıcı küçük pencereyi desteklemiyor; tabletin ekran bölme / kayan pencere özelliğini kullan.", conn: "bağlantı yok",
+                 QUEUED: "sırada", STARTING: "hazırlanıyor", RUNNING: "çalışıyor", COMPLETE: "bitti", ERROR: "hata", CANCELLED: "durduruldu", CANCELLING: "durduruluyor"}};
+const t = k => TT[LANG][k] ?? TT.en[k] ?? k;
+const tx = v => v == null ? "" : typeof v === "object" ? (v[LANG] ?? v.en ?? "") : String(v);
+const hms = s => [s / 3600, s % 3600 / 60, s % 60].map(x => String(Math.floor(x)).padStart(2, "0")).join(":");
+const ACTIVE = ["QUEUED", "STARTING", "RUNNING", "CANCELLING"];
+let D = null, lastKey = null, lastStatus = null;
+$("#pip").textContent = t("pip"); $("#full").textContent = t("full"); $("#help").textContent = t("help");
+$("#l2").textContent = t("best"); $("#l3").textContent = t("left"); $("#l4").textContent = t("eta");
+
+function view() {
+  if (!D) return null;
+  const p0 = D.projects.find(p => p.active.length);
+  if (!p0) return {proj: "runboard", id: "—", st: t("none"), cls: "", frac: 0, ep: "", map: "—", best: "—", left: "—", fin: "—", stage: "", lab: ""};
+  const r = p0.active[0], p = r.progress || {}, now = Date.now() / 1000, epochs = p.epochs || r.epochs || 1, ep = p.epoch || 0, cur = p.current_epoch || ep;
+  let batch = p.batch;
+  if (p.beat_at && p.its && p.batches && cur > ep && batch != null) batch = Math.min(p.batches, Math.floor(batch + p.its * Math.max(0, now - p.beat_at)));
+  const inEp = batch != null && p.batches && cur > ep, frac = Math.min(1, (ep + (inEp ? batch / p.batches : 0)) / epochs);
+  return {proj: p0.name, id: r.id, st: t(r.status), cls: "on", frac, lab: tx(p0.primary_label),
+    ep: `epoch ${ep}/${epochs}${inEp ? (batch >= p.batches ? " · " + t("val") : ` · b${batch}/${p.batches}`) : ""}`,
+    map: p.map != null ? p.map.toFixed(2) : "—", best: p.best != null ? p.best.toFixed(2) : "—",
+    left: p.eta_at ? hms(Math.max(0, p.eta_at - now)) : "—", fin: p.eta_at ? new Date(p.eta_at * 1000).toLocaleTimeString(LANG, {hour: "2-digit", minute: "2-digit"}) : "—",
+    stage: (p.stage || "") + (p.its ? ` · ${p.its.toFixed(1)} it/s` : ""), key: p0.key + ":" + r.id, status: r.status};
+}
+function paint() {
+  const v = view(); if (!v) return;
+  $("#proj").textContent = v.proj; $("#id").textContent = v.id; $("#st").textContent = v.st; $("#st").className = "st " + v.cls;
+  $("#sub").textContent = v.lab ? `${t("last")} ${v.lab}` : ""; $("#l1").textContent = v.lab || "score";
+  $("#bar").style.width = (v.frac * 100).toFixed(2) + "%"; $("#ep").textContent = v.ep; $("#pct").textContent = (v.frac * 100).toFixed(1) + "%";
+  $("#map").textContent = v.map; $("#best").textContent = v.best; $("#left").textContent = v.left; $("#fin").textContent = v.fin; $("#stage").textContent = v.stage;
+  draw(v);
+}
+function draw(v) {
+  const c = $("#cv"), g = c.getContext("2d"), W = c.width, H = c.height;
+  g.fillStyle = "#121211"; g.fillRect(0, 0, W, H);
+  g.fillStyle = "#93938c"; g.font = "600 13px system-ui, sans-serif"; g.fillText(v.proj.toUpperCase().slice(0, 40), 20, 24);
+  g.fillStyle = "#ededea"; g.font = "700 32px system-ui, sans-serif"; g.fillText(v.id, 20, 60);
+  const w = g.measureText(v.id).width; g.font = "600 17px system-ui, sans-serif"; g.fillStyle = v.cls === "on" ? "#82abef" : "#93938c"; g.fillText(v.st, 34 + w, 60);
+  g.fillStyle = "#2a2a28"; g.fillRect(20, 78, W - 40, 12); g.fillStyle = "#6cc3a6"; g.fillRect(20, 78, (W - 40) * v.frac, 12);
+  g.fillStyle = "#93938c"; g.font = "15px system-ui, sans-serif"; g.fillText(v.ep, 20, 112); g.textAlign = "right"; g.fillText((v.frac * 100).toFixed(1) + "%", W - 20, 112); g.textAlign = "left";
+  const cell = (x, l, val) => { g.fillStyle = "#93938c"; g.font = "14px system-ui, sans-serif"; g.fillText(l, x, 150); g.fillStyle = "#ededea"; g.font = "700 28px system-ui, sans-serif"; g.fillText(val, x, 184); };
+  cell(20, v.lab || "score", v.map); cell(170, t("best"), v.best); cell(320, t("left"), v.left);
+  g.fillStyle = "#93938c"; g.font = "14px system-ui, sans-serif"; g.fillText(`${t("eta")} ${v.fin}   ${v.stage}`.slice(0, 56), 20, 240);
+}
+function update(d) {
+  D = d; paint();
+  const v = view();
+  if (lastKey && lastKey !== v?.key && lastStatus) { try { navigator.vibrate?.(300); } catch {} }
+  lastKey = v?.key; lastStatus = v?.status;
+}
+// The server pushes the project list whenever it changes; the browser reconnects by itself after a drop.
+function connect() {
+  const es = new EventSource(location.origin + "/api/events");
+  es.addEventListener("projects", e => { try { update(JSON.parse(e.data)); } catch {} });
+  es.onerror = () => {
+    $("#st").textContent = t("conn"); $("#st").className = "st bad";
+    if (es.readyState === 2) setTimeout(connect, 5000);
+  };
+}
+let pipWin = null;
+$("#pip").onclick = async () => {
+  try {
+    if (pipWin) { pipWin.close(); pipWin = null; return; }
+    if (document.pictureInPictureElement) { await document.exitPictureInPicture(); return; }
+    if (window.documentPictureInPicture) {
+      pipWin = await documentPictureInPicture.requestWindow({width: 340, height: 240});
+      [...document.styleSheets].forEach(ss => { try { const st = document.createElement("style"); st.textContent = [...ss.cssRules].map(r => r.cssText).join("\n"); pipWin.document.head.append(st); } catch {} });
+      const m = $("main"); pipWin.document.body.append(m);
+      pipWin.addEventListener("pagehide", () => { document.body.append(m); pipWin = null; $("#pip").textContent = t("pip"); });
+      $("#pip").textContent = t("close"); return;
+    }
+    const v = $("#vid"); if (!v.srcObject) v.srcObject = $("#cv").captureStream(2);
+    await v.play(); await v.requestPictureInPicture();
+    v.addEventListener("leavepictureinpicture", () => { $("#pip").textContent = t("pip"); }, {once: true});
+    $("#pip").textContent = t("close");
+  } catch (e) { $("#help").textContent = `${t("nopip")} (${e.message})`; }
+};
+connect(); setInterval(paint, 1000);
+</script>
+</body>
+</html>

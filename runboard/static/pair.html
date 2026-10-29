@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pair · runboard</title>
+<link rel="icon" href="/icon.svg">
+<style>
+:root { --bg: #f6f6f4; --card: #fff; --ink: #1d1d1b; --muted: #6d6d68; --line: #e3e3df; --acc: #2c6b5a; --bad: #a3322a; }
+@media (prefers-color-scheme: dark) { :root { --bg: #121211; --card: #1b1b1a; --ink: #ededea; --muted: #93938c; --line: #2a2a28; --acc: #6cc3a6; --bad: #ef7f74; } }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 16px; }
+main { width: 100%; max-width: 380px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 26px 24px; }
+h1 { font-size: 20px; margin: 0 0 6px; }
+p { color: var(--muted); margin: 0 0 18px; font-size: 14px; }
+label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 14px; }
+input { display: block; width: 100%; margin-top: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font: inherit; }
+#code { font: 600 26px ui-monospace, Consolas, monospace; letter-spacing: 6px; text-align: center; }
+button { width: 100%; padding: 11px; border: 0; border-radius: 8px; background: var(--acc); color: #fff; font: 600 15px system-ui, sans-serif; cursor: pointer; }
+button:disabled { opacity: .6; }
+.err { color: var(--bad); font-size: 13px; min-height: 20px; margin: 10px 0 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="h"></h1>
+  <p id="d"></p>
+  <form id="f">
+    <label><span id="lc"></span><input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" required></label>
+    <label><span id="ln"></span><input id="name" maxlength="60"></label>
+    <button id="b"></button>
+    <div class="err" id="e"></div>
+  </form>
+</main>
+<script>
+const TR = (navigator.language || "").startsWith("tr");
+const T = TR ? {h: "Bu cihazı eşleştir", d: "runboard'un çalıştığı bilgisayarda Sistem → Tablet erişimi → Cihaz eşleştir'e bas; ekrandaki 6 haneli kodu buraya yaz.", c: "Kod", n: "Cihaz adı", b: "Eşleştir", bad: "Kod yanlış ya da süresi dolmuş."}
+           : {h: "Pair this device", d: "On the computer running runboard, open System → Tablet access → Pair a device and type the 6-digit code shown there.", c: "Code", n: "Device name", b: "Pair", bad: "Wrong or expired code."};
+document.documentElement.lang = TR ? "tr" : "en";
+for (const [id, k] of [["h", "h"], ["d", "d"], ["lc", "c"], ["ln", "n"], ["b", "b"]]) document.getElementById(id).textContent = T[k];
+const ua = navigator.userAgent;
+document.getElementById("name").value = /iPad/.test(ua) ? "iPad" : /iPhone/.test(ua) ? "iPhone" : /Android/.test(ua) ? (/Mobile/.test(ua) ? "Android" : "Android tablet") : /Mac/.test(ua) ? "Mac" : /Windows/.test(ua) ? "Windows" : "device";
+document.getElementById("f").onsubmit = async ev => {
+  ev.preventDefault();
+  const b = document.getElementById("b"), e = document.getElementById("e");
+  b.disabled = true; e.textContent = "";
+  try {
+    const r = await fetch("/api/pair", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({code: document.getElementById("code").value.replace(/\D/g, ""), name: document.getElementById("name").value})});
+    if (!r.ok) throw 0;
+    location.href = /Mobile/.test(ua) ? "/mini" : "/";
+  } catch { e.textContent = T.bad; b.disabled = false; }
+};
+</script>
+</body>
+</html>

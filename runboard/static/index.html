@@ -1,0 +1,1585 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>runboard</title>
+<link rel="icon" href="/icon.svg">
+<style>
+:root {
+  --bg: #f4f4f1; --side: #ecece8; --card: #ffffff; --ink: #1b1b19; --ink2: #3c3c38; --muted: #6e6e68; --line: #e2e2dc; --hover: #f0f0ec;
+  --accent: #2c6b5a; --accent-ink: #ffffff; --accent-soft: #e0eee9;
+  --run: #2558a8; --run-soft: #e2eaf8; --warn: #95590a; --warn-soft: #faefd9; --bad: #a3322a; --bad-soft: #f8e2df;
+  --s1: #2c6b5a; --s2: #2558a8; --s3: #b0562b; --s4: #7a4fa3; --s5: #8a8a2a;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace; --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121211; --side: #171716; --card: #1b1b1a; --ink: #ededea; --ink2: #cfcfca; --muted: #93938c; --line: #2a2a28; --hover: #222220;
+    --accent: #6cc3a6; --accent-ink: #0f1a16; --accent-soft: #1b322c;
+    --run: #82abef; --run-soft: #1b2840; --warn: #e3a74a; --warn-soft: #36290f; --bad: #ef7f74; --bad-soft: #3a1d1a;
+    --s1: #6cc3a6; --s2: #82abef; --s3: #e9926a; --s4: #b99ae0; --s5: #cfcf6a;
+  }
+}
+* { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 10px; border: 3px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); border: 3px solid transparent; background-clip: padding-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.5 "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+button, input, select { font: inherit; color: inherit; }
+a { color: var(--accent); }
+
+.app { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; transition: grid-template-columns .2s; }
+.side { position: sticky; top: 0; height: 100vh; background: var(--side); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 16px 12px; gap: 4px; overflow-y: auto; }
+.brand { display: flex; align-items: center; gap: 10px; padding: 2px 6px 14px; }
+.brand img { width: 28px; height: 28px; border-radius: 7px; cursor: pointer; }
+.brand b { font-size: 15px; }
+.brand span { display: block; font-size: 11px; color: var(--muted); }
+.collapse { margin-left: auto; border: 0; background: none; color: var(--muted); cursor: pointer; width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center; flex: none; }
+.collapse:hover { background: var(--hover); color: var(--ink); }
+.collapse svg, .nav svg { stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.collapse svg { width: 16px; height: 16px; transition: transform .2s; }
+.proj { display: flex; align-items: center; gap: 10px; padding: 8px; margin: 2px 0 8px; border-radius: 9px; background: var(--card); border: 1px solid var(--line); min-width: 0; }
+.proj .t { min-width: 0; }
+.proj b { display: block; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.proj small { color: var(--muted); font-size: 11px; cursor: pointer; }
+.proj small:hover { color: var(--ink); }
+.nav { display: flex; flex-direction: column; gap: 2px; }
+.nav .sec { font-size: 11px; font-weight: 650; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; padding: 10px 10px 4px; }
+.nav button { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: none; padding: 8px 10px; border-radius: 8px; color: var(--ink2); cursor: pointer; text-align: left; font-weight: 500; }
+.nav button:hover { background: var(--hover); }
+.nav button.on { background: var(--card); color: var(--ink); box-shadow: 0 0 0 1px var(--line); font-weight: 600; }
+.nav svg { width: 18px; height: 18px; flex: none; }
+.nav .badge { margin-left: auto; font-size: 11px; background: var(--run-soft); color: var(--run); border-radius: 99px; padding: 0 7px; font-weight: 600; }
+.side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 10px; padding: 12px 6px 0; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+.side-foot a { text-decoration: none; font-weight: 600; }
+.lang { display: flex; gap: 4px; }
+.lang button { border: 1px solid var(--line); background: none; border-radius: 6px; padding: 1px 8px; font-size: 12px; cursor: pointer; color: var(--muted); }
+.lang button.on { background: var(--card); color: var(--ink); font-weight: 600; }
+.app.mini-side { grid-template-columns: 64px 1fr; }
+.app.mini-side .brand div, .app.mini-side .nav button span, .app.mini-side .nav .badge, .app.mini-side .nav .sec,
+.app.mini-side .side-foot, .app.mini-side .proj .t { display: none; }
+.app.mini-side .brand { flex-direction: column; padding: 2px 0 12px; gap: 8px; }
+.app.mini-side .collapse { margin: 0; }
+.app.mini-side .collapse svg { transform: rotate(180deg); }
+.app.mini-side .nav button { justify-content: center; padding: 10px 0; }
+.app.mini-side .proj { justify-content: center; padding: 6px; }
+
+.main { min-width: 0; display: flex; flex-direction: column; }
+.top { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 16px; padding: 10px 28px; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+.top h1 { font-size: 18px; margin: 0; font-weight: 650; }
+.top .crumb { color: var(--muted); font-size: 13px; }
+.top .crumb a { color: var(--muted); text-decoration: none; }
+.top .crumb a:hover { color: var(--ink); }
+.top .right { margin-left: auto; display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--muted); }
+.top .right .upd.off { color: var(--bad); }
+.pairing { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
+.pairing .qr svg { width: 220px; height: 220px; border-radius: 8px; display: block; }
+dialog.form-dlg { border: 1px solid var(--line); border-radius: 14px; padding: 0; width: min(640px, calc(100vw - 32px)); max-height: calc(100vh - 48px); background: var(--card); color: var(--ink); }
+dialog.form-dlg::backdrop { background: rgba(0, 0, 0, .45); }
+dialog.form-dlg .dh2 { display: flex; align-items: center; gap: 10px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+dialog.form-dlg .dh2 h2 { font-size: 16px; margin: 0; }
+dialog.form-dlg .db { padding: 16px 20px; overflow: auto; max-height: calc(100vh - 190px); }
+dialog.form-dlg .df { display: flex; gap: 8px; justify-content: flex-end; padding: 12px 20px; border-top: 1px solid var(--line); }
+.diff { font: 12px/1.6 var(--mono); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 0; overflow: auto; margin: 6px 0 0; }
+.diff div { padding: 0 12px; white-space: pre; }
+.diff .add { background: var(--accent-soft); }
+.diff .del { background: var(--bad-soft); }
+.diff .hunk { color: var(--muted); }
+td .own { font-weight: 650; color: var(--ink); }
+td .inh { color: var(--muted); }
+.acts { white-space: nowrap; text-align: right; }
+.acts .btn { padding: 4px 10px; font-size: 12px; }
+.setrow td:first-child { width: 34%; }
+.setrow input, .setrow select { width: 100%; }
+.setrow.rm td { opacity: .45; text-decoration: line-through; }
+.setrow.rm td:last-child { opacity: 1; text-decoration: none; }
+textarea.rawed { width: 100%; min-height: 360px; font: 12.5px/1.55 var(--mono); background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 12px; resize: vertical; tab-size: 2; }
+.rawstate { font-size: 12px; margin-left: 4px; }
+.rawstate.bad { color: var(--bad); cursor: pointer; text-decoration: underline dotted; }
+.rawstate.ok { color: var(--accent); }
+.sweepf { display: grid; grid-template-columns: 120px 1fr; gap: 10px 14px; align-items: start; margin-top: 12px; }
+.sweepf > b { font-size: 13px; padding-top: 6px; }
+.sweepf .opts { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.sweepf input[type=text] { width: 100%; }
+.qrow { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.qrow:first-child { border-top: 0; }
+.qrow .n { width: 22px; color: var(--muted); text-align: right; }
+.qrow .w { color: var(--muted); font-size: 12px; }
+.qrow .w.bad { color: var(--bad); }
+.qrow .sp { margin-left: auto; display: flex; gap: 6px; }
+.qrow .btn { padding: 3px 9px; font-size: 12px; }
+.qrow .click { cursor: pointer; }
+.paircode { font: 600 34px/1.2 ui-monospace, Consolas, monospace; letter-spacing: 4px; margin: 6px 0; }
+@media (max-width: 760px) { .top .right .upd.off { display: inline; } }
+.live { display: inline-flex; align-items: center; gap: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 99px; padding: 4px 12px 4px 10px; font-size: 13px; color: var(--ink2); cursor: pointer; white-space: nowrap; }
+.content { padding: 20px 28px 48px; width: 100%; max-width: 2400px; }
+
+.avatar { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; font-weight: 700; font-size: 13px; color: #fff; flex: none; overflow: hidden; }
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; display: inline-block; }
+.dot.RUNNING, .dot.QUEUED, .dot.STARTING, .dot.CANCELLING { background: var(--run); box-shadow: 0 0 0 3px var(--run-soft); animation: pulse 2s infinite; }
+.dot.COMPLETE { background: var(--accent); }
+.dot.ERROR, .dot.CANCELLED { background: var(--bad); }
+@keyframes pulse { 50% { box-shadow: 0 0 0 6px transparent; } }
+.chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 99px; background: var(--hover); color: var(--muted); white-space: nowrap; }
+.chip.RUNNING, .chip.QUEUED, .chip.STARTING, .chip.CANCELLING, .chip.running { background: var(--run-soft); color: var(--run); }
+.chip.COMPLETE, .chip.ok, .chip.ready { background: var(--accent-soft); color: var(--accent); }
+.chip.ERROR, .chip.error, .chip.CANCELLED { background: var(--bad-soft); color: var(--bad); }
+.chip.lock { background: var(--warn-soft); color: var(--warn); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); min-width: 0; }
+.card + .card { margin-top: 16px; }
+.ch { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.ch h2 { font-size: 15px; margin: 0; font-weight: 650; }
+.ch .sp { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.cb { padding: 16px 18px; }
+.cb.flush { padding: 0; }
+.desc { color: var(--muted); font-size: 13px; margin: 0 0 12px; max-width: 900px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--card); padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; text-decoration: none; color: var(--ink2); white-space: nowrap; }
+.btn:hover { background: var(--hover); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.danger { color: var(--bad); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.msg { border-radius: 8px; padding: 10px 12px; font-size: 13px; margin: 0 0 12px; }
+.msg.bad { background: var(--bad-soft); color: var(--bad); }
+.msg.warn { background: var(--warn-soft); color: var(--warn); }
+.msg.ok { background: var(--accent-soft); color: var(--accent); }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 16px; }
+.kpi { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; min-width: 0; }
+.kpi .l { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; }
+.kpi .v { font-size: 24px; font-weight: 650; margin-top: 4px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi .v small { color: var(--muted); font-size: 15px; font-weight: 600; }
+.kpi .s { font-size: 12px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar { height: 6px; background: var(--hover); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+.bar > i { display: block; height: 100%; background: var(--accent); border-radius: 3px; transition: width 1s linear; }
+.bar.big { height: 10px; border-radius: 5px; }
+.est { color: var(--muted); font-size: 11px; font-weight: 500; }
+.cols { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+.cols > .card + .card { margin-top: 0; }
+.cols > .card { display: flex; flex-direction: column; }
+.cols > .card > .cb { flex: 1; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { font-size: 11px; color: var(--muted); font-weight: 650; text-transform: uppercase; letter-spacing: .4px; background: color-mix(in srgb, var(--hover) 50%, transparent); }
+tr:last-child td { border-bottom: 0; }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+tr.click { cursor: pointer; }
+tr.click:hover td { background: var(--hover); }
+.tw { overflow-x: auto; }
+.muted { color: var(--muted); }
+.mono { font-family: var(--mono); font-size: 12px; }
+
+/* projects */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 16px; }
+.grid + .grid { margin-top: 16px; }
+.home-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.k6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+@media (max-width: 1300px) { .k6 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .k6 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 1100px) { .home-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .home-kpis { grid-template-columns: 1fr; } }
+.pcard { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; cursor: pointer; display: flex; flex-direction: column; gap: 12px; transition: border-color .15s, transform .15s; min-width: 0; }
+.pcard:hover { border-color: var(--accent); transform: translateY(-1px); }
+.pcard .hd { display: flex; gap: 12px; align-items: center; min-width: 0; }
+.pcard .hd .avatar { width: 44px; height: 44px; border-radius: 11px; font-size: 16px; }
+.pcard h3 { margin: 0; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pcard .path { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pcard p { margin: 0; color: var(--ink2); font-size: 13px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pcard .row { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+.pcard .act { background: var(--run-soft); color: var(--run); border-radius: 8px; padding: 8px 10px; font-size: 12px; font-weight: 600; }
+.pcard .act .bar { background: color-mix(in srgb, var(--run) 18%, transparent); }
+.pcard .act .bar i { background: var(--run); }
+.addp { border-style: dashed; align-items: center; justify-content: center; text-align: center; gap: 8px; color: var(--muted); min-height: 220px; }
+.addp .plus { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); font-size: 26px; font-weight: 300; }
+.addp b { color: var(--ink); font-size: 15px; }
+
+/* roadmap */
+.phase { display: grid; grid-template-columns: 160px 1fr; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); align-items: center; }
+.phase:last-child { border-bottom: 0; }
+.phase .pn b { display: block; font-size: 13px; }
+.phase .pn span { font-size: 12px; color: var(--muted); }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 7px; padding: 4px 9px; font-size: 12px; font-weight: 600; cursor: pointer; background: var(--card); color: var(--ink2); }
+.pill:hover { background: var(--hover); }
+.pill small { color: var(--muted); font-weight: 500; }
+
+/* runs */
+.split { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 16px; align-items: start; }
+.rl { position: sticky; top: 76px; max-height: calc(100vh - 100px); overflow: auto; }
+.rl .grp { font-size: 11px; font-weight: 650; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; padding: 12px 14px 4px; }
+.ri { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 10px; align-items: center; padding: 8px 14px; cursor: pointer; border-left: 3px solid transparent; }
+.ri:hover { background: var(--hover); }
+.ri.sel { background: var(--accent-soft); border-left-color: var(--accent); }
+.ri b { font-size: 13px; }
+.ri .m { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; grid-column: 2 / 4; }
+.ri .val { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink2); font-weight: 600; }
+.dh { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.dh h2 { margin: 0; font-size: 20px; }
+.dh .sp { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.meta { color: var(--muted); font-size: 13px; margin-top: 4px; }
+.meta b { color: var(--ink2); font-weight: 600; }
+.prog { margin: 16px 0 4px; }
+.prog .lbl { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.stage { font-size: 13px; color: var(--ink2); margin-top: 8px; }
+.stage::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--run); margin-right: 8px; vertical-align: middle; }
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); padding: 0 18px; overflow-x: auto; }
+.tabs button { border: 0; background: none; padding: 11px 12px; font-weight: 600; font-size: 13px; color: var(--muted); border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; }
+.tabs button.on { color: var(--ink); border-bottom-color: var(--accent); }
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; }
+.chart { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px 6px; }
+.chart .t { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--muted); align-items: center; }
+.chart .t b { color: var(--ink); font-size: 13px; margin-right: auto; }
+.chart .t i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+svg.c { width: 100%; height: 180px; display: block; }
+.chart .cw { position: relative; }
+.chart .yl { position: absolute; left: 0; transform: translateY(-50%); text-align: right; font-size: 10px; line-height: 1; color: var(--muted); font-variant-numeric: tabular-nums; }
+.chart .xl { position: absolute; bottom: 0; font-size: 10px; line-height: 1; color: var(--muted); }
+.chart .dot { position: absolute; width: 7px; height: 7px; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+.log { font: 12px/1.55 var(--mono); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px; height: 420px; overflow: auto; white-space: pre-wrap; word-break: break-word; color: var(--ink2); }
+.log.short { height: 240px; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+.toolbar .sp { margin-left: auto; }
+label.tog { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); cursor: pointer; }
+.form { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; align-items: end; }
+.form label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--muted); font-weight: 600; }
+.form .wide { grid-column: span 2; }
+input, select { border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 7px 10px; font-size: 13px; min-width: 0; }
+input:focus, select:focus, .btn:focus-visible, .nav button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+details summary { cursor: pointer; color: var(--muted); font-size: 13px; font-weight: 600; }
+pre.raw { font: 12px/1.55 var(--mono); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px; overflow: auto; max-height: 460px; margin: 10px 0 0; white-space: pre-wrap; }
+.empty { padding: 36px 18px; text-align: center; color: var(--muted); }
+.toast { position: fixed; right: 20px; bottom: 20px; background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 13px; box-shadow: 0 6px 24px #0005; z-index: 20; }
+.hide { display: none !important; }
+
+/* full-page run view: compact so the charts are on the first screen at 1080p */
+#runpage .card > .cb { padding: 14px 18px; }
+#runpage .dh h2 { font-size: 18px; }
+#runpage .meta { margin-top: 2px; }
+#runpage .prog { margin: 10px 0 2px; }
+#runpage .stage { margin-top: 6px; }
+#runpage .kpis { margin-top: 12px !important; margin-bottom: 12px; gap: 12px; }
+#runpage .kpi { padding: 10px 14px; }
+#runpage .kpi .v { font-size: 20px; margin-top: 2px; }
+#runpage .card + .card, #runpage .kpis + .card { margin-top: 0 !important; }
+#runpage .tabs button { padding: 9px 12px; }
+#runpage .charts { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+#runpage svg.c { height: clamp(150px, calc(100vh - 560px), 260px) !important; }
+.btn.back { padding: 4px 10px; font-size: 15px; }
+
+/* wizard & connections */
+.wizard { max-width: 1100px; margin: 0 auto; }
+.stepper { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+.stp { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--muted); font-weight: 600; font-size: 13px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stp span { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--hover); font-size: 12px; flex: none; }
+.stp.on { border-color: var(--accent); color: var(--ink); }
+.stp.on span { background: var(--accent); color: var(--accent-ink); }
+.stp.done span { background: var(--accent-soft); color: var(--accent); }
+.choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.choices.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.choice { position: relative; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; padding: 16px; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; background: var(--card); color: var(--muted); font-size: 13px; }
+.choice b { color: var(--ink); font-size: 15px; }
+.choice:hover { border-color: var(--muted); }
+.choice.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); background: color-mix(in srgb, var(--accent-soft) 45%, var(--card)); }
+.choice.off { cursor: not-allowed; opacity: .6; }
+.choice input[type=checkbox] { position: absolute; top: 14px; right: 14px; }
+.pathrow, .tokenrow { display: flex; gap: 8px; margin: 12px 0; }
+.pathrow input, .tokenrow input { flex: 1; }
+.fl { max-height: 340px; overflow: auto; padding: 4px; }
+.fi { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 7px; cursor: pointer; font-size: 13px; }
+.fi:hover { background: var(--hover); }
+.fi svg { width: 16px; height: 16px; stroke: var(--muted); fill: none; stroke-width: 1.8; flex: none; }
+.fi .chip { margin-left: auto; }
+.wnav { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+.wh { font-size: 14px; margin: 18px 0 8px; }
+.models { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.mg { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.mg b { width: 100%; font-size: 13px; }
+.summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }
+.summary > div { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+.summary span { display: block; font-size: 12px; color: var(--muted); }
+.summary b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conn-h { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.steps { margin: 12px 0 0; padding-left: 20px; color: var(--ink2); font-size: 13px; line-height: 1.8; }
+@media (max-width: 860px) { .summary, .models, .choices, .choices.three { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px) { .summary, .models, .choices, .choices.three { grid-template-columns: 1fr; } .stepper { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; } .stp { justify-content: center; padding: 8px 6px; } .stp:not(.on) { font-size: 0; } .stp span { font-size: 12px; } }
+
+@media (max-width: 1180px) { .cols { grid-template-columns: 1fr; } }
+@media (max-width: 1000px) {
+  .app, .app.mini-side { grid-template-columns: 64px 1fr; }
+  .brand div, .nav button span, .nav .badge, .nav .sec, .side-foot, .collapse, .proj .t { display: none; }
+  .brand { justify-content: center; padding: 2px 0 14px; }
+  .nav button { justify-content: center; padding: 10px 0; }
+  .proj { justify-content: center; padding: 6px; }
+  .split { grid-template-columns: 1fr; }
+  .rl { position: static; max-height: 300px; }
+}
+@media (max-width: 700px) {
+  .app, .app.mini-side { grid-template-columns: 1fr; }
+  .side { position: fixed; top: auto; bottom: 0; left: 0; right: 0; height: auto; flex-direction: row; padding: 6px; z-index: 10; border-right: 0; border-top: 1px solid var(--line); overflow: visible; }
+  .brand, .proj { display: none; }
+  .nav { flex-direction: row; width: 100%; justify-content: space-around; }
+  .nav button { flex-direction: column; gap: 2px; font-size: 10px; padding: 6px 4px; }
+  .nav button span { display: block; }
+  .top { padding: 12px 16px; }
+  .top .right .upd { display: none; }
+  .content { padding: 16px 16px 90px; }
+  .form .wide { grid-column: auto; }
+  .phase { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="side">
+    <div class="brand"><img src="/icon.svg" alt="runboard" onclick="go('#/')"><div><b>runboard</b><span id="ver"></span></div>
+      <button class="collapse" id="collapse" aria-label="Collapse sidebar"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button></div>
+    <div id="projbox"></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="side-foot" id="foot"></div>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <div><h1 id="title"></h1><div class="crumb" id="crumb"></div></div>
+      <div class="right"><span class="live hide" id="live"></span><span class="upd" id="upd"></span></div>
+    </header>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+<script>
+/* ================= i18n ================= */
+const T = {
+ en: {projects:"Projects", system:"System", overview:"Overview", runs:"Runs", settings:"Settings", data:"Data", results:"Results", all_projects:"All projects",
+  st_none:"not started", QUEUED:"queued", STARTING:"starting", RUNNING:"running", CANCELLING:"cancelling", COMPLETE:"complete", ERROR:"error", CANCELLED:"cancelled", running:"running", ok:"done", error:"error",
+  active_run:"Active run", progress:"Progress", best:"Best", eta:"ETA", plan:"Plan", gpu_quota:"GPU quota", no_active:"No run is active.", start_run:"Start a run",
+  details:"Details", live:"live", roadmap:"Roadmap", finished:"Finished runs", none_finished:"No finished runs yet.", highest:"highest",
+  run:"Run", status:"Status", epoch:"epoch", left:"left", ep_left:"this epoch", validating:"validating", batch:"batch", time:"time",
+  open_kaggle:"Open on Kaggle", recollect:"Fetch outputs again", cancel:"Cancel", delete_remote:"Delete remote copy", start:"Start", restart:"Restart", on:"on",
+  busy:"Another run is using", charts:"Charts", result:"Result", epoch_table:"Epoch table", log:"Log", compare:"Compare", source:"source", live_log:"live log",
+  all_lines:"all lines", autoscroll:"last 400 lines · follows new lines while you are at the bottom", no_log:"No log yet. A queued run can take a few minutes.",
+  not_started:"This run has not been started.", waits:"Waiting for", no_data:"No data", last:"last", speed:"Speed", epoch_time:"Epoch time", per_epoch:"per epoch", avg:"average",
+  duration:"Duration", best_epoch:"Best epoch", class:"Class", all:"all", output:"Output",
+  decisions:"Decisions", decided:"decided", waiting_dec:"awaiting decision", running_dec:"candidates running", winner:"Winner", reason:"Reason", save_dec:"Save decision",
+  reason_ph:"e.g. highest validation score, 1.4 points ahead", dec_ready:"Highest", dec_gap:"gap", dec_tie:"Gap below the tie threshold: follow the rule written above.",
+  dec_wait:"All candidates must finish first.", dec_done:"Decision recorded in the runs file and the decision log.",
+  run_list:"Run list", sweep:"Sweep", sweep_title:"Sweep: one run for every combination", sweep_desc:"Tick or type several values per field; every combination becomes a run that has not started. Fields left empty come from the base run (or the defaults).", sweep_base:"Based on", none_lbl:"— none —", sweep_ph:"comma-separated: 0, 1, 2", sweep_count:"{n} runs", prefix:"Name prefix", also_queue:"Queue them when created", queue:"Queue", enqueue:"Add to queue", queued_ok:"Added to the queue", queue_empty:"The queue is empty.", queue_desc:"Each backend runs one thing at a time; when it is free the first entry for it starts by itself. Kaggle entries wait if the weekly quota is not enough.", w_busy:"waiting: backend busy", w_quota:"waiting: not enough Kaggle quota", w_backend:"waiting: backend unavailable", w_missing:"run no longer in the plan", w_error:"could not start", w_next:"next", up:"Up", down:"Down", hours_est:"~{h} h", sure_dequeue:"Remove {run} from the queue?", sweep_extras:"Runs of a pre-registered plan are added as extra runs: ", shared_edit_desc:"Settings every run uses. Defaults apply to runs that do not set the value themselves; other sections are read by the training code. A run that has started keeps the values it ran with.", add_setting:"Add a setting", setting_name:"name", value:"value", affects_drafts:"Will apply to runs not started yet:", affects_started:"Runs that already started keep the values they ran with:", affects_none:"No run uses this yet.", raw_title:"Whole file", raw_desc:"For what the forms cannot do. It is checked as you type: it must stay valid YAML, every run must still resolve, rules must pass and started runs must stay as they ran.", raw_ok:"Valid", raw_same:"No changes", removed:"removed", restore:"Undo", plan_title:"Run plan", plan_desc:"Bold values are the run's own settings; faint ones come from the shared defaults. A run that has started keeps its settings: copy it to change them.", plan_locked_desc:"This plan is pre-registered: its runs cannot be changed. Copying a run adds an extra run.", edit:"Edit", copy:"Copy", new_run:"New run", continue_:"Review changes", save:"Save", dismiss:"Cancel", diff_title:"Lines that will change in {f}", default_lbl:"default", run_id:"Run id", started_lock:"started", conflict:"The file changed meanwhile (an editor or git). The plan was reloaded; check and save again.", no_change:"Nothing to change.", edit_title:"Edit {run}", copy_title:"Copy of {run}", new_title:"New run", sure_remove_run:"Remove {run} from the plan? The file is backed up first.", saved:"Saved", changed_after:"Changed in the runs file after this run started:", any_value:"any value", kind:"Kind", preregistered:"pre-registered", extra:"extra", remove:"Remove", add_extra:"Add an extra run",
+  extra_desc:"Extra runs are not part of the pre-registered plan and stay out of the main tables. The runs file is backed up before every change.",
+  note:"Note", add:"Add", shared:"Shared settings", readonly:"pre-registered · read-only", shared_desc:"Identical for every run; changing them breaks comparisons. Edit the file by hand if you must, and say why.",
+  decision_log:"Decision log", packages:"Data packages", local:"local", on_kaggle:"on Kaggle", total_size:"total size", refresh:"Refresh", rebuild:"Rebuild packages", upload:"Upload selected to Kaggle",
+  data_desc:"Each package goes to its own private Kaggle dataset; a run only mounts its own. Archives are checked for forbidden files before upload.",
+  not_uploaded:"not uploaded", ready:"ready", private:"private", public:"PUBLIC!", job:"Job", no_job:"No job yet.", missing:"missing on disk",
+  results_note:"Validation numbers; tables fill in as runs finish.", system_title:"System", backends:"Compute backends", available:"available", unavailable:"unavailable",
+  access:"Access", this_machine:"This machine", tablet:"Tablet (same Wi-Fi)", compact:"Compact view", autostart:"Start runboard when Windows starts",
+  restart_srv:"Restart dashboard", firewall:"If a tablet cannot connect, allow Python on private networks in Windows Firewall.", env:"Environment",
+  add_project:"Add project", add_desc:"Path of a folder that contains runboard.yaml", add_btn:"Add", broken:"Could not load", remove_proj:"Remove from runboard",
+  active_runs:"Active runs", local_gpu:"Local GPU", projects_count:"Projects", updated:"updated", unreachable:"server unreachable", conn_live:"live", reconnecting:"reconnecting…", sure_start:"Start {run} on {b}?",
+  sure_delete:"Delete the remote copy of {run}? Downloaded outputs stay.", sure_cancel:"Cancel {run}?", sure_remove:"Remove {run} from the runs file?",
+  sure_decide:"Record {v} for {d}? This writes the runs file and the decision log.", sure_upload:"Upload {k} as private Kaggle datasets?", sure_job:"Run \"{j}\"?",
+  sure_restart:"Restart the dashboard? Running jobs on Kaggle are not affected.", sent:"{run} sent to {b}", toast_done:"{run} finished", toast_err:"{run} failed",
+  w_trust:"This project will run these commands on this computer. Add it only if you trust it:", pick:"Select a package first", restarting:"Restarting…", backend:"Backend", jobs:"Local jobs", jobs_desc:"Commands defined in runboard.yaml. One job at a time per project.", class_col:"class", full_page:"Full page", folder:"folder", signed_out:"This device is not paired with runboard.", sign_in:"Pair this device", tablet_access:"Tablet access", tablet_desc:"Off: only this computer can open runboard, no password needed. On: devices on the same Wi-Fi can connect after pairing once with a QR code.", lan_lbl:"Allow devices on the same Wi-Fi", local_only:"Only from the computer runboard runs on.", pair_device:"Pair a device", pair_scan:"Scan with the tablet's camera.", pair_or:"Or open this address on the tablet and type the code:", pair_left:"valid for", pair_expired:"The code expired. Start pairing again.", paired_ok:"{name} is paired", devices:"Paired devices", device:"Device", paired_at:"Paired", last_seen:"Last seen", this_device:"this device", no_devices:"No paired devices yet.", sure_lan_on:"Allow devices on the same Wi-Fi? Each one still has to be paired. The dashboard restarts.", sure_lan_off:"Turn off tablet access? Only this computer will be able to open runboard. The dashboard restarts.", sure_unpair:"Remove this device? It will have to be paired again.", on:"on", off:"off", new_project:"New project", new_project_desc:"A guided setup — no files to write by hand", size:"size", pending:"pending", curve_wait:"the curve appears once at least two of its runs finish", connections:"Connections", connections_desc:"Accounts runboard uses to run your trainings. Keys are stored on this computer only and never shown again.", connected:"connected", not_connected:"not connected", token_where:"Token file:", replace_token:"Replace token", disconnect:"Disconnect", k_step1:"Open Kaggle → Settings → API Tokens:", k_step2:"Click “Generate New Token” and copy the token (it starts with KGAT_).", k_step3:"Paste it below and press Save & test.", save_test:"Save & test", token_note:"Saved to ~/.kaggle/access_token on this computer; runboard never shows it again or sends it to the browser.", sure_disconnect:"Remove the Kaggle token from this computer?", kaggle_ok:"Kaggle connected", w_folder:"Folder", w_kind:"Project type", w_where:"Where to run", w_review:"Review", w_folder_desc:"Pick the folder of your project (your code and/or dataset). runboard only adds its own files; it never changes yours.", open:"Open", w_no_sub:"No subfolders", w_use_folder:"Use this folder", w_has_manifest:"This folder is already a runboard project.", w_add_existing:"Just add it", w_kind_desc:"How should runs be trained?", w_yolo:"YOLO training (no code)", w_yolo_desc:"Pick a YOLO-format dataset and the models; runboard writes the training script.", w_found_ds:"{n} dataset(s) found", w_script:"My own training script", w_script_desc:"Run your script; each run is a set of command-line arguments.", w_found_py:"{n} .py files", w_dataset:"Dataset (YOLO data .yaml)", w_epochs:"Epochs", w_imgsz:"Image size", w_batch:"Batch", w_seeds:"Seeds", w_classes:"Classes", w_no_ds:"No YOLO dataset file found here. Type the path of the dataset's .yaml file.", w_models:"Models", w_runs_will:"{n} runs will be created (models × seeds).", w_exclude_test:"Never upload the test split to the cloud", w_script_file:"Training script", w_pip:"Packages to install on Kaggle", w_runs:"Runs", w_runs_desc:"One row per run. The arguments are added after the script name.", w_args:"Arguments", w_advanced:"Advanced", w_extra_files:"Extra files to send to Kaggle", w_data_dir:"Data folder (uploaded as a private dataset)", w_report:"Result file (JSON)", w_metric:"Main metric key", back:"Back", next:"Next", w_where_desc:"Choose one or more places. You can pick per run later.", w_no_gpu:"no CUDA GPU found", w_local_desc:"Runs on this computer; stoppable any time.", w_kaggle_desc:"Free cloud GPU (T4), about 30 h a week. Needs a Kaggle account.", w_colab_desc:"Google offers no official way to start and watch notebooks from outside yet.", planned:"planned", w_default:"Default", w_name:"Project name", w_desc:"Short description", w_desc_ph:"What does this project try to find out?", w_color:"Colour", w_files_will:"Files that will be added to the folder", w_show_files:"Show the generated settings", w_create:"Create project", w_pick_model:"Pick at least one model", w_created:"Project created", w_overwrite:"{f} already exists in this folder. Replace it?"},
+ tr: {projects:"Projeler", system:"Sistem", overview:"Genel bakış", runs:"Koşular", settings:"Ayarlar", data:"Veri", results:"Sonuçlar", all_projects:"Tüm projeler",
+  st_none:"başlamadı", QUEUED:"sırada", STARTING:"hazırlanıyor", RUNNING:"çalışıyor", CANCELLING:"durduruluyor", COMPLETE:"bitti", ERROR:"hata", CANCELLED:"durduruldu", running:"çalışıyor", ok:"tamam", error:"hata",
+  active_run:"Aktif koşu", progress:"İlerleme", best:"En iyi", eta:"Tahmini bitiş", plan:"Plan", gpu_quota:"GPU kotası", no_active:"Şu an çalışan koşu yok.", start_run:"Koşu başlat",
+  details:"Ayrıntı", live:"canlı", roadmap:"Yol haritası", finished:"Tamamlanan koşular", none_finished:"Henüz tamamlanan koşu yok.", highest:"en yüksek",
+  run:"Koşu", status:"Durum", epoch:"epoch", left:"kalan", ep_left:"bu epoch", validating:"doğrulama", batch:"batch", time:"süre",
+  open_kaggle:"Kaggle'da aç", recollect:"Çıktıyı yeniden indir", cancel:"Durdur", delete_remote:"Uzak kopyayı sil", start:"Başlat", restart:"Yeniden başlat", on:"üzerinde",
+  busy:"Şu an meşgul:", charts:"Grafikler", result:"Sonuç", epoch_table:"Epoch tablosu", log:"Log", compare:"Karşılaştır", source:"kaynak", live_log:"canlı log",
+  all_lines:"tüm satırlar", autoscroll:"son 400 satır · en alttayken yeni satırları takip eder", no_log:"Henüz log yok. Koşu sıradaysa birkaç dakika sürebilir.",
+  not_started:"Bu koşu henüz başlatılmadı.", waits:"Bekliyor:", no_data:"Veri yok", last:"son", speed:"Hız", epoch_time:"Epoch süresi", per_epoch:"epoch başına", avg:"ortalama",
+  duration:"Süre", best_epoch:"En iyi epoch", class:"Sınıf", all:"tümü", output:"Çıktı",
+  decisions:"Kararlar", decided:"verildi", waiting_dec:"karar bekliyor", running_dec:"adaylar sürüyor", winner:"Kazanan", reason:"Gerekçe", save_dec:"Kararı kaydet",
+  reason_ph:"ör. en yüksek doğrulama skoru, fark 1,4 puan", dec_ready:"En yüksek", dec_gap:"fark", dec_tie:"Fark eşiğin altında: yukarıdaki kurala göre karar verin.",
+  dec_wait:"Önce bütün adaylar bitmeli.", dec_done:"Karar koşu dosyasına ve karar günlüğüne yazıldı.",
+  run_list:"Koşu listesi", sweep:"Tarama", sweep_title:"Tarama: her kombinasyon için bir koşu", sweep_desc:"Her alan için birden çok değer işaretle ya da yaz; her kombinasyon başlamamış bir koşu olur. Boş bırakılan alanlar temel koşudan (ya da varsayılanlardan) gelir.", sweep_base:"Temel koşu", none_lbl:"— yok —", sweep_ph:"virgülle ayır: 0, 1, 2", sweep_count:"{n} koşu", prefix:"Ad öneki", also_queue:"Oluşunca kuyruğa ekle", queue:"Kuyruk", enqueue:"Kuyruğa ekle", queued_ok:"Kuyruğa eklendi", queue_empty:"Kuyruk boş.", queue_desc:"Her ortam aynı anda tek iş çalıştırır; boşalınca ona ait ilk kayıt kendiliğinden başlar. Haftalık kota yetmezse Kaggle kayıtları bekler.", w_busy:"bekliyor: ortam meşgul", w_quota:"bekliyor: Kaggle kotası yetmiyor", w_backend:"bekliyor: ortam kullanılamıyor", w_missing:"koşu artık planda yok", w_error:"başlatılamadı", w_next:"sıradaki", up:"Yukarı", down:"Aşağı", hours_est:"~{h} sa", sure_dequeue:"{run} kuyruktan çıkarılsın mı?", sweep_extras:"Ön kayıtlı planın koşuları ek deney olarak eklenir: ", shared_edit_desc:"Bütün koşuların kullandığı ayarlar. Varsayılanlar, değeri kendisi belirtmeyen koşulara uygulanır; diğer bölümleri eğitim kodu okur. Başlamış bir koşu çalıştığı değerleri korur.", add_setting:"Ayar ekle", setting_name:"ad", value:"değer", affects_drafts:"Henüz başlamamış şu koşulara uygulanacak:", affects_started:"Başlamış koşular çalıştıkları değerleri korur:", affects_none:"Henüz bunu kullanan koşu yok.", raw_title:"Dosyanın tamamı", raw_desc:"Formların yapamadığı işler için. Yazarken kontrol edilir: geçerli YAML kalmalı, her koşu çözülebilmeli, kurallar sağlanmalı ve başlamış koşular çalıştıkları gibi kalmalı.", raw_ok:"Geçerli", raw_same:"Değişiklik yok", removed:"silinecek", restore:"Geri al", plan_title:"Koşu planı", plan_desc:"Kalın değerler koşunun kendi ayarı; soluk olanlar ortak varsayılandan gelir. Başlamış bir koşu ayarlarını korur: değiştirmek için kopyala.", plan_locked_desc:"Bu plan ön kayıtlı: koşuları değiştirilemez. Bir koşuyu kopyalamak ek deney ekler.", edit:"Düzenle", copy:"Kopyala", new_run:"Yeni koşu", continue_:"Değişiklikleri gör", save:"Kaydet", dismiss:"Vazgeç", diff_title:"{f} dosyasında değişecek satırlar", default_lbl:"varsayılan", run_id:"Koşu kodu", started_lock:"başladı", conflict:"Dosya bu arada değişti (editör ya da git). Plan yeniden yüklendi; kontrol edip yeniden kaydet.", no_change:"Değişecek bir şey yok.", edit_title:"{run} düzenle", copy_title:"{run} kopyası", new_title:"Yeni koşu", sure_remove_run:"{run} plandan silinsin mi? Önce dosyanın yedeği alınır.", saved:"Kaydedildi", changed_after:"Bu koşu başladıktan sonra koşu dosyasında değişti:", any_value:"her değer", kind:"Tür", preregistered:"ön kayıtlı", extra:"ek deney", remove:"Sil", add_extra:"Ek deney ekle",
+  extra_desc:"Ek deneyler ön kayıtlı planın parçası değildir ve ana tablolara girmez. Her değişiklikten önce koşu dosyası yedeklenir.",
+  note:"Not", add:"Ekle", shared:"Ortak ayarlar", readonly:"ön kayıtlı · salt okunur", shared_desc:"Bütün koşularda aynıdır; değiştirmek karşılaştırmaları bozar. Gerekirse dosya elle düzenlenir ve sebebi yazılır.",
+  decision_log:"Karar günlüğü", packages:"Veri paketleri", local:"yerel", on_kaggle:"Kaggle'da", total_size:"toplam boyut", refresh:"Yenile", rebuild:"Paketleri yeniden oluştur", upload:"Seçilenleri Kaggle'a yükle",
+  data_desc:"Her paket kendi özel Kaggle veri kümesine yüklenir; koşu yalnızca kendi paketini alır. Arşivler yüklemeden önce yasaklı dosyalara karşı kontrol edilir.",
+  not_uploaded:"yüklenmedi", ready:"hazır", private:"özel", public:"HERKESE AÇIK!", job:"İş", no_job:"Henüz iş yok.", missing:"diskte yok",
+  results_note:"Doğrulama sayılarıdır; tablolar koşular bittikçe dolar.", system_title:"Sistem", backends:"Hesaplama ortamları", available:"hazır", unavailable:"kullanılamıyor",
+  access:"Erişim", this_machine:"Bu bilgisayar", tablet:"Tablet (aynı Wi-Fi)", compact:"Küçük ekran", autostart:"Windows açılınca runboard'u başlat",
+  restart_srv:"Paneli yeniden başlat", firewall:"Tablet bağlanamazsa Windows Güvenlik Duvarı'nda Python'a özel ağ izni verilir.", env:"Ortam",
+  add_project:"Proje ekle", add_desc:"İçinde runboard.yaml olan klasörün yolu", add_btn:"Ekle", broken:"Yüklenemedi", remove_proj:"runboard'dan kaldır",
+  active_runs:"Aktif koşular", local_gpu:"Yerel GPU", projects_count:"Projeler", updated:"güncellendi", unreachable:"sunucuya ulaşılamıyor", conn_live:"canlı", reconnecting:"yeniden bağlanıyor…", sure_start:"{run}, {b} üzerinde başlatılsın mı?",
+  sure_delete:"{run} uzak kopyası silinsin mi? İndirilmiş çıktılar kalır.", sure_cancel:"{run} durdurulsun mu?", sure_remove:"{run} koşu dosyasından silinsin mi?",
+  sure_decide:"{d} için {v} kaydedilsin mi? Koşu dosyası ve karar günlüğü yazılır.", sure_upload:"{k} Kaggle'a özel veri kümesi olarak yüklensin mi?", sure_job:"\"{j}\" çalıştırılsın mı?",
+  sure_restart:"Panel yeniden başlatılsın mı? Kaggle'daki koşular etkilenmez.", sent:"{run}, {b} ortamına gönderildi", toast_done:"{run} bitti", toast_err:"{run} hata verdi",
+  w_trust:"Bu proje bu bilgisayarda şu komutları çalıştıracak. Yalnızca güveniyorsan ekle:", pick:"Önce paket seç", restarting:"Yeniden başlatılıyor…", backend:"Ortam", jobs:"Yerel işler", jobs_desc:"runboard.yaml'da tanımlı komutlar. Proje başına aynı anda tek iş.", class_col:"sınıf", full_page:"Tam sayfa", folder:"klasör", signed_out:"Bu cihaz runboard ile eşleşmemiş.", sign_in:"Cihazı eşleştir", tablet_access:"Tablet erişimi", tablet_desc:"Kapalıyken runboard'u yalnızca bu bilgisayar açabilir, şifre gerekmez. Açıkken aynı Wi-Fi'deki cihazlar bir kez QR kodla eşleşip bağlanabilir.", lan_lbl:"Aynı Wi-Fi'deki cihazlara izin ver", local_only:"Yalnızca runboard'un çalıştığı bilgisayardan yapılabilir.", pair_device:"Cihaz eşleştir", pair_scan:"Tabletin kamerasıyla okut.", pair_or:"Ya da tablette bu adresi açıp kodu yaz:", pair_left:"geçerlilik", pair_expired:"Kodun süresi doldu. Eşleştirmeyi yeniden başlat.", paired_ok:"{name} eşleşti", devices:"Eşleşmiş cihazlar", device:"Cihaz", paired_at:"Eşleşme", last_seen:"Son görülme", this_device:"bu cihaz", no_devices:"Henüz eşleşmiş cihaz yok.", sure_lan_on:"Aynı Wi-Fi'deki cihazlara izin verilsin mi? Her cihazın yine de eşleşmesi gerekir. Panel yeniden başlar.", sure_lan_off:"Tablet erişimi kapatılsın mı? runboard'u yalnızca bu bilgisayar açabilecek. Panel yeniden başlar.", sure_unpair:"Bu cihaz kaldırılsın mı? Yeniden eşleşmesi gerekir.", on:"açık", off:"kapalı", new_project:"Yeni proje", new_project_desc:"Adım adım kurulum — elle dosya yazmak yok", size:"boyut", pending:"bekliyor", curve_wait:"en az iki koşusu bitince eğri görünür", connections:"Bağlantılar", connections_desc:"runboard'un eğitimleri çalıştırmak için kullandığı hesaplar. Anahtarlar yalnızca bu bilgisayarda saklanır ve bir daha gösterilmez.", connected:"bağlı", not_connected:"bağlı değil", token_where:"Token dosyası:", replace_token:"Token'ı değiştir", disconnect:"Bağlantıyı kaldır", k_step1:"Kaggle → Settings → API Tokens sayfasını aç:", k_step2:"“Generate New Token” düğmesine bas ve token'ı kopyala (KGAT_ ile başlar).", k_step3:"Aşağıya yapıştır ve Kaydet ve dene'ye bas.", save_test:"Kaydet ve dene", token_note:"Bu bilgisayarda ~/.kaggle/access_token dosyasına kaydedilir; runboard onu bir daha göstermez ve tarayıcıya göndermez.", sure_disconnect:"Kaggle token'ı bu bilgisayardan silinsin mi?", kaggle_ok:"Kaggle bağlandı", w_folder:"Klasör", w_kind:"Proje türü", w_where:"Nerede çalışsın", w_review:"Gözden geçir", w_folder_desc:"Projenin klasörünü seç (kodun ve/veya veri kümen). runboard yalnızca kendi dosyalarını ekler; seninkileri değiştirmez.", open:"Aç", w_no_sub:"Alt klasör yok", w_use_folder:"Bu klasörü kullan", w_has_manifest:"Bu klasör zaten bir runboard projesi.", w_add_existing:"Sadece ekle", w_kind_desc:"Koşular nasıl eğitilsin?", w_yolo:"YOLO eğitimi (kod gerekmez)", w_yolo_desc:"YOLO biçiminde bir veri kümesi ve modelleri seç; eğitim betiğini runboard yazar.", w_found_ds:"{n} veri kümesi bulundu", w_script:"Kendi eğitim betiğim", w_script_desc:"Kendi betiğin çalışır; her koşu bir komut satırı argüman takımıdır.", w_found_py:"{n} .py dosyası", w_dataset:"Veri kümesi (YOLO data .yaml)", w_epochs:"Epoch", w_imgsz:"Görüntü boyutu", w_batch:"Batch", w_seeds:"Tohumlar", w_classes:"Sınıflar", w_no_ds:"Burada YOLO veri kümesi dosyası bulunamadı. Veri kümesinin .yaml dosyasının yolunu yaz.", w_models:"Modeller", w_runs_will:"{n} koşu oluşturulacak (model × tohum).", w_exclude_test:"Test bölümünü asla buluta yükleme", w_script_file:"Eğitim betiği", w_pip:"Kaggle'da kurulacak paketler", w_runs:"Koşular", w_runs_desc:"Her satır bir koşu. Argümanlar betik adından sonra eklenir.", w_args:"Argümanlar", w_advanced:"Gelişmiş", w_extra_files:"Kaggle'a gönderilecek ek dosyalar", w_data_dir:"Veri klasörü (özel veri kümesi olarak yüklenir)", w_report:"Sonuç dosyası (JSON)", w_metric:"Ana metrik anahtarı", back:"Geri", next:"İleri", w_where_desc:"Bir ya da birkaç yer seç. Her koşu için sonra da seçebilirsin.", w_no_gpu:"CUDA GPU bulunamadı", w_local_desc:"Bu bilgisayarda çalışır; istediğin an durdurulabilir.", w_kaggle_desc:"Ücretsiz bulut GPU (T4), haftada yaklaşık 30 saat. Kaggle hesabı gerekir.", w_colab_desc:"Google, notebook'ları dışarıdan başlatıp izlemek için henüz resmi bir yol sunmuyor.", planned:"planlanıyor", w_default:"Varsayılan", w_name:"Proje adı", w_desc:"Kısa açıklama", w_desc_ph:"Bu proje neyi bulmaya çalışıyor?", w_color:"Renk", w_files_will:"Klasöre eklenecek dosyalar", w_show_files:"Üretilen ayarları göster", w_create:"Projeyi oluştur", w_pick_model:"En az bir model seç", w_created:"Proje oluşturuldu", w_overwrite:"{f} bu klasörde zaten var. Değiştirilsin mi?"},
+};
+const store = (k, v) => { try { v === undefined ? (v = localStorage.getItem(k)) : localStorage.setItem(k, v); } catch {} return v; };
+let LANG = store("rb-lang") || ((navigator.language || "en").startsWith("tr") ? "tr" : "en");
+const t = (k, vars = {}) => (T[LANG][k] ?? T.en[k] ?? k).replace(/\{(\w+)\}/g, (_, x) => vars[x] ?? "");
+const tx = v => v == null ? "" : typeof v === "object" ? (v[LANG] ?? v.en ?? Object.values(v)[0] ?? "") : String(v);
+
+/* ================= helpers ================= */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt = (v, d = 2) => v == null || v === "" || Number.isNaN(+v) ? "—" : Number(v).toFixed(d);
+const short = v => String(v ?? "").replace(/\.(pt|pth|ckpt)$/, "");
+const en = s => `<span lang="en">${esc(s)}</span>`;  // English terms keep their letters under Turkish uppercase (size ≠ SİZE)
+const stale = tab => tab === "system" ? route.view !== "system" : tab === "new" ? route.view !== "new" : (route.view !== "project" || route.tab !== tab || P?.key !== route.key);
+const fsize = mb => mb == null || mb === "" ? "—" : +mb >= 1024 ? (mb / 1024).toFixed(2) + " GB" : (+mb).toFixed(+mb < 10 ? 1 : 0) + " MB";
+const hms = s => [s / 3600, s % 3600 / 60, s % 60].map(x => String(Math.floor(x)).padStart(2, "0")).join(":");
+const ACTIVE = ["QUEUED", "STARTING", "RUNNING", "CANCELLING"];
+const COLORS = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)", "var(--s5)"];
+const PALETTE = ["#2c6b5a", "#2558a8", "#b0562b", "#7a4fa3", "#8a6d1f", "#1f7a8a"];
+const chip = (st, txt) => `<span class="chip ${st || ""}">${txt || (st ? t(st) : t("st_none"))}</span>`;
+const avatar = (p, size) => p.logo ? `<span class="avatar"${size ? ` style="width:${size}px;height:${size}px"` : ""}><img src="/api/p/${p.key}/logo" alt=""></span>`
+  : `<span class="avatar" style="background:${p.color || PALETTE[[...p.key].reduce((a, c) => a + c.charCodeAt(0), 0) % PALETTE.length]}${size ? `;width:${size}px;height:${size}px` : ""}">${esc((p.name || p.key).split(/[\s\-_]+/).map(w => w[0]).join("").slice(0, 2).toUpperCase())}</span>`;
+function signedOut() {  // the browser dropped the login: say so instead of failing silently
+  if (document.querySelector("#signin")) return;
+  const d = document.createElement("div"); d.id = "signin"; d.className = "msg warn"; d.style.cssText = "position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:30";
+  d.innerHTML = `${t("signed_out")} <button class="btn" style="margin-left:8px" onclick="location.href='/pair'">${t("sign_in")}</button>`; document.body.append(d);
+}
+// Screens are built as HTML strings and patched into what is already on the page: nodes that did not change stay,
+// so scroll positions, focus, open menus and half-typed inputs survive every update. [data-keep] fills itself.
+function morph(el, html) {
+  const tpl = document.createElement("template"); tpl.innerHTML = html;
+  patchKids(el, tpl.content);
+}
+function patchKids(a, b) {
+  const an = [...a.childNodes], bn = [...b.childNodes];
+  bn.forEach((n, i) => { const o = an[i]; if (!o) a.append(n); else if (sameNode(o, n)) patchNode(o, n); else a.replaceChild(n, o); });
+  for (let i = bn.length; i < an.length; i++) an[i].remove();
+}
+const sameNode = (o, n) => o.nodeType === n.nodeType && o.nodeName === n.nodeName && (o.nodeType !== 1 || (o.id || "") === (n.id || ""));
+function patchNode(o, n) {
+  if (o.nodeType !== 1) { if (o.nodeValue !== n.nodeValue) o.nodeValue = n.nodeValue; return; }
+  if (o.hasAttribute("data-keep")) return;
+  const isInput = o.tagName === "INPUT", oldVal = isInput && o.getAttribute("value"), oldChk = isInput && o.hasAttribute("checked");
+  for (const {name, value} of [...n.attributes]) if (o.getAttribute(name) !== value) o.setAttribute(name, value);
+  for (const {name} of [...o.attributes]) if (!n.hasAttribute(name) && !(name === "open" && o.tagName === "DETAILS")) o.removeAttribute(name);
+  if (isInput) {  // follow the new markup only where it changed, so what someone typed or ticked is not undone
+    if (o.hasAttribute("checked") !== oldChk) o.checked = o.hasAttribute("checked");
+    if (o.getAttribute("value") !== oldVal && o !== document.activeElement) o.value = o.getAttribute("value") ?? "";
+    return;
+  }
+  if (o.tagName === "SELECT" && o === document.activeElement) return;
+  patchKids(o, n);
+}
+function toast(msg) { const d = document.createElement("div"); d.className = "toast"; d.textContent = msg; document.body.append(d); setTimeout(() => d.remove(), 6000); }
+async function api(path, opts = {}) {
+  if (opts.json) opts = {...opts, method: opts.method || "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(opts.json)};
+  const r = await fetch(location.origin + path, opts);
+  if (r.status === 401) { signedOut(); throw new Error(t("signed_out")); }
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(errText(j) || r.statusText), {code: j.code});
+  return j;
+}
+// Server errors come with a code and values (runboard/errors.py); English uses the server's own text.
+const ERR_TR = {
+  one_of: "{field}: şunlardan biri olmalı: {choices}", range: "{field}: {lo} ile {hi} arasında olmalı", required: "{field}: boş bırakılamaz",
+  number: "{field}: sayı olmalı", bool: "{field}: true ya da false olmalı", file: "{field}: proje içinde {pattern} biçiminde bir dosya olmalı",
+  empty: "{field}: boş", not_editable: "Düzenlenebilir bir alan değil: {fields}", bad_key: "Geçersiz ayar adı: {key}",
+  bad_run_id: "Koşu kodu '{run}': harf, rakam, '-', '_' ya da '.'; en çok 41 karakter",
+  locked: "Bu plan ön kayıtlı: kararlarıyla değişir ya da ek deney eklenir (ortak ayarlar ve dosyanın kendisi salt okunur).",
+  started: "Bu koşu başladı; ayarları olduğu gibi kalır. Değiştirmek için kopyala.", started_entry: "{run} başladı; satırı çalıştığı gibi kalmalı",
+  no_extras: "Bu proje ek deneye izin vermiyor (runboard.yaml içinde runs.extras)", extras_direct: "Ön kayıtlı plana yalnızca ek deney eklenir; doğrudan eklenir",
+  not_extra: "Yalnızca ek deneyler silinebilir", launched: "Başlatılmış bir koşu silinemez", unknown_run: "Böyle bir koşu yok: {run}",
+  exists: "{run} zaten var", block_only: "Burada yalnızca satır başına bir koşu yazılmış dosyalardan silinebilir",
+  not_section: "'{name}' bir ortak ayar bölümü değil", run_mapping: "{run}: bir koşu alan–değer çiftlerinden oluşmalı",
+  keep_runs: "Dosyada koşuların bulunduğu '{section}:' bölümü kalmalı", stay_mapping: "'{section}' alan–değer bölümü olarak kalmalı",
+  yaml_line: "satır {line}: {problem}", yaml: "Geçerli YAML değil: {problem}", broken: "{problem}", file_mapping: "{file} alan–değer biçiminde olmalı",
+  section_missing: "{file} içinde '{section}' bulunamadı", would_break: "Bu değişiklik {file} dosyasını bozardı: {problem}",
+  not_as_intended: "{file} istendiği gibi çıkmadı; hiçbir şey yazılmadı", conflict: "{file} bu sayfa açıldıktan sonra değişti; yeniden yükleyip tekrar dene",
+  unknown_decision: "Böyle bir karar yok", finish_first: "Önce bütün aday koşular bitmeli", from_candidates: "Değer aday koşulardan birinden gelmeli",
+  reason_short: "Bir gerekçe yaz (en az 10 karakter)", decided: "Bu karar zaten verildi",
+  no_manifest: "{path} bulunamadı (examples/ ve docs/manifest.md'ye bak)", not_ready: "{run}: {fields} henüz belirlenmedi",
+  unknown_backend: "Bilinmeyen ortam: {backend}", not_configured: "{backend} bu proje için ayarlanmamış", busy: "{backend} meşgul: {runs}",
+  unknown_job: "Bilinmeyen iş", job_running: "Zaten çalışan bir iş var: {job}", not_on_kaggle: "{data} henüz Kaggle'da değil (Veri sekmesi)",
+  no_local_command: "runboard.yaml içinde backends.local.command tanımlı değil", only_finished_delete: "Yalnızca bitmiş koşular silinebilir",
+  foreign_kernel: "Bu koşu runboard'un oluşturmadığı bir not defterine bağlı; Kaggle'dan sil", unknown_project: "Böyle bir proje yok",
+  not_run_yet: "Henüz çalıştırılmadı", nothing_selected: "Hiçbir şey seçilmedi",
+  queue_unknown: "{run} kuyrukta değil", queue_has: "{run} zaten kuyrukta",
+  queue_quota: "{run} için Kaggle kotası yetmiyor: yaklaşık {need} saat gerekiyor, {left} saat kaldı",
+  sweep_empty: "Taranan her alan için en az bir değer seç", sweep_too_many: "{n} koşu oluşacaktı; sınır {limit}",
+  local_only: "Yalnızca runboard'un çalıştığı bilgisayardan yapılabilir", not_paired: "Bu cihaz eşleşmemiş", wrong_code: "Kod yanlış ya da süresi dolmuş",
+  lan_off: "Önce tablet erişimini aç", unknown_device: "Böyle bir cihaz yok", bad_token: "Bu bir Kaggle API anahtarına benzemiyor (Settings → API Tokens → Generate New Token)",
+  token_rejected: "Kaggle anahtarı reddetti: {why}", autostart_windows: "Otomatik başlatma yalnızca Windows'ta; başka sistemlerde servis yöneticisini kullan",
+  not_folder: "Klasör değil: {path}", choose_dataset: "Veri setinin YAML dosyasını seç (sınıfları ve train/val klasörlerini listeler)",
+  choose_script: "Eğitim betiğini seç", add_run: "En az bir koşu ekle",
+};
+function errText(j) {
+  if (!j?.code) return j?.detail;
+  const tpl = LANG === "tr" ? ERR_TR[j.code] : null;
+  if (!tpl) return j.detail;
+  const p = j.params || {}, txt = tpl.replace(/\{(\w+)\}/g, (_, k) => p[k] ?? "");
+  return j.run && !tpl.includes("{run}") ? `${j.run}: ${txt}` : txt;
+}
+const ICONS = {
+  projects: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+  overview: '<path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/>',
+  runs: '<path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-6"/>',
+  settings: '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
+  data: '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>',
+  results: '<path d="M4 20h16M7 16V9M12 16V5M17 16v-4"/>',
+  system: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+};
+
+/* ================= state & routing ================= */
+let ME = null, PS = null, P = null, route = {}, detail = null, sub = store("rb-sub") || "charts", allLog = false;
+let compare = new Set(), compCache = {}, prevStatus = {}, activeDetail = null, SYS = null;
+function parseRoute() {
+  const h = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
+  if (h[0] === "p" && h[1]) return {view: "project", key: h[1], tab: h[2] || "overview", run: h[3] ? decodeURIComponent(h[3]) : null};
+  if (h[0] === "system") return {view: "system"};
+  if (h[0] === "new") return {view: "new"};
+  return {view: "home"};
+}
+function go(h) { if (location.hash === h) render(); else location.hash = h; }
+window.addEventListener("hashchange", () => { route = parseRoute(); detail = null; render(); window.scrollTo(0, 0); });
+const run = id => P?.runs.find(r => r.id === id);
+const runHref = id => `#/p/${route.key}/runs/${encodeURIComponent(id)}`;      // run list + details side by side
+const runPage = id => `#/p/${route.key}/run/${encodeURIComponent(id)}`;       // details alone, full width
+
+/* ================= live estimate ================= */
+function live(r) {
+  const p = r?.progress || {}, now = Date.now() / 1000, on = ACTIVE.includes(r?.status);
+  const epochs = p.epochs || r?.epochs || 1, ep = p.epoch || 0, cur = p.current_epoch || ep;
+  let batch = p.batch, est = false;
+  if (on && p.beat_at && p.its && p.batches && cur > ep && batch != null) {
+    const dt = Math.max(0, now - p.beat_at); batch = Math.min(p.batches, Math.floor(batch + p.its * dt)); est = dt > 1.5;
+  }
+  const inEpoch = on && batch != null && p.batches && cur > ep;
+  const frac = r?.status === "COMPLETE" ? 1 : Math.min(1, (ep + (inEpoch ? batch / p.batches : 0)) / epochs);
+  return {on, frac, batch, batches: p.batches, cur, ep, epochs, est, inEpoch, val: inEpoch && batch >= p.batches,
+          left: on && p.eta_at ? Math.max(0, p.eta_at - now) : null, epLeft: inEpoch && p.its ? Math.max(0, (p.batches - batch) / p.its) : null};
+}
+const lbl = (L, done) => `${t("epoch")} ${done ?? L.ep}/${L.epochs}` + (L.inEpoch ? ` · e${L.cur} ${L.val ? t("validating") : `${t("batch")} ${L.batch}/${L.batches}`}${L.est && !L.val ? " ≈" : ""}` : "");
+function findRun(pkey, id) { if (P && P.key === pkey) return run(id); return PS?.projects.find(x => x.key === pkey)?.active.find(r => r.id === id); }
+function tick() {
+  document.querySelectorAll("[data-live]").forEach(el => {
+    const r = findRun(el.dataset.p, el.dataset.run); if (!r) return;
+    const L = live(r), k = el.dataset.live;
+    if (k === "bar") el.style.width = (L.frac * 100).toFixed(2) + "%";
+    else if (k === "pct") el.textContent = (L.frac * 100).toFixed(1) + "%";
+    else if (k === "lbl") el.textContent = lbl(L);
+    else if (k === "left") el.textContent = L.left != null ? hms(L.left) : "—";
+    else if (k === "epleft") el.textContent = L.epLeft != null ? (L.val ? t("validating") : `${t("ep_left")} ${t("left")} ${hms(L.epLeft)}`) : "";
+    else if (k === "pill") el.textContent = `e${L.inEpoch ? L.cur : L.ep}/${L.epochs} · ${(L.frac * 100).toFixed(1)}%${L.left != null ? " · " + hms(L.left) : ""}`;
+  });
+}
+setInterval(tick, 1000);
+const L_ = (k, pkey, id, inner = "") => `data-live="${k}" data-p="${pkey}" data-run="${esc(id)}"`;
+
+/* ================= chart ================= */
+function chart(title, series, {h = 180, empty = true} = {}) {
+  series = series.filter(s => s.pts.length);
+  if (!series.length) return empty ? `<div class="chart"><div class="t"><b>${esc(title)}</b></div><div class="empty" style="padding:50px 0">${t("no_data")}</div></div>` : "";
+  const W = 640, H = h, Lm = 40, R = 12, Tm = 10, B = 24;
+  const xs = series.flatMap(s => s.pts.map(p => p[0])), ys = series.flatMap(s => s.pts.map(p => p[1]));
+  let x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  if (x1 === x0) x1 = x0 + 1; const pad = (y1 - y0) * .1 || 1; y0 -= pad; y1 += pad;
+  const X = x => Lm + (x - x0) / (x1 - x0) * (W - Lm - R), Y = y => Tm + (1 - (y - y0) / (y1 - y0)) * (H - Tm - B);
+  const ticks = [0, .25, .5, .75, 1].map(f => y0 + f * (y1 - y0)), dec = Math.abs(y1 - y0) < 0.05 ? 4 : Math.abs(y1 - y0) < 4 ? 2 : Math.abs(y1 - y0) < 20 ? 1 : 0;
+  const lines = series.map(s => `<polyline points="${s.pts.map(p => X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1)).join(" ")}" fill="none" stroke="${s.color}" stroke-width="2" ${s.dash ? 'stroke-dasharray="5 4"' : ""} stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`).join("");
+  const last = series[0].pts.at(-1);
+  // the plot stretches to the card; labels and the end marker sit on top as text so they never get squeezed
+  const pc = (v, of) => (v / of * 100).toFixed(2) + "%";
+  return `<div class="chart"><div class="t"><b>${esc(title)}</b>${series.map(s => `<span><i style="background:${s.color}"></i>${esc(s.name)}</span>`).join("")}</div>
+    <div class="cw"><svg class="c" style="height:${h}px" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="${esc(title)}">
+    ${ticks.map(v => `<line x1="${Lm}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" vector-effect="non-scaling-stroke"/>`).join("")}
+    ${lines}</svg>
+    ${ticks.map(v => `<span class="yl" style="top:${pc(Y(v), H)};width:${pc(Lm - 6, W)}">${v.toFixed(dec)}</span>`).join("")}
+    <span class="xl" style="left:${pc(Lm, W)}">${x0}</span><span class="xl" style="right:${pc(R, W)}">${x1}</span>
+    <i class="dot" style="left:${pc(X(last[0]), W)};top:${pc(Y(last[1]), H)};background:${series[0].color}"></i></div></div>`;
+}
+const pts = (rows, k) => (rows || []).filter(x => x[k] != null).map(x => [x.e, x[k]]);
+const seriesOf = d => d?.curves?.length ? d.curves : (d?.progress?.history || []);
+
+/* ================= chrome ================= */
+function renderChrome() {
+  const inP = route.view === "project" && P;
+  $("#ver").textContent = PS ? `v${PS.version}` : "";
+  morph($("#projbox"), inP ? `<div class="proj">${avatar(P, 30)}<div class="t"><b>${esc(P.name)}</b><small onclick="go('#/')">← ${t("all_projects")}</small></div></div>` : "");
+  const items = inP ? [["overview"], ["runs", P.busy.length], ["settings"], ...(P.has_data ? [["data"]] : []), ["results"]]
+                    : [["projects"]];
+  const busyAll = PS ? PS.projects.reduce((a, p) => a + p.active.length, 0) : 0;
+  morph($("#nav"), (inP ? `<div class="sec">${t("projects")}</div><button onclick="go('#/')"><svg viewBox="0 0 24 24">${ICONS.projects}</svg><span>${t("all_projects")}</span></button><div class="sec">${esc(P.name)}</div>` : "") +
+    items.map(([k, badge]) => `<button class="${(inP ? (route.tab === k || (k === "runs" && route.tab === "run")) : route.view === "home" && k === "projects") ? "on" : ""}" onclick="go('${inP ? `#/p/${P.key}/${k}` : "#/"}')" aria-label="${t(k)}"><svg viewBox="0 0 24 24">${ICONS[k]}</svg><span>${t(k)}</span>${badge ? `<em class="badge">${badge}</em>` : !inP && busyAll ? `<em class="badge">${busyAll}</em>` : ""}</button>`).join("") +
+    `<button class="${route.view === "new" ? "on" : ""}" onclick="go('#/new')" aria-label="${t("new_project")}"><svg viewBox="0 0 24 24">${ICONS.plus}</svg><span>${t("new_project")}</span></button>` +
+    `<button class="${route.view === "system" ? "on" : ""}" onclick="go('#/system')" aria-label="${t("system")}"><svg viewBox="0 0 24 24">${ICONS.system}</svg><span>${t("system")}</span></button>`);
+  const q = PS?.backends?.kaggle?.quota;
+  morph($("#foot"), `${q ? `<div>Kaggle · ${q.used_h} / ${q.total_h} h<div class="bar"><i style="width:${Math.min(100, q.used_h / q.total_h * 100)}%"></i></div></div>` : ""}
+    <div class="lang"><button class="${LANG === "en" ? "on" : ""}" onclick="setLang('en')">EN</button><button class="${LANG === "tr" ? "on" : ""}" onclick="setLang('tr')">TR</button></div>
+    <a href="/mini" target="_blank" rel="noopener">${t("compact")} ↗</a>`);
+  const act = PS?.projects.flatMap(p => p.active.map(r => ({...r, pkey: p.key, pname: p.name})))[0];
+  $("#live").classList.toggle("hide", !act);
+  if (act) { morph($("#live"), `<span class="dot RUNNING"></span><b>${esc(act.id)}</b> <span ${L_("pill", act.pkey, act.id)}></span>`); $("#live").onclick = () => go(`#/p/${act.pkey}/run/${encodeURIComponent(act.id)}`); }
+  tick();
+}
+function setLang(l) { LANG = l; store("rb-lang", l); document.documentElement.lang = l; render(); if (ES) setConn(ES.readyState === 1); }
+function setTitle(title, crumb) { $("#title").textContent = title; $("#crumb").innerHTML = crumb || ""; document.title = `${title} · runboard`; }
+
+/* ================= home ================= */
+function renderHome() {
+  setTitle(t("projects"), PS ? `runboard v${PS.version}` : "");
+  if (!PS) return;
+  const act = PS.projects.reduce((a, p) => a + p.active.length, 0), k = PS.backends.kaggle, l = PS.backends.local;
+  morph($("#content"), `
+  <div class="kpis home-kpis">
+    <div class="kpi"><div class="l">${t("projects_count")}</div><div class="v">${PS.projects.length}</div></div>
+    <div class="kpi"><div class="l">${t("active_runs")}</div><div class="v">${act}</div></div>
+    <div class="kpi"><div class="l">Kaggle · ${t("gpu_quota")}</div><div class="v">${k?.quota ? `${k.quota.used_h}<small> / ${k.quota.total_h} h</small>` : "—"}</div>${k?.quota ? `<div class="bar"><i style="width:${Math.min(100, k.quota.used_h / k.quota.total_h * 100)}%"></i></div>` : `<div class="s">${esc(k?.error || "")}</div>`}</div>
+    <div class="kpi"><div class="l">${t("local_gpu")}</div><div class="v" style="font-size:18px">${l?.gpu ? esc(l.gpu.replace("NVIDIA GeForce ", "")) : "—"}</div><div class="s">${l?.gpu ? `${l.free_gb} / ${l.total_gb} GB` : ""}</div></div>
+  </div>
+  ${Object.entries(PS.errors).map(([p, e]) => `<div class="msg bad" style="margin-top:16px">${t("broken")}: <span class="mono">${esc(p)}</span> — ${esc(e)}</div>`).join("")}
+  ${queueCard()}
+  <div class="grid">
+    ${PS.projects.map(p => { const a = p.active[0];
+      return `<div class="pcard" onclick="go('#/p/${p.key}/overview')">
+        <div class="hd">${avatar(p)}<div style="min-width:0"><h3>${esc(p.name)}</h3><div class="path">${esc(p.path)}</div></div></div>
+        ${p.description ? `<p>${esc(tx(p.description))}</p>` : ""}
+        ${a ? `<div class="act"><div style="display:flex;justify-content:space-between"><span><span class="dot RUNNING"></span> ${esc(a.id)} · <span ${L_("lbl", p.key, a.id)}></span></span><span ${L_("pct", p.key, a.id)}></span></div><div class="bar"><i ${L_("bar", p.key, a.id)}></i></div></div>` : ""}
+        <div><div class="row"><span>${t("plan")} ${p.done}/${p.runs}</span><span>${p.best ? `${esc(tx(p.primary_label))} ${t("highest")}: <b style="color:var(--ink)">${esc(p.best.id)} · ${fmt(p.best.value)}</b>` : ""}</span></div>
+          <div class="bar"><i style="width:${p.runs ? p.done / p.runs * 100 : 0}%"></i></div></div>
+        <div class="row"><span>${p.backends.map(b => esc(PS.backends[b]?.label || b)).join(" · ")}</span><span>${p.key}</span></div></div>`; }).join("")}
+    <div class="pcard addp" onclick="go('#/new')"><span class="plus">+</span><b>${t("new_project")}</b><span class="desc" style="margin:0">${t("new_project_desc")}</span></div>
+  </div>`);
+  tick();
+}
+
+/* ================= project: overview ================= */
+const valOf = r => r?.metrics?.primary ?? (r?.status === "COMPLETE" ? r?.progress?.best : null);
+function renderOverview() {
+  const act = P.runs.find(r => ACTIVE.includes(r.status)), p = act?.progress || {};
+  const plan = P.runs.filter(r => !r.extra), done = plan.filter(r => r.status === "COMPLETE").length;
+  const best = P.runs.filter(r => valOf(r) != null).sort((a, b) => valOf(b) - valOf(a))[0];
+  if (stale("overview")) return;
+  const H = act && activeDetail?.id === act.id ? seriesOf(activeDetail) : [], q = P.backend_info?.kaggle?.quota, lab = tx(P.labels.primary) || "score";
+  const finished = P.runs.filter(r => r.status === "COMPLETE").sort((a, b) => (b.pushed_at || "").localeCompare(a.pushed_at || ""));
+  const phases = P.phases.length ? P.phases : [{id: "", title: t("runs"), runs: P.runs.map(r => r.id)}];
+  morph($("#content"), `
+  <div class="kpis ${q ? "k6" : ""}">
+    <div class="kpi"><div class="l">${t("active_run")}</div><div class="v">${act ? esc(act.id) : "—"}</div><div class="s">${act ? esc(Object.values(act.fields).map(short).join(" · ")) : t("no_active")}</div></div>
+    <div class="kpi"><div class="l">${t("progress")}</div><div class="v">${act ? `${p.epoch || 0}<small> / ${p.epochs || act.epochs || "?"}</small>` : "—"}</div><div class="bar"><i ${act ? L_("bar", P.key, act.id) : ""} style="width:${act ? (live(act).frac * 100).toFixed(1) : 0}%"></i></div></div>
+    <div class="kpi"><div class="l">${esc(lab)}</div><div class="v">${act ? fmt(p.best) : "—"}</div><div class="s">${act ? `${t("best")} · ${t("last")} ${fmt(p.map)}` : ""}</div></div>
+    <div class="kpi"><div class="l">${t("eta")}</div><div class="v">${act && p.eta_at ? new Date(p.eta_at * 1000).toLocaleTimeString(LANG, {hour: "2-digit", minute: "2-digit"}) : "—"}</div><div class="s">${act ? `${t("left")} <span ${L_("left", P.key, act.id)}></span>` : ""}</div></div>
+    <div class="kpi"><div class="l">${t("plan")}</div><div class="v">${done}<small> / ${plan.length}</small></div><div class="bar"><i style="width:${plan.length ? done / plan.length * 100 : 0}%"></i></div></div>
+    ${q ? `<div class="kpi"><div class="l">Kaggle · ${t("gpu_quota")}</div><div class="v">${q.used_h}<small> / ${q.total_h} h</small></div><div class="bar"><i style="width:${Math.min(100, q.used_h / q.total_h * 100)}%"></i></div></div>` : ""}
+  </div>
+  ${queueCard(P.key)}
+  <div class="cols">
+    <div class="card"><div class="ch"><h2>${act ? `${esc(act.id)} · ${t("live")}` : t("active_run")}</h2>${act ? chip(act.status) : ""}<div class="sp">${act ? `<button class="btn" onclick="go('${runPage(act.id)}')">${t("details")}</button>` : ""}</div></div>
+      <div class="cb">${act ? `
+        <div class="prog"><div class="lbl"><span ${L_("lbl", P.key, act.id)}></span><span ${L_("pct", P.key, act.id)}></span></div><div class="bar big"><i ${L_("bar", P.key, act.id)}></i></div></div>
+        ${p.stage ? `<div class="stage">${esc(p.stage)}${p.its ? ` · ${p.its.toFixed(1)} it/s` : ""} <span class="est" ${L_("epleft", P.key, act.id)}></span></div>` : ""}
+        <div style="margin-top:14px">${chart(lab, [{name: act.id, color: COLORS[0], pts: pts(H, "map")}], {h: 220})}</div>`
+        : `<div class="empty">${t("no_active")}<br><button class="btn primary" style="margin-top:12px" onclick="go('#/p/${P.key}/runs')">${t("start_run")}</button></div>`}</div></div>
+    <div class="card"><div class="ch"><h2>${t("roadmap")}</h2><span class="muted" style="font-size:12px">${done}/${plan.length}</span></div>
+      <div class="cb" style="padding-top:4px;padding-bottom:4px">${phases.map(ph => `<div class="phase"><div class="pn"><b>${esc([ph.id, tx(ph.title)].filter(Boolean).join(" · "))}</b><span>${esc(tx(ph.subtitle))}</span></div>
+        <div class="pills">${ph.runs.map(id => { const r = run(id); return r ? `<span class="pill" onclick="go('${runPage(id)}')"><span class="dot ${r.status || ""}"></span>${esc(id)}${valOf(r) != null ? ` <small>${fmt(valOf(r), 1)}</small>` : ""}</span>` : ""; }).join("")}</div></div>`).join("")}</div></div>
+  </div>
+  <div class="card" style="margin-top:16px"><div class="ch"><h2>${t("finished")}</h2>${best ? `<span class="muted" style="font-size:12px">${esc(lab)} ${t("highest")}: <b style="color:var(--ink)">${esc(best.id)} · ${fmt(valOf(best))}</b></span>` : ""}</div>
+    <div class="cb flush tw">${finished.length ? `<table><tr><th>${t("run")}</th>${Object.keys(finished[0].fields).map(f => `<th>${en(f)}</th>`).join("")}<th class="n">${esc(lab)}</th><th class="n">${esc(tx(P.labels.secondary) || "")}</th><th class="n">${t("best_epoch")}</th><th class="n">${t("duration")}</th></tr>
+      ${finished.map(r => `<tr class="click" onclick="go('${runPage(r.id)}')"><td><b>${esc(r.id)}</b></td>${Object.values(r.fields).map(v => `<td>${esc(short(v))}</td>`).join("")}<td class="n"><b>${fmt(r.metrics?.primary)}</b></td><td class="n">${fmt(r.metrics?.secondary)}</td><td class="n">${r.metrics?.best_epoch != null ? `${r.metrics.best_epoch}/${r.metrics.epochs ?? "?"}` : "—"}</td><td class="n">${r.metrics?.hours != null ? r.metrics.hours + " h" : "—"}</td></tr>`).join("")}</table>` : `<div class="empty">${t("none_finished")}</div>`}</div></div>`);
+  tick();
+}
+
+/* ================= project: runs ================= */
+function renderRunsTab() {
+  if (!route.run || !run(route.run)) { const def = P.runs.find(r => ACTIVE.includes(r.status)) || P.runs.find(r => r.status) || P.runs[0]; if (def) { location.replace(runHref(def.id)); return; } }
+  if (!$("#runlist")) $("#content").innerHTML = `<div class="split"><div class="card rl" id="runlist"></div><div id="detail"></div></div>`;
+  const groups = [...(P.phases.length ? P.phases.map(ph => [[ph.id, tx(ph.title)].filter(Boolean).join(" · "), ph.runs]) : [[t("runs"), P.runs.filter(r => !r.extra).map(r => r.id)]]),
+                  [t("extra"), P.runs.filter(r => r.extra).map(r => r.id)]];
+  const listed = new Set(groups.flatMap(g => g[1]));
+  const rest = P.runs.filter(r => !listed.has(r.id)).map(r => r.id); if (rest.length) groups.push(["—", rest]);
+  morph($("#runlist"), groups.filter(g => g[1].length).map(([title, ids]) => `<div class="grp">${esc(title)}</div>` + ids.map(id => {
+    const r = run(id); if (!r) return ""; const p = r.progress || {}, on = ACTIVE.includes(r.status);
+    const val = valOf(r) != null ? fmt(valOf(r), 1) : "";
+    const m = r.ready ? Object.values(r.fields).map(short).join(" · ") : `${t("waits")} ${r.missing.join(", ")}`;
+    return `<div class="ri ${id === route.run ? "sel" : ""}" onclick="go('${runHref(id)}')"><span class="dot ${r.status || ""}"></span><b>${esc(id)}</b><span class="val">${on ? `e${p.epoch || 0}/${p.epochs || r.epochs || "?"}` : val}</span><span class="m">${esc(m)}</span></div>`;
+  }).join("")).join(""));
+  loadDetail();
+}
+function renderRunPage() {
+  if (!run(route.run)) { go(`#/p/${P.key}/runs`); return; }
+  if (!$("#runpage")) $("#content").innerHTML = `<div id="runpage"><div id="detail"></div></div>`;
+  loadDetail();
+}
+// The open run's details arrive as `run` events; a fetch is only needed for the first paint and for compared runs.
+async function loadDetail() {
+  if (route.view !== "project" || !["runs", "run"].includes(route.tab) || !route.run) return;
+  const id = route.run;
+  if (detail?.id !== id) { const d = await api(`/api/p/${P.key}/run/${encodeURIComponent(id)}`).catch(() => null); if (d && route.run === id && detail?.id !== id) detail = d; }
+  for (const c of compare) if (!compCache[c] || (ACTIVE.includes(run(c)?.status) && Date.now() - compCache[c]._t > 30000)) {
+    const d = await api(`/api/p/${P.key}/run/${encodeURIComponent(c)}`).catch(() => null); if (d) compCache[c] = {...d, _t: Date.now()};
+  }
+  renderDetail();
+}
+function renderDetail() {
+  const d = detail; if (!d || d.id !== route.run || !$("#detail")) return;
+  const r = run(d.id) || {}, p = d.progress || {}, active = ACTIVE.includes(r.status), H = seriesOf(d), f = d.final, met = r.metrics || {};
+  const bk = P.backends, bnow = r.backend || P.default_backend, binfo = P.backend_info?.[bnow] || {};
+  const busyOn = b => P.busy.filter(id => run(id)?.backend === b);
+  const kv = (l, v, s = "") => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div>${s ? `<div class="s">${s}</div>` : ""}</div>`;
+  const lab = tx(P.labels.primary) || "score", lab2 = tx(P.labels.secondary) || "";
+  let body = "";
+  if (!r.status) body = `<div class="empty">${d.ready ? t("not_started") : `${t("waits")} ${d.missing.join(", ")}`}</div>`;
+  else if (sub === "charts") {
+    const others = P.runs.filter(x => x.id !== d.id && x.status);
+    const comp = [...compare].filter(id => id !== d.id && compCache[id]).map((id, i) => ({name: id, color: COLORS[(i + 1) % 5], dash: true, rows: seriesOf(compCache[id])}));
+    const has = k => H.some(x => x[k] != null);
+    const lossKeys = [...new Set(H.flatMap(x => Object.keys(x).filter(k => k.endsWith("_loss") && !k.startsWith("val_"))))];
+    const vlossKeys = [...new Set(H.flatMap(x => Object.keys(x).filter(k => k.startsWith("val_") && k.endsWith("_loss"))))];
+    body = `${others.length ? `<div class="toolbar"><span class="muted" style="font-size:13px;font-weight:600">${t("compare")}</span>${others.map(o => `<label class="tog"><input type="checkbox" class="cmp" value="${esc(o.id)}" ${compare.has(o.id) ? "checked" : ""}>${esc(o.id)}</label>`).join("")}<span class="sp muted" style="font-size:12px">${t("source")}: ${d.curves?.length ? "results.csv" : t("live_log")}</span></div>` : ""}
+      <div class="charts">
+      ${chart(lab, [{name: d.id, color: COLORS[0], pts: pts(H, "map")}, ...comp.map(s => ({...s, pts: pts(s.rows, "map")}))])}
+      ${has("map50") ? chart(lab2 || "map50", [{name: d.id, color: COLORS[0], pts: pts(H, "map50")}, ...comp.map(s => ({...s, pts: pts(s.rows, "map50")}))]) : ""}
+      ${has("p") || has("r") ? chart("Precision / recall", [{name: "precision", color: COLORS[1], pts: pts(H, "p")}, {name: "recall", color: COLORS[2], pts: pts(H, "r")}]) : ""}
+      ${lossKeys.length ? chart("Train loss", lossKeys.map((k, i) => ({name: k.replace("_loss", ""), color: COLORS[i % 5], pts: pts(H, k)}))) : ""}
+      ${vlossKeys.length ? chart("Val loss", vlossKeys.map((k, i) => ({name: k.replace("val_", "").replace("_loss", ""), color: COLORS[i % 5], pts: pts(H, k)}))) : ""}
+      ${has("lr") ? chart("Learning rate", [{name: "lr", color: COLORS[3], pts: pts(H, "lr")}]) : ""}
+      </div>`;
+  } else if (sub === "result") {
+    const pcNode = f?.per_class;
+    body = f || r.metrics ? `${f ? `<div class="tw"><table><tr><th>${t("class")}</th><th class="n">${esc(lab)}</th><th class="n">${esc(lab2)}</th></tr>
+      <tr><td><b>${t("all")}</b></td><td class="n"><b>${fmt(met.primary ?? (f.map50_95 != null ? 100 * f.map50_95 : null))}</b></td><td class="n">${fmt(met.secondary ?? (f.map50 != null ? 100 * f.map50 : null))}</td></tr>
+      ${pcNode ? Object.entries(pcNode).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="n">${fmt(100 * (v.map50_95 ?? v.map ?? 0))}</td><td class="n">${fmt(100 * (v.ap50 ?? v.map50 ?? 0))}</td></tr>`).join("") : ""}</table></div>` : ""}
+      <div class="kpis" style="margin:16px 0 0">${f?.precision != null ? kv(en("Precision"), fmt(100 * f.precision)) : ""}${f?.recall != null ? kv(en("Recall"), fmt(100 * f.recall)) : ""}${kv(t("best_epoch"), met.best_epoch != null ? `${met.best_epoch}/${met.epochs ?? "?"}` : "—")}${kv(t("duration"), met.hours != null ? met.hours + " h" : "—")}</div>
+      <p class="desc" style="margin-top:14px">${t("output")}: <span class="mono">${esc(d.output)}</span></p>` : r.check?.error ? `<div class="msg bad">${esc(r.check.error)}</div>` : `<div class="empty">${t("no_data")}</div>`;
+  } else if (sub === "table") {
+    const keys = [...new Set(H.flatMap(x => Object.keys(x)))].filter(k => !["e", "t", "secs", "lr"].includes(k));
+    body = H.length ? `<div class="tw" data-scroll="etable" style="max-height:520px;overflow:auto"><table><tr><th class="n">${t("epoch")}</th>${keys.map(k => `<th class="n">${en(k)}</th>`).join("")}</tr>
+      ${[...H].reverse().map(x => `<tr><td class="n">${x.e}</td>${keys.map(k => `<td class="n">${fmt(x[k], k.includes("loss") ? 3 : 2)}</td>`).join("")}</tr>`).join("")}</table></div>` : `<div class="empty">${t("no_data")}</div>`;
+  } else {
+    body = `<div class="toolbar"><label class="tog"><input type="checkbox" id="all" ${allLog ? "checked" : ""}> ${t("all_lines")}</label><span class="sp muted" style="font-size:12px">${t("autoscroll")}</span></div><div class="log" id="log" data-keep></div>`;
+  }
+  const startable = d.ready && !active;
+  morph($("#detail"), `
+  <div class="card"><div class="cb">
+    <div class="dh">${route.tab === "run" ? `<a class="btn back" href="${runHref(d.id)}" title="${t("run_list")}" aria-label="${t("run_list")}">←</a>` : ""}<h2>${esc(d.id)}</h2>${chip(r.status)}${d.extra ? chip("lock", t("extra")) : ""}
+      <div class="sp">
+        ${route.tab === "runs" ? `<a class="btn" href="${runPage(d.id)}" title="${t("full_page")}">⤢ ${t("full_page")}</a>` : ""}
+        ${r.url ? `<a class="btn" href="${esc(r.url)}" target="_blank" rel="noopener">${t("open_kaggle")} ↗</a>` : ""}
+        ${active && P.backend_info?.[bnow]?.can_cancel ? `<button class="btn danger" id="cancel">${t("cancel")}</button>` : ""}
+        ${r.status === "COMPLETE" && r.backend ? `<button class="btn" id="collect">${t("recollect")}</button>` : ""}
+        ${r.status === "COMPLETE" && P.jobs.revalidate ? `<button class="btn" id="reval">${esc(tx(P.jobs.revalidate.title))}</button>` : ""}
+        ${r.status && !active && r.own_remote ? `<button class="btn danger" id="del">${t("delete_remote")}</button>` : ""}
+        ${bk.length > 1 && startable ? `<select id="bsel" aria-label="${t("backend")}">${bk.map(b => `<option value="${b.name}" ${b.name === P.default_backend ? "selected" : ""}>${esc(b.label)}</option>`).join("")}</select>` : ""}
+        ${d.ready && !active && !(PS?.queue || []).some(e => e.project === P.key && e.run === d.id) ? `<button class="btn" id="enq">${t("enqueue")}</button>` : ""}
+        <button class="btn primary" id="start" ${startable ? "" : "disabled"}>${r.status ? t("restart") : t("start")}</button>
+      </div></div>
+    <div class="meta"><b>${esc(d.name || "—")}</b> · ${Object.entries(d.fields).map(([k, v]) => `${esc(k)} ${esc(short(v))}`).join(" · ")}${r.backend ? ` · ${esc(P.backend_info?.[r.backend]?.label || r.backend)}${r.version ? ` ${esc(r.kernel || "")} v${r.version}` : ""}` : ""}${p.optimizer ? ` · ${esc(p.optimizer)} lr0 ${esc(p.lr0)}` : ""}</div>
+    ${r.failure ? `<div class="msg bad" style="margin-top:12px">${esc(r.failure)}</div>` : ""}
+    ${r.changed_since_start?.length ? `<div class="msg warn" style="margin-top:12px">${t("changed_after")} <b>${r.changed_since_start.map(esc).join(", ")}</b></div>` : ""}
+    ${r.status ? `<div class="prog"><div class="lbl"><span ${active ? L_("lbl", P.key, d.id) : ""}>${lbl(live(r), r.status === "COMPLETE" ? (met.epochs ?? H.at(-1)?.e) : undefined)}</span><span ${L_("pct", P.key, d.id)}></span></div><div class="bar big"><i ${L_("bar", P.key, d.id)}></i></div></div>
+      ${active && p.stage ? `<div class="stage">${esc(p.stage)} <span class="est" ${L_("epleft", P.key, d.id)}></span></div>` : ""}` : ""}
+  </div></div>
+  ${!r.status ? "" : active ? `<div class="kpis k6" style="margin-top:16px">
+    ${kv(`${t("last")} ${esc(lab)}`, fmt(p.map), `${t("epoch")} ${p.epoch || 0}`)}${kv(t("best"), fmt(p.best))}${kv(`${t("last")} ${esc(lab2)}`, fmt(p.map50))}
+    ${kv(t("epoch_time"), p.epoch_secs ? hms(p.epoch_secs) : "—")}${kv(t("speed"), p.its ? p.its.toFixed(1) + " it/s" : "—")}
+    ${kv(t("left"), `<span ${L_("left", P.key, d.id)}>—</span>`, p.eta_at ? `${t("eta")} ${new Date(p.eta_at * 1000).toLocaleTimeString(LANG, {hour: "2-digit", minute: "2-digit"})}` : "")}
+  </div>` : `<div class="kpis k6" style="margin-top:16px">
+    ${kv(esc(lab), fmt(met.primary ?? p.best))}${kv(esc(lab2), fmt(met.secondary ?? p.map50))}
+    ${f?.per_class ? Object.entries(f.per_class).slice(0, 3).map(([k, v]) => kv(esc(k), fmt(100 * (v.map50_95 ?? v.map ?? 0)))).join("") : ""}
+    ${kv(t("best_epoch"), met.best_epoch != null ? `${met.best_epoch}/${met.epochs ?? "?"}` : "—")}
+    ${kv(t("duration"), met.hours != null ? met.hours + " h" : "—", H.at(-1)?.t ? `${t("per_epoch")} ${hms(H.at(-1).t / H.length)}` : p.epoch_secs ? `${t("per_epoch")} ${hms(p.epoch_secs)}` : "")}
+  </div>`}
+  <div class="card" style="margin-top:16px">
+    <div class="tabs">${[["charts", t("charts")], ["result", t("result")], ["table", t("epoch_table")], ["log", t("log")]].map(([k, l]) => `<button data-sub="${k}" class="${k === sub ? "on" : ""}">${l}</button>`).join("")}</div>
+    <div class="cb">${body}</div></div>`);
+  if (sub === "log") paintLog();
+  document.querySelectorAll("[data-sub]").forEach(b => b.onclick = () => { sub = b.dataset.sub; store("rb-sub", sub); renderDetail(); subscribe(); });
+  if ($("#start")) $("#start").onclick = async () => {
+    const b = $("#bsel")?.value || P.default_backend, lab_ = P.backends.find(x => x.name === b)?.label || b;
+    if (!confirm(t("sure_start", {run: d.id, b: lab_}))) return;
+    $("#start").disabled = true;
+    try { await api(`/api/p/${P.key}/start/${encodeURIComponent(d.id)}`, {json: {backend: b}}); toast(t("sent", {run: d.id, b: lab_})); } catch (e) { alert(e.message); }
+    refresh();
+  };
+  const on = (id, f) => { if ($(id)) $(id).onclick = f; };  // property handlers: a patched page never gets a second copy
+  on("#enq", async e => {
+    const b = $("#bsel")?.value || P.default_backend;
+    try { await api("/api/queue", {json: {project: P.key, run: d.id, backend: b}}); toast(t("queued_ok")); } catch (err) { alert(err.message); }
+    refresh();
+  });
+  on("#cancel", e => confirm(t("sure_cancel", {run: d.id})) && act(e, `/api/p/${P.key}/cancel/${encodeURIComponent(d.id)}`));
+  on("#collect", e => act(e, `/api/p/${P.key}/collect/${encodeURIComponent(d.id)}`));
+  on("#reval", e => act(e, `/api/p/${P.key}/job/revalidate`, {run: d.id}, () => go(`#/system`)));
+  on("#del", e => confirm(t("sure_delete", {run: d.id})) && act(e, `/api/p/${P.key}/delete/${encodeURIComponent(d.id)}`));
+  if ($("#all")) $("#all").onchange = e => { allLog = e.target.checked; subscribe(); paintLog(); };
+  document.querySelectorAll(".cmp").forEach(cb => cb.onchange = () => { cb.checked ? compare.add(cb.value) : compare.delete(cb.value); loadDetail(); });
+  tick();
+}
+async function act(e, path, json, then) {
+  const b = e.target, txt = b.textContent; b.disabled = true; b.textContent = "…";
+  try { await api(path, json ? {json} : {method: "POST"}); then?.(); } catch (err) { alert(err.message); }
+  b.disabled = false; b.textContent = txt; refresh();
+}
+// A log follows new lines only while the reader is at its end; otherwise it stays where they scrolled.
+const atEnd = el => el.scrollTop + el.clientHeight >= el.scrollHeight - 30;
+// Log lines arrive as `log` events (the whole log once, then only new lines) and are appended, never redrawn.
+let LOG = {run: null, all: null, lines: null};
+function logEvent(j) {
+  if (j.run !== route.run) return;
+  const fresh = j.reset || LOG.run !== j.run || LOG.all !== allLog || !LOG.lines;
+  LOG = {run: j.run, all: allLog, lines: fresh ? j.lines : LOG.lines.concat(j.lines).slice(-3000)};
+  paintLog(fresh ? null : j.lines, fresh);
+}
+function paintLog(added, force) {
+  const el = $("#log"); if (!el) return;
+  const shown = `${LOG.run}|${LOG.all}`;
+  if (LOG.run !== route.run || LOG.all !== allLog || !LOG.lines) { el.textContent = "…"; el.dataset.shown = ""; return; }
+  const end = el.dataset.shown !== shown || atEnd(el);
+  if (added && el.dataset.shown === shown && +el.dataset.n > 0 && el.childNodes.length < 400) { if (added.length) el.append("\n" + added.join("\n")); }
+  else if (force || added || el.dataset.shown !== shown || +el.dataset.n !== LOG.lines.length) el.textContent = LOG.lines.length ? LOG.lines.join("\n") : t("no_log");
+  el.dataset.shown = shown; el.dataset.n = LOG.lines.length;
+  if (end) el.scrollTop = el.scrollHeight;
+}
+
+/* ================= project: settings ================= */
+async function renderSettings() {
+  let c; try { [c, PLAN] = await Promise.all([api(`/api/p/${P.key}/config`), api(`/api/p/${P.key}/plan`)]); } catch (e) { if (!stale("settings")) $("#content").innerHTML = `<div class="msg bad">${esc(e.message)}</div>`; return; }
+  if (stale("settings")) return;
+  const lab = tx(P.labels.primary) || "score";
+  const dec = c.decisions.map(d => {
+    const vals = d.candidates.map(x => x.metrics?.primary).filter(v => v != null);
+    const best = d.ready ? d.candidates.reduce((a, b) => (b.metrics.primary > a.metrics.primary ? b : a)) : null;
+    const gap = d.ready && vals.length ? Math.max(...vals) - Math.min(...vals) : null;
+    return `<div class="card"><div class="ch"><h2>${esc(d.id)} · ${esc(tx(d.title))}</h2>${d.done ? chip("COMPLETE", t("decided")) : chip("", d.ready ? t("waiting_dec") : t("running_dec"))}</div><div class="cb">
+      ${d.rule ? `<p class="desc">${esc(tx(d.rule))}</p>` : ""}
+      <div class="card tw"><table><tr><th>${t("run")}</th><th>${en(d.field)}</th><th>${t("status")}</th><th class="n">${esc(lab)}</th><th class="n">${esc(tx(P.labels.secondary) || "")}</th><th class="n">${t("best_epoch")}</th><th class="n">${t("duration")}</th></tr>
+      ${d.candidates.map(x => `<tr class="click" onclick="go('${runPage(x.id)}')"><td><b>${esc(x.id)}</b></td><td>${esc(short(x[d.field]))}</td><td>${chip(run(x.id)?.status)}</td><td class="n"><b>${fmt(x.metrics?.primary)}</b></td><td class="n">${fmt(x.metrics?.secondary)}</td><td class="n">${x.metrics?.best_epoch != null ? `${x.metrics.best_epoch}/${x.metrics.epochs ?? "?"}` : "—"}</td><td class="n">${x.metrics?.hours != null ? x.metrics.hours + " h" : "—"}</td></tr>`).join("")}</table></div>
+      <div style="margin-top:14px">${d.done ? `<div class="msg ok">${t("dec_done")}</div>` : !d.ready ? `<div class="msg warn">${t("dec_wait")}</div>` : `
+        <div class="msg ${d.tie != null && gap < d.tie ? "warn" : "ok"}">${d.tie != null && gap < d.tie ? t("dec_tie") : `${t("dec_ready")}: ${esc(short(best[d.field]))} (${fmt(best.metrics.primary)}) · ${t("dec_gap")} ${fmt(gap)}`}</div>
+        <div class="form"><label>${t("winner")}<select class="dv" data-d="${esc(d.id)}">${[...new Set(d.candidates.map(x => x[d.field]))].map(v => `<option ${best && v === best[d.field] ? "selected" : ""}>${esc(v)}</option>`).join("")}</select></label>
+          <label class="wide">${t("reason")}<input class="dr" data-d="${esc(d.id)}" placeholder="${esc(t("reason_ph"))}"></label>
+          <button class="btn primary dsave" data-d="${esc(d.id)}">${t("save_dec")}</button></div>`}</div></div></div>`; }).join("");
+  const ex = c.extras;
+  morph($("#content"), `${dec}
+  ${planCard()}
+  ${ex && PLAN.locked ? `<div class="card"><div class="ch"><h2>${t("add_extra")}</h2></div><div class="cb"><p class="desc">${t("extra_desc")}</p>
+    <div class="form">${Object.entries(ex.fields || {}).map(([k, rule]) => `<label>${esc(k)}${c.extra_choices[k] ? `<select class="xf" data-k="${esc(k)}">${c.extra_choices[k].map(v => `<option ${v === rule.default ? "selected" : ""}>${esc(v)}</option>`).join("")}</select>`
+      : `<input class="xf" data-k="${esc(k)}" type="${rule.int ? "number" : "text"}" value="${esc(rule.default ?? "")}" ${rule.int ? `min="${rule.int[0]}" max="${rule.int[1]}"` : ""}>`}</label>`).join("")}
+      <label class="wide">${t("note")}<input id="xnote"></label><button class="btn primary" id="xadd">${t("add")}</button></div></div></div>` : ""}
+  ${PLAN && !PLAN.locked ? sharedCard() + rawCard() : Object.keys(c.shared).length ? `<div class="card"><div class="ch"><h2>${t("shared")}</h2>${c.locked ? chip("lock", t("readonly")) : ""}</div><div class="cb"><p class="desc">${t("shared_desc")}</p>
+    ${Object.entries(c.shared).map(([s, v]) => `<div class="card tw" style="margin-bottom:12px"><table><tr><th colspan="2">${esc(s)}</th></tr>${typeof v === "object" && v ? Object.entries(v).map(([k, x]) => `<tr><td class="mono">${esc(k)}</td><td><b>${esc(JSON.stringify(x))}</b></td></tr>`).join("") : `<tr><td colspan="2"><b>${esc(JSON.stringify(v))}</b></td></tr>`}</table></div>`).join("")}
+    <details><summary>${esc(c.runs_file)}</summary><pre class="raw">${esc(c.raw)}</pre></details></div></div>` : ""}
+  ${c.decision_log ? `<div class="card"><div class="ch"><h2>${t("decision_log")}</h2></div><div class="cb"><pre class="raw">${esc(c.decision_log)}</pre></div></div>` : ""}`);
+  document.querySelectorAll(".dsave").forEach(b => b.onclick = async () => {
+    const id = b.dataset.d, v = document.querySelector(`.dv[data-d="${id}"]`).value, reason = document.querySelector(`.dr[data-d="${id}"]`).value;
+    if (!confirm(t("sure_decide", {d: id, v}))) return;
+    try { await api(`/api/p/${P.key}/decide/${encodeURIComponent(id)}`, {json: {value: v, reason}}); await refresh(); renderSettings(); } catch (e) { alert(e.message); }
+  });
+  if ($("#xadd")) $("#xadd").onclick = async () => {
+    const values = Object.fromEntries([...document.querySelectorAll(".xf")].map(i => [i.dataset.k, i.type === "number" ? +i.value : i.value]));
+    try { const j = await api(`/api/p/${P.key}/runs`, {json: {values, note: $("#xnote").value}}); toast(j.id); $("#xnote").value = ""; await refresh(); renderSettings(); } catch (e) { alert(e.message); }
+  };
+  wirePlan(); wireShared();
+}
+
+/* ================= the run plan: edit, copy, add, remove ================= */
+// Every change is previewed as the exact lines that will change in the runs file, then saved with the version of the
+// file this page loaded; if the file changed in between (an editor, git), the server refuses and the plan reloads.
+let PLAN = null;
+const planCols = () => [...PLAN.order, ...Object.keys(PLAN.fields).filter(k => !PLAN.order.includes(k))];
+function planCard() {
+  if (!PLAN) return "";
+  const cols = planCols(), canAdd = !PLAN.locked;
+  const canCopy = !PLAN.locked || PLAN.extra_fields.length;
+  const cell = (r, k) => k in r.own ? `<span class="own">${esc(short(r.own[k]))}</span>`
+    : r.effective[k] != null ? `<span class="inh">${esc(short(r.effective[k]))}</span>` : `<span class="muted">—</span>`;
+  return `<div class="card"><div class="ch"><h2>${t("plan_title")}</h2><span class="muted mono">${esc(PLAN.file)}</span>
+      <div class="sp">${canCopy ? `<button class="btn" id="psweep">${t("sweep")}</button> ` : ""}${canAdd ? `<button class="btn primary" id="pnew">+ ${t("new_run")}</button>` : ""}</div></div>
+    <div class="cb" style="padding-bottom:4px"><p class="desc" style="margin:0">${t(PLAN.locked ? "plan_locked_desc" : "plan_desc")}</p></div>
+    <div class="cb flush tw"><table><tr><th>${t("run")}</th>${cols.map(k => `<th>${en(k)}</th>`).join("")}<th>${t("status")}</th><th></th></tr>
+    ${PLAN.runs.map(r => `<tr><td><b>${esc(r.id)}</b>${r.extra ? ` ${chip("", t("extra"))}` : ""}</td>${cols.map(k => `<td>${cell(r, k)}</td>`).join("")}
+      <td>${r.why_locked === "locked" ? chip("lock", t("preregistered")) : chip(run(r.id)?.status)}</td>
+      <td class="acts">${!r.why_locked ? `<button class="btn" data-pedit="${esc(r.id)}">${t("edit")}</button> ` : ""}${canCopy ? `<button class="btn" data-pcopy="${esc(r.id)}">${t("copy")}</button> ` : ""}${!r.why_locked ? `<button class="btn danger" data-pdel="${esc(r.id)}">${t("remove")}</button>` : ""}</td></tr>`).join("")}</table></div></div>`;
+}
+function wirePlan() {
+  if ($("#pnew")) $("#pnew").onclick = () => runForm("add");
+  if ($("#psweep")) $("#psweep").onclick = sweepForm;
+  document.querySelectorAll("[data-pedit]").forEach(b => b.onclick = () => runForm("edit", b.dataset.pedit));
+  document.querySelectorAll("[data-pcopy]").forEach(b => b.onclick = () => runForm("copy", b.dataset.pcopy));
+  document.querySelectorAll("[data-pdel]").forEach(b => b.onclick = () => removeRun(b.dataset.pdel));
+}
+async function reloadPlan() { PLAN = await api(`/api/p/${P.key}/plan`); if (route.tab === "settings") { await refresh(); renderSettings(); } }
+function diffHtml(d) {
+  const rows = d.split("\n").filter(l => l && !l.startsWith("---") && !l.startsWith("+++"));
+  return `<div class="diff">${rows.map(l => `<div class="${l.startsWith("@@") ? "hunk" : l[0] === "+" ? "add" : l[0] === "-" ? "del" : ""}">${esc(l.startsWith("@@") ? "⋯" : l)}</div>`).join("")}</div>`;
+}
+function fieldInput(k, rule, value, dflt) {
+  const ph = dflt != null ? `${t("default_lbl")}: ${short(dflt)}` : "";
+  const v = value == null ? "" : String(value);
+  if (rule.choices) return `<select data-f="${esc(k)}"><option value="">${esc(ph ? `— ${ph}` : "—")}</option>${rule.choices.map(c => `<option value="${esc(c)}" ${String(c) === v ? "selected" : ""}>${esc(short(c))}</option>`).join("")}</select>`;
+  if (rule.bool) return `<select data-f="${esc(k)}"><option value="">${esc(ph ? `— ${ph}` : "—")}</option>${["true", "false"].map(c => `<option ${c === v ? "selected" : ""}>${c}</option>`).join("")}</select>`;
+  const num = rule.int || rule.float;
+  return `<input data-f="${esc(k)}" ${num ? `type="number" step="${rule.int ? 1 : "any"}" min="${num[0]}" max="${num[1]}"` : `type="text" spellcheck="false"`} value="${esc(v)}" placeholder="${esc(ph || (rule.file ? rule.file : t("any_value")))}">`;
+}
+function dialog() {
+  let d = $("#dlg");
+  if (!d) { d = document.createElement("dialog"); d.id = "dlg"; d.className = "form-dlg"; document.body.append(d); }
+  return d;
+}
+function runForm(mode, rid) {
+  const src = rid ? PLAN.runs.find(r => r.id === rid) : null, viaExtra = mode === "copy" && PLAN.locked;
+  const keys = viaExtra ? PLAN.extra_fields : planCols().filter(k => PLAN.fields[k]);
+  const start = mode === "edit" ? src.own : mode === "copy" ? (viaExtra ? src.effective : src.own) : {};
+  const title = mode === "edit" ? t("edit_title", {run: rid}) : mode === "copy" ? t("copy_title", {run: rid}) : t("new_title");
+  const d = dialog();
+  d.innerHTML = `<form method="dialog"><div class="dh2"><h2>${esc(title)}</h2><span class="sp"></span>${viaExtra ? chip("", t("extra")) : ""}</div>
+    <div class="db"><div class="form">
+      ${mode !== "edit" && !viaExtra ? `<label>${t("run_id")}<input id="frid" spellcheck="false" placeholder="${esc(mode === "copy" ? `${rid}-copy` : "run")}"></label>` : ""}
+      ${keys.map(k => `<label>${en(k)}${fieldInput(k, PLAN.fields[k] || {}, start[k], mode === "edit" || !src ? PLAN.defaults[k] ?? PLAN.fields[k]?.default : src.effective[k])}</label>`).join("")}
+      ${mode !== "edit" ? `<label class="wide">${t("note")}<input id="fnote"></label>` : ""}
+    </div><div id="fout"></div></div>
+    <div class="df"><button type="button" class="btn" id="fx">${t("dismiss")}</button><button class="btn primary" id="fgo" value="">${viaExtra ? t("add") : t("continue_")}</button></div></form>`;
+  let reviewed = false;
+  const out = $("#fout"), go = $("#fgo");
+  $("#fx").onclick = () => d.close();
+  const values = () => Object.fromEntries([...d.querySelectorAll("[data-f]")].map(i => [i.dataset.f, i.value === "" ? null : i.value]));
+  d.querySelectorAll("input, select").forEach(i => i.oninput = () => { reviewed = false; go.textContent = viaExtra ? t("add") : t("continue_"); out.innerHTML = ""; });
+  const send = dry => {
+    const body = {values: values(), version: PLAN.version, dry};
+    if (mode === "edit") return api(`/api/p/${P.key}/plan/runs/${encodeURIComponent(rid)}`, {method: "PUT", json: body});
+    return api(`/api/p/${P.key}/plan/runs`, {json: {...body, id: $("#frid")?.value.trim() || null, copy_from: mode === "copy" ? rid : null, note: $("#fnote")?.value || ""}});
+  };
+  go.onclick = async e => {
+    e.preventDefault(); go.disabled = true;
+    try {
+      if (viaExtra || reviewed) {
+        const j = await send(false); d.close(); toast(`${t("saved")}${j.id ? " · " + j.id : ""}`); await reloadPlan();
+      } else {
+        const j = await send(true);
+        if (!j.diff) out.innerHTML = `<div class="msg warn" style="margin-top:12px">${t("no_change")}</div>`;
+        else { out.innerHTML = `<p class="desc" style="margin:14px 0 0">${esc(t("diff_title", {f: PLAN.file}))}</p>${diffHtml(j.diff)}`; reviewed = true; go.textContent = t("save"); }
+      }
+    } catch (err) {
+      if (err.code === "conflict") { PLAN = await api(`/api/p/${P.key}/plan`); reviewed = false; go.textContent = t("continue_"); out.innerHTML = `<div class="msg warn" style="margin-top:12px">${t("conflict")}</div>`; }
+      else out.innerHTML = `<div class="msg bad" style="margin-top:12px">${esc(err.message)}</div>`;
+    }
+    go.disabled = false;
+  };
+  d.showModal();
+}
+/* ================= shared settings and the whole file ================= */
+function settingInput(sec, k, v, rule) {
+  const a = `data-ss="${esc(sec)}" data-sk="${esc(k)}"`, cur = typeof v === "object" && v !== null ? JSON.stringify(v) : String(v ?? "");
+  if (rule?.choices) return `<select ${a} data-orig="${esc(cur)}">${rule.choices.map(c => `<option value="${esc(c)}" ${String(c) === cur ? "selected" : ""}>${esc(short(c))}</option>`).join("")}</select>`;
+  if (typeof v === "boolean") return `<select ${a} data-orig="${cur}">${["true", "false"].map(c => `<option ${c === cur ? "selected" : ""}>${c}</option>`).join("")}</select>`;
+  return `<input ${a} data-orig="${esc(cur)}" value="${esc(cur)}" spellcheck="false" ${typeof v === "number" ? `type="number" step="any"` : ""}>`;
+}
+function sharedCard() {
+  const secs = Object.entries(PLAN.sections);
+  if (!secs.length) return "";
+  return `<div class="card" id="sharedcard"><div class="ch"><h2>${t("shared")}</h2><span class="muted mono">${esc(PLAN.file)}</span></div><div class="cb">
+    <p class="desc">${t("shared_edit_desc")}</p>
+    ${secs.map(([sec, vals]) => `<div class="card tw" style="margin-bottom:12px"><table><tr><th colspan="3">${esc(sec)}</th></tr>
+      ${Object.entries(vals).map(([k, v]) => `<tr class="setrow"><td class="mono">${esc(k)}</td><td>${settingInput(sec, k, v, sec === PLAN.defaults_name ? PLAN.fields[k] : null)}</td>
+        <td class="acts"><button class="btn danger" data-srm="${esc(sec)}|${esc(k)}" title="${t("remove")}">×</button></td></tr>`).join("")}
+      <tr class="setrow"><td><input class="snk" data-sec="${esc(sec)}" placeholder="+ ${esc(t("setting_name"))}" spellcheck="false"></td><td><input class="snv" data-sec="${esc(sec)}" placeholder="${esc(t("value"))}" spellcheck="false"></td><td></td></tr>
+    </table></div>`).join("")}
+    <div id="sout" data-keep></div>
+    <div class="toolbar" style="margin:12px 0 0"><span class="sp"><button class="btn primary" id="sgo">${t("continue_")}</button></span></div></div></div>`;
+}
+function rawCard() {
+  return `<div class="card"><div class="ch"><h2>${t("raw_title")}</h2><span class="muted mono">${esc(PLAN.file)}</span><span class="rawstate" id="rawstate"></span></div><div class="cb">
+    <p class="desc">${t("raw_desc")}</p><div id="rawbox" data-keep></div><div id="rout" data-keep></div>
+    <div class="toolbar" style="margin:12px 0 0"><span class="sp"><button class="btn" id="rreset">${t("restore")}</button> <button class="btn primary" id="rgo">${t("continue_")}</button></span></div></div></div>`;
+}
+const affectsHtml = a => !a ? "" : (a.drafts.length || a.started.length) ? `<div class="msg ok" style="margin-top:10px">${a.drafts.length ? `${t("affects_drafts")} <b>${a.drafts.map(esc).join(", ")}</b>` : ""}${a.started.length ? `${a.drafts.length ? "<br>" : ""}${t("affects_started")} ${a.started.map(esc).join(", ")}` : ""}</div>` : `<div class="msg warn" style="margin-top:10px">${t("affects_none")}</div>`;
+function wireShared() {
+  if (!$("#sharedcard") && !$("#rawbox")) return;
+  // shared settings form: removed keys are struck through until saved; the button first shows the diff
+  let sReviewed = false;
+  const sgo = $("#sgo"), sout = $("#sout");
+  const sReset = () => { sReviewed = false; if (sgo) sgo.textContent = t("continue_"); if (sout) sout.innerHTML = ""; };
+  document.querySelectorAll("#sharedcard input, #sharedcard select").forEach(i => i.oninput = sReset);
+  document.querySelectorAll("[data-srm]").forEach(b => b.onclick = () => { const tr = b.closest("tr"); tr.classList.toggle("rm"); b.textContent = tr.classList.contains("rm") ? "↺" : "×"; sReset(); });
+  const changes = () => {
+    const out = {};
+    document.querySelectorAll("[data-sk]").forEach(i => {
+      const sec = i.dataset.ss, rm = i.closest("tr").classList.contains("rm");
+      if (rm) (out[sec] ??= {})[i.dataset.sk] = null;
+      else if (i.value !== i.dataset.orig) (out[sec] ??= {})[i.dataset.sk] = i.value;
+    });
+    document.querySelectorAll(".snk").forEach(i => { const v = document.querySelector(`.snv[data-sec="${i.dataset.sec}"]`).value; if (i.value.trim() && v !== "") (out[i.dataset.sec] ??= {})[i.value.trim()] = v; });
+    return out;
+  };
+  if (sgo) sgo.onclick = async () => {
+    const ch = Object.entries(changes());
+    if (!ch.length) { sout.innerHTML = `<div class="msg warn" style="margin-top:12px">${t("no_change")}</div>`; return; }
+    sgo.disabled = true;
+    try {
+      if (sReviewed) {
+        for (const [sec, values] of ch) { const j = await api(`/api/p/${P.key}/plan/section/${encodeURIComponent(sec)}`, {method: "PUT", json: {values, version: PLAN.version}}); PLAN.version = j.version; }
+        toast(t("saved")); await reloadPlan();
+      } else {
+        let html = "";
+        for (const [sec, values] of ch) { const j = await api(`/api/p/${P.key}/plan/section/${encodeURIComponent(sec)}`, {method: "PUT", json: {values, version: PLAN.version, dry: true}}); html += diffHtml(j.diff) + affectsHtml(j.affects); }
+        sout.innerHTML = `<p class="desc" style="margin:14px 0 0">${esc(t("diff_title", {f: PLAN.file}))}</p>${html}`; sReviewed = true; sgo.textContent = t("save");
+      }
+    } catch (err) {
+      if (err.code === "conflict") { await reloadPlan(); toast(t("conflict")); }
+      else sout.innerHTML = `<div class="msg bad" style="margin-top:12px">${esc(err.message)}</div>`;
+    }
+    sgo.disabled = false;
+  };
+  // the whole file: checked on the server shortly after each pause in typing
+  const box = $("#rawbox"); if (!box) return;
+  if (!box.firstChild) box.innerHTML = `<textarea class="rawed" id="rawed" spellcheck="false"></textarea>`;
+  const ta = $("#rawed"), st = $("#rawstate"), rout = $("#rout"), rgo = $("#rgo");
+  if (ta.dataset.version !== PLAN.version) { ta.value = PLAN.raw; ta.dataset.version = PLAN.version; ta.dataset.orig = PLAN.raw; }
+  let timer = null, rReviewed = false, lastErr = null;
+  const state = (cls, txt) => { st.className = "rawstate " + cls; st.textContent = txt; };
+  const check = async () => {
+    rReviewed = false; rgo.textContent = t("continue_"); rout.innerHTML = "";
+    if (ta.value === ta.dataset.orig) return state("", t("raw_same"));
+    try { await api(`/api/p/${P.key}/plan/raw`, {method: "PUT", json: {text: ta.value, version: PLAN.version, dry: true}}); lastErr = null; state("ok", "✓ " + t("raw_ok")); }
+    catch (e) { lastErr = e.message; state("bad", "✕ " + e.message); }
+  };
+  ta.oninput = () => { clearTimeout(timer); timer = setTimeout(check, 600); };
+  ta.onkeydown = e => { if (e.key === "Tab") { e.preventDefault(); ta.setRangeText("  ", ta.selectionStart, ta.selectionEnd, "end"); ta.oninput(); } };
+  st.onclick = () => {  // jump to the line the error names
+    const m = /(?:line|satır) (\d+)/.exec(lastErr || ""); if (!m) return;
+    const lines = ta.value.split("\n"), n = Math.min(+m[1], lines.length), pos = lines.slice(0, n - 1).join("\n").length + (n > 1 ? 1 : 0);
+    ta.focus(); ta.setSelectionRange(pos, pos + lines[n - 1].length);
+    ta.scrollTop = Math.max(0, (n - 4) * parseFloat(getComputedStyle(ta).lineHeight));
+  };
+  $("#rreset").onclick = () => { ta.value = ta.dataset.orig; check(); };
+  rgo.onclick = async () => {
+    if (ta.value === ta.dataset.orig) return state("", t("raw_same"));
+    rgo.disabled = true;
+    try {
+      if (rReviewed) { await api(`/api/p/${P.key}/plan/raw`, {method: "PUT", json: {text: ta.value, version: PLAN.version}}); toast(t("saved")); ta.dataset.version = ""; await reloadPlan(); }
+      else { const j = await api(`/api/p/${P.key}/plan/raw`, {method: "PUT", json: {text: ta.value, version: PLAN.version, dry: true}}); rout.innerHTML = `<p class="desc" style="margin:14px 0 0">${esc(t("diff_title", {f: PLAN.file}))}</p>${diffHtml(j.diff)}`; rReviewed = true; rgo.textContent = t("save"); state("ok", "✓ " + t("raw_ok")); }
+    } catch (e) {
+      if (e.code === "conflict") { toast(t("conflict")); ta.dataset.version = ""; await reloadPlan(); }
+      else { lastErr = e.message; state("bad", "✕ " + e.message); }
+    }
+    rgo.disabled = false;
+  };
+}
+/* ================= sweep and queue ================= */
+function sweepForm() {
+  const locked = PLAN.locked, keys = locked ? PLAN.extra_fields : planCols().filter(k => PLAN.fields[k]);
+  const bk = P.backends, d = dialog();
+  d.innerHTML = `<form method="dialog"><div class="dh2"><h2>${t("sweep_title")}</h2><span class="sp"></span><b id="swn" class="muted"></b></div>
+    <div class="db"><p class="desc" style="margin:0">${locked ? t("sweep_extras") + PLAN.extra_fields.map(esc).join(", ") + ". " : ""}${t("sweep_desc")}</p>
+      <div class="sweepf">
+        <b>${t("sweep_base")}</b><select id="swbase"><option value="">${t("none_lbl")}</option>${PLAN.runs.map(r => `<option>${esc(r.id)}</option>`).join("")}</select>
+        ${locked ? "" : `<b>${t("prefix")}</b><input type="text" id="swpre" value="sweep" spellcheck="false">`}
+        ${keys.map(k => { const rule = PLAN.fields[k] || {};
+          return `<b>${en(k)}</b>${rule.choices ? `<div class="opts">${rule.choices.map(c => `<label class="tog"><input type="checkbox" data-sw="${esc(k)}" value="${esc(c)}">${esc(short(c))}</label>`).join("")}</div>`
+            : `<input type="text" data-sw="${esc(k)}" placeholder="${esc(t("sweep_ph"))}${rule.int ? ` (${rule.int[0]}–${rule.int[1]})` : rule.float ? ` (${rule.float[0]}–${rule.float[1]})` : ""}" spellcheck="false">`}`; }).join("")}
+      </div>
+      <label class="tog" style="margin-top:14px"><input type="checkbox" id="swq"> ${t("also_queue")}</label>
+      ${bk.length > 1 ? `<select id="swb" style="margin-left:8px">${bk.map(b => `<option value="${b.name}" ${b.name === P.default_backend ? "selected" : ""}>${esc(b.label)}</option>`).join("")}</select>` : ""}
+      <div id="swout"></div></div>
+    <div class="df"><button type="button" class="btn" id="swx">${t("dismiss")}</button><button class="btn primary" id="swgo">${t("continue_")}</button></div></form>`;
+  const grid = () => {
+    const g = {};
+    d.querySelectorAll("[data-sw]").forEach(i => {
+      const vals = i.type === "checkbox" ? (i.checked ? [i.value] : []) : i.value.split(",").map(x => x.trim()).filter(Boolean);
+      if (vals.length) (g[i.dataset.sw] ??= []).push(...vals);
+    });
+    return g;
+  };
+  let reviewed = false;
+  const out = $("#swout"), go = $("#swgo"), count = () => { const g = grid(), n = Object.values(g).reduce((a, v) => a * v.length, Object.keys(g).length ? 1 : 0); $("#swn").textContent = t("sweep_count", {n}); };
+  d.querySelectorAll("input, select").forEach(i => i.oninput = i.onchange = () => { reviewed = false; go.textContent = t("continue_"); out.innerHTML = ""; count(); });
+  $("#swx").onclick = () => d.close();
+  count();
+  const body = dry => ({grid: grid(), base: $("#swbase").value || null, prefix: $("#swpre")?.value || "", version: PLAN.version, dry});
+  go.onclick = async e => {
+    e.preventDefault(); go.disabled = true;
+    try {
+      if (!reviewed) {
+        const j = await api(`/api/p/${P.key}/plan/sweep`, {json: body(true)});
+        out.innerHTML = j.diff ? `<p class="desc" style="margin:14px 0 0">${esc(t("diff_title", {f: PLAN.file}))}</p>${diffHtml(j.diff)}`
+          : `<div class="diff" style="margin-top:14px">${(j.runs || []).map(r => `<div class="add">+ ${esc(flowText(r))}</div>`).join("")}</div>`;
+        reviewed = true; go.textContent = t("save");
+      } else {
+        const j = await api(`/api/p/${P.key}/plan/sweep`, {json: body(false)});
+        if ($("#swq").checked && j.ids.length) await api("/api/queue", {json: {project: P.key, runs: j.ids, backend: $("#swb")?.value || P.default_backend}});
+        d.close(); toast(`${t("saved")} · ${j.ids.join(", ")}`); await reloadPlan();
+      }
+    } catch (err) {
+      if (err.code === "conflict") { PLAN = await api(`/api/p/${P.key}/plan`); reviewed = false; go.textContent = t("continue_"); }
+      out.innerHTML = `<div class="msg ${err.code === "conflict" ? "warn" : "bad"}" style="margin-top:12px">${esc(err.code === "conflict" ? t("conflict") : err.message)}</div>`;
+    }
+    go.disabled = false;
+  };
+  d.showModal();
+}
+const flowText = o => "{" + Object.entries(o).map(([k, v]) => `${k}: ${v}`).join(", ") + "}";
+function queueCard(pkey) {
+  const all = PS?.queue || [], mine = pkey ? all.filter(e => e.project === pkey) : all;
+  if (!mine.length) return "";  // an empty queue takes no room
+  const firstOf = {};
+  all.forEach(e => { firstOf[e.backend] ??= e.id; });
+  const why = e => !e.waiting ? (firstOf[e.backend] === e.id ? t("w_next") : "") : e.waiting.startsWith("error") ? `${t("w_error")}: ${e.waiting.slice(7)}` : t("w_" + e.waiting);
+  return `<div class="card" style="margin:16px 0"><div class="ch"><h2>${t("queue")}</h2><span class="muted" style="font-size:12px">${mine.length}</span></div><div class="cb">
+    <p class="desc">${t("queue_desc")}</p>
+    ${mine.map(e => `<div class="qrow"><span class="n">${all.indexOf(e) + 1}</span>${pkey ? "" : `<span class="muted">${esc(e.project_name)} ·</span>`}
+      <b class="click" onclick="go('#/p/${esc(e.project)}/run/${encodeURIComponent(e.run)}')">${esc(e.run)}</b><span class="chip">${esc(e.backend_label)}</span>
+      ${e.hours ? `<span class="muted">${esc(t("hours_est", {h: e.hours}))}</span>` : ""}<span class="w ${e.waiting?.startsWith("error") ? "bad" : ""}">${esc(why(e))}</span>
+      <span class="sp"><button class="btn" data-qmv="${e.id}" data-by="-1" title="${t("up")}">↑</button><button class="btn" data-qmv="${e.id}" data-by="1" title="${t("down")}">↓</button><button class="btn danger" data-qrm="${e.id}" data-run="${esc(e.run)}" title="${t("remove")}">×</button></span></div>`).join("")}
+  </div></div>`;
+}
+// queue buttons live in pages that are redrawn often, so one listener on the document handles them
+document.addEventListener("click", async ev => {
+  const mv = ev.target.closest("[data-qmv]"), rm = ev.target.closest("[data-qrm]");
+  if (!mv && !rm) return;
+  try {
+    if (mv) await api(`/api/queue/${mv.dataset.qmv}/move`, {json: {by: +mv.dataset.by}});
+    else if (confirm(t("sure_dequeue", {run: rm.dataset.run}))) await api(`/api/queue/${rm.dataset.qrm}`, {method: "DELETE"});
+  } catch (e) { alert(e.message); }
+  refresh();
+});
+async function removeRun(rid) {
+  let j; try { j = await api(`/api/p/${P.key}/plan/runs/${encodeURIComponent(rid)}?dry=true`, {method: "DELETE"}); } catch (e) { return alert(e.message); }
+  if (!confirm(`${t("sure_remove_run", {run: rid})}\n\n${j.diff.split("\n").filter(l => l.startsWith("-") && !l.startsWith("---")).join("\n")}`)) return;
+  try { await api(`/api/p/${P.key}/plan/runs/${encodeURIComponent(rid)}?version=${PLAN.version}`, {method: "DELETE"}); toast(t("saved")); await reloadPlan(); }
+  catch (e) { if (e.code === "conflict") { toast(t("conflict")); await reloadPlan(); } else alert(e.message); }
+}
+
+/* ================= project: data ================= */
+let dataBuild = null;
+async function renderData() {
+  if (!$("#jobbox")) $("#content").innerHTML = `<div class="card"><div class="empty">…</div></div>`;
+  let d; try { d = await api(`/api/p/${P.key}/data`); } catch (e) { if (!stale("data")) $("#content").innerHTML = `<div class="msg bad">${esc(e.message)}</div>`; return; }
+  if (stale("data")) return;
+  const remote = Object.fromEntries(d.remote.map(x => [x.key, x])), cols = d.columns;
+  const uses = k => P.runs.filter(r => r.data_key === k).map(r => r.id).join(", ");
+  const size = r => cols.size_mb ? fsize(r[cols.size_mb]) : "—";
+  dataBuild = d.build;
+  morph($("#content"), `
+  <div class="kpis">
+    <div class="kpi"><div class="l">${t("packages")} · ${t("local")}</div><div class="v">${d.rows.filter(r => r._on_disk).length}</div></div>
+    <div class="kpi"><div class="l">${t("on_kaggle")}</div><div class="v">${d.remote.filter(x => x.exists).length}<small> / ${d.rows.length}</small></div></div>
+    ${cols.size_mb ? `<div class="kpi"><div class="l">${t("total_size")}</div><div class="v">${fsize(d.rows.reduce((a, r) => a + +(r[cols.size_mb] || 0), 0))}</div></div>` : ""}
+  </div>
+  <div class="card"><div class="ch"><h2>${t("packages")}</h2><div class="sp"><button class="btn" id="dref">${t("refresh")}</button>${d.build ? `<button class="btn" id="build">${esc(tx(P.jobs[d.build]?.title) || t("rebuild"))}</button>` : ""}<button class="btn primary" id="up">${t("upload")}</button></div></div>
+    <div class="cb" style="padding-bottom:6px"><p class="desc">${t("data_desc")}</p>${d.error ? `<div class="msg bad">Kaggle: ${esc(d.error)}</div>` : ""}</div>
+    <div class="cb flush tw"><table><tr><th style="width:36px"></th><th>${t("data")}</th>${Object.keys(cols).filter(k => k !== "size_mb").map(k => `<th class="${k === "folder" ? "" : "n"}">${T[LANG][k] ? t(k) : en(k)}</th>`).join("")}<th class="n">${t("size")}</th><th>Kaggle</th><th>${t("runs")}</th></tr>
+    ${d.rows.map(r => { const k = remote[r._key];
+      return `<tr><td><input type="checkbox" class="pk" value="${esc(r._key)}" ${r._on_disk ? "" : "disabled"} aria-label="${esc(r._key)}"></td><td><b>${esc(r._key)}</b>${r._on_disk ? "" : ` <span class="muted">(${t("missing")})</span>`}</td>
+      ${Object.entries(cols).filter(([k]) => k !== "size_mb").map(([k, c]) => k === "folder" ? `<td class="mono">${esc(r[c])}</td>` : `<td class="n">${(+r[c] || 0).toLocaleString(LANG)}</td>`).join("")}<td class="n">${size(r)}</td>
+      <td>${k?.exists ? `${chip(k.status === "ready" ? "ready" : "running", k.status === "ready" ? t("ready") : k.status || "?")} <span class="muted" style="font-size:12px">${esc(k.dataset)} · v${k.version} · ${fsize(k.gb * 1024)}${k.private ? " · " + t("private") : ""}</span>${k.private === false ? ` <span class="chip ERROR">${t("public")}</span>` : ""}` : `<span class="muted">${t("not_uploaded")}</span>`}</td>
+      <td class="muted" style="font-size:12px">${esc(uses(r._key))}</td></tr>`; }).join("")}</table></div></div>
+  <div class="card"><div class="ch"><h2>${t("job")}</h2></div><div class="cb" id="jobbox" data-keep><span class="muted">${t("no_job")}</span></div></div>`);
+  $("#dref").onclick = renderData;
+  $("#up").onclick = async () => {
+    const keys = [...document.querySelectorAll(".pk:checked")].map(x => x.value);
+    if (!keys.length) return alert(t("pick"));
+    if (!confirm(t("sure_upload", {k: keys.join(", ")}))) return;
+    try { await api(`/api/p/${P.key}/data/upload`, {json: {keys}}); } catch (e) { alert(e.message); }
+  };
+  if ($("#build")) $("#build").onclick = async () => {
+    if (!confirm(t("sure_job", {j: tx(P.jobs[d.build]?.title) || d.build}))) return;
+    try { await api(`/api/p/${P.key}/job/${d.build}`, {json: {}}); } catch (e) { alert(e.message); }
+  };
+  showJobs(P.key);
+}
+
+/* ================= jobs ================= */
+// Job output arrives as `job` events (everything once, then only new lines); each box shows one job at a time and a
+// running job takes the box over.
+const JOBS = {};
+function jobEvent(j) {
+  const k = `${j.project}:${j.kind}`, prev = JOBS[k];
+  JOBS[k] = {...j, lines: j.reset || !prev ? j.lines : prev.lines.concat(j.lines).slice(-2000)};
+  paintJob(j.project, j.kind, j.reset || !prev ? null : j.lines);
+}
+function jobBox(pkey, kind) {
+  if (route.view === "system") return $(`#jobbox-${pkey}`);
+  if (route.view === "project" && route.tab === "data" && pkey === P?.key && (kind === "upload" || kind === dataBuild)) return $("#jobbox");
+}
+function paintJob(pkey, kind, added) {
+  const el = jobBox(pkey, kind), J = JOBS[`${pkey}:${kind}`]; if (!el || !J) return;
+  const cur = el.dataset.job;
+  if (cur && cur !== kind && JOBS[`${pkey}:${cur}`]?.status === "running" && J.status !== "running") return;
+  if (cur !== kind) { el.dataset.job = kind; el.innerHTML = `<div class="toolbar jh"></div><div class="log short"></div>`; added = null; }
+  morph(el.querySelector(".jh"), `<b>${esc(tx(J.title))}</b>${chip(J.status === "running" ? "RUNNING" : J.status === "ok" ? "COMPLETE" : "ERROR", t(J.status === "running" ? "RUNNING" : J.status === "ok" ? "COMPLETE" : "ERROR"))}<span class="muted" style="font-size:12px">${J.seconds} s</span>`);
+  const lg = el.querySelector(".log"), end = !lg.childNodes.length || atEnd(lg);
+  if (added && lg.childNodes.length && lg.childNodes.length < 400) { if (added.length) lg.append("\n" + added.join("\n")); }
+  else lg.textContent = J.lines.join("\n");
+  if (end) lg.scrollTop = lg.scrollHeight;
+}
+function showJobs(pkey) {  // a freshly drawn box: show what is already known (a running job first)
+  const mine = Object.values(JOBS).filter(j => j.project === pkey && jobBox(pkey, j.kind));
+  const pick = mine.find(j => j.status === "running") || mine.at(-1);
+  if (pick) paintJob(pkey, pick.kind);
+}
+
+/* ================= project: results ================= */
+async function renderResults() {
+  let d; try { d = await api(`/api/p/${P.key}/results`); } catch (e) { if (!stale("results")) $("#content").innerHTML = `<div class="msg bad">${esc(e.message)}</div>`; return; }
+  if (stale("results")) return;
+  const R = d.rows, lab = tx(d.labels.primary) || "score", lab2 = tx(d.labels.secondary) || "";
+  const v = (id, k = "primary") => R[id]?.metrics?.[k];
+  const head = `<tr><th>${t("run")}</th><th>${en(Object.keys(Object.values(R)[0]?.fields || {})[1] || "")}</th><th class="n">${esc(lab)}</th>${lab2 ? `<th class="n">${esc(lab2)}</th>` : ""}${d.classes.map(c => `<th class="n">${en(c)}</th>`).join("")}<th class="n">${t("best_epoch")}</th><th class="n">${t("duration")}</th></tr>`;
+  const row = id => { const r = R[id]; if (!r) return ""; const f2 = Object.values(r.fields || {})[1];
+    return `<tr class="click" onclick="go('${runPage(id)}')"><td><b>${esc(id)}</b></td><td>${f2 == null ? `<span class="muted">${t("pending")}</span>` : esc(short(f2))}</td><td class="n"><b>${fmt(v(id))}</b></td>${lab2 ? `<td class="n">${fmt(v(id, "secondary"))}</td>` : ""}${d.classes.map(c => `<td class="n">${fmt(r.classes?.[c])}</td>`).join("")}<td class="n">${v(id, "best_epoch") != null ? `${v(id, "best_epoch")}/${v(id, "epochs") ?? "?"}` : "—"}</td><td class="n">${v(id, "hours") != null ? v(id, "hours") + " h" : "—"}</td></tr>`; };
+  const stat = ids => { const xs = ids.map(i => v(i)).filter(x => x != null); if (!xs.length) return "—";
+    const m = xs.reduce((a, b) => a + b) / xs.length, s = xs.length > 1 ? Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / (xs.length - 1)) : null;
+    return `<b>${m.toFixed(2)}</b>${s != null ? " ± " + s.toFixed(2) : ""} <span class="muted">(n=${xs.length})</span>`; };
+  const tables = d.tables.length ? d.tables : [{title: t("results"), runs: Object.keys(R)}];
+  const extras = Object.values(R).filter(r => r.extra).map(r => r.id);
+  morph($("#content"), `<div class="msg warn">${esc(tx(d.note) || t("results_note"))}</div>` + tables.map(tb => {
+    if (tb.groups) return `<div class="card"><div class="ch"><h2>${esc(tx(tb.title))}</h2>${tb.subtitle ? `<span class="muted" style="font-size:12px">${esc(tx(tb.subtitle))}</span>` : ""}</div><div class="cb flush tw"><table>
+      <tr><th></th><th>${t("runs")}</th><th class="n">${esc(lab)}</th></tr>${tb.groups.map(g => `<tr><td>${esc(tx(g.label))}</td><td>${esc(g.runs.join(", "))}</td><td class="n">${stat(g.runs)}</td></tr>`).join("")}</table></div>
+      ${tb.note ? `<div class="cb muted" style="font-size:12px;border-top:1px solid var(--line)">${esc(tx(tb.note))}</div>` : ""}</div>`;
+    const cpts = tb.curve ? Object.entries(tb.curve.x).filter(([i]) => v(i) != null).map(([i, x]) => [x, v(i)]) : [];
+    const curve = !tb.curve ? "" : cpts.length >= 2 ? `<div class="cb" style="border-top:1px solid var(--line)">${chart(`${lab} · ${tx(tb.curve.label) || ""}`, [{name: lab, color: COLORS[0], pts: cpts}])}</div>`
+      : `<div class="cb muted" style="border-top:1px solid var(--line);font-size:12px">${esc(tx(tb.curve.label) || "")} · ${t("curve_wait")}</div>`;
+    return `<div class="card"><div class="ch"><h2>${esc(tx(tb.title))}</h2>${tb.subtitle ? `<span class="muted" style="font-size:12px">${esc(tx(tb.subtitle))}</span>` : ""}</div><div class="cb flush tw"><table>${head}${tb.runs.map(row).join("")}</table></div>${curve}</div>`;
+  }).join("") + (extras.length ? `<div class="card"><div class="ch"><h2>${t("extra")}</h2></div><div class="cb flush tw"><table>${head}${extras.map(row).join("")}</table></div></div>` : ""));
+}
+
+/* ================= system ================= */
+async function renderSystem() {
+  setTitle(t("system_title"), "runboard");
+  let s, conn, dv; try { [s, conn, dv] = await Promise.all([api("/api/system"), api("/api/connections"), api("/api/devices")]); } catch (e) { if (!stale("system")) $("#content").innerHTML = `<div class="msg bad">${esc(e.message)}</div>`; return; }
+  if (stale("system")) return;
+  const row = (k, v) => `<tr><td class="muted">${k}</td><td><b>${v}</b></td></tr>`;
+  const kb = kaggleBox(conn.kaggle, () => renderSystem()), L = ME?.local, devs = dv?.devices || [];
+  morph($("#content"), `
+  <div class="card"><div class="ch"><h2>${t("connections")}</h2></div><div class="cb"><p class="desc">${t("connections_desc")}</p><div id="kbox">${kb.html}</div></div></div>
+  <div class="card"><div class="ch"><h2>${t("backends")}</h2></div><div class="cb flush tw"><table>
+    ${Object.values(s.backends).map(b => `<tr><td><b>${esc(b.label)}</b></td><td>${b.ok ? chip("COMPLETE", t("available")) : chip("ERROR", t("unavailable"))}</td>
+      <td class="muted">${b.ok ? [b.user, b.quota ? `${t("gpu_quota")} ${b.quota.used_h} / ${b.quota.total_h} h` : "", b.gpu ? `${esc(b.gpu)} · ${b.free_gb}/${b.total_gb} GB` : (b.name === "local" ? "no CUDA GPU" : "")].filter(Boolean).map(esc).join(" · ") : esc(b.error || "")}</td></tr>`).join("")}
+    <tr><td><b>Colab</b></td><td>${chip("", t("planned"))}</td><td class="muted">${t("w_colab_desc")}</td></tr></table></div></div>
+  <div class="cols" style="margin-top:16px">
+    <div class="card"><div class="ch"><h2>${t("tablet_access")}</h2>${s.lan_on ? chip("COMPLETE", t("on")) : chip("", t("off"))}</div><div class="cb">
+      <p class="desc">${t("tablet_desc")}</p>
+      ${L ? `<label class="tog"><input type="checkbox" id="lan" ${s.lan_on ? "checked" : ""}> ${t("lan_lbl")}</label>` : `<div class="msg warn">${t("local_only")}</div>`}
+      ${s.lan_on ? `<div class="card tw" style="margin-top:12px"><table>${row(t("this_machine"), `http://localhost:${s.port}`)}${row(t("tablet"), esc(s.lan))}${row(t("compact"), esc(s.lan) + "/mini")}</table></div>
+        ${L ? `<div class="toolbar" style="margin-top:12px"><button class="btn primary" id="pair">${t("pair_device")}</button></div><div id="pairbox" data-keep></div>` : ""}
+        <h3 class="wh">${t("devices")}</h3>
+        ${devs.length ? `<div class="card tw"><table><tr><th>${t("device")}</th><th>${t("paired_at")}</th><th>${t("last_seen")}</th><th></th></tr>${devs.map(d => `<tr><td><b>${esc(d.name)}</b>${ME?.device?.id === d.id ? ` <span class="muted">(${t("this_device")})</span>` : ""}</td><td>${esc(d.created)}</td><td>${esc(d.last_seen || "—")}</td><td class="n">${L ? `<button class="btn danger" data-unpair="${esc(d.id)}">${t("remove")}</button>` : ""}</td></tr>`).join("")}</table></div>` : `<p class="desc">${t("no_devices")}</p>`}
+        <p class="desc" style="margin:12px 0 0">${t("firewall")}</p>` : ""}
+    </div></div>
+    <div class="card"><div class="ch"><h2>${t("env")}</h2></div><div class="cb flush tw"><table>${row("runboard", s.version)}${row("python", s.python)}${row("os", esc(s.os))}${row("home", esc(s.home))}${row("disk", `${s.disk.free_gb} / ${s.disk.total_gb} GB`)}</table></div>
+      <div class="cb"><div class="toolbar" style="margin:0">${L && s.autostart != null ? `<label class="tog"><input type="checkbox" id="auto" ${s.autostart ? "checked" : ""}> ${t("autostart")}</label>` : ""}<span class="sp"><button class="btn" id="restart">${t("restart_srv")}</button></span></div></div></div>
+  </div>
+  <div class="card" style="margin-top:16px"><div class="ch"><h2>${t("jobs")}</h2></div><div class="cb"><p class="desc">${t("jobs_desc")}</p>
+    ${PS.projects.map(p => `<div class="toolbar">${avatar(p, 24)}<b>${esc(p.name)}</b><span class="sp" id="jb-${p.key}"></span></div><div id="jobbox-${p.key}" data-keep></div>`).join("")}</div></div>`);
+  kb.bind($("#kbox"));
+  if ($("#auto")) $("#auto").onchange = async e => { try { await api("/api/system/autostart", {json: {on: e.target.checked}}); } catch (err) { alert(err.message); e.target.checked = !e.target.checked; } };
+  if ($("#lan")) $("#lan").onchange = async e => {
+    const on = e.target.checked;
+    if (!confirm(t(on ? "sure_lan_on" : "sure_lan_off"))) { e.target.checked = !on; return; }
+    try { await api("/api/system/lan", {json: {on}}); toast(t("restarting")); setTimeout(() => location.reload(), 6000); } catch (err) { alert(err.message); e.target.checked = !on; }
+  };
+  if ($("#pair")) $("#pair").onclick = startPairing;
+  document.querySelectorAll("[data-unpair]").forEach(b => b.onclick = async () => {
+    if (!confirm(t("sure_unpair"))) return;
+    try { await api(`/api/devices/${b.dataset.unpair}`, {method: "DELETE"}); renderSystem(); } catch (e) { alert(e.message); }
+  });
+  $("#restart").onclick = async () => { if (!confirm(t("sure_restart"))) return; await api("/api/system/restart", {method: "POST"}).catch(() => {}); toast(t("restarting")); setTimeout(() => location.reload(), 6000); };
+  for (const p of PS.projects) {
+    const info = await api(`/api/p/${p.key}`).catch(() => null); if (!info) continue;
+    if (stale("system")) return;
+    morph($(`#jb-${p.key}`), Object.entries(info.jobs).filter(([, j]) => !j.per_run).map(([k, j]) => `<button class="btn" data-j="${k}" data-p="${p.key}">${esc(tx(j.title))}</button>`).join(" "));
+    showJobs(p.key);
+  }
+  document.querySelectorAll("[data-j]").forEach(b => b.onclick = async () => {
+    if (!confirm(t("sure_job", {j: b.textContent}))) return;
+    try { await api(`/api/p/${b.dataset.p}/job/${b.dataset.j}`, {json: {}}); } catch (e) { alert(e.message); }
+  });
+}
+
+// Pairing: a one-time QR code / 6-digit code from the server; the list refreshes once the tablet has used it.
+let pairTimer = null;
+async function startPairing() {
+  clearInterval(pairTimer);
+  let p; try { p = await api("/api/devices/pair", {method: "POST"}); } catch (e) { return alert(e.message); }
+  const box = $("#pairbox"); if (!box) return;
+  const before = (await api("/api/devices").catch(() => ({devices: []}))).devices.length, end = Date.now() + p.seconds * 1000;
+  box.innerHTML = `<div class="pairing"><div class="qr">${p.qr}</div><div><p class="desc">${t("pair_scan")}</p><p class="desc">${t("pair_or")}<br><span class="mono">${esc(p.base)}</span></p>
+    <div class="paircode">${esc(p.code.slice(0, 3))} ${esc(p.code.slice(3))}</div><p class="muted" id="pairleft" style="font-size:12px"></p></div></div>`;
+  const step = async () => {
+    const left = Math.round((end - Date.now()) / 1000), el = $("#pairleft");
+    if (!el) return clearInterval(pairTimer);
+    if (left <= 0) { clearInterval(pairTimer); box.innerHTML = `<p class="muted">${t("pair_expired")}</p>`; return; }
+    el.textContent = `${t("pair_left")} ${left} s`;
+    if (left % 2) return;
+    const d = await api("/api/devices").catch(() => null);
+    if (d && d.devices.length > before) { clearInterval(pairTimer); box.innerHTML = ""; toast(t("paired_ok", {name: d.devices.at(-1).name})); renderSystem(); }
+  };
+  step(); pairTimer = setInterval(step, 1000);
+}
+
+/* ================= connections (credentials) ================= */
+function kaggleBox(k, onDone) {
+  // Kaggle connection state; when not connected, a 3-step guide with a single token field.
+  const ok = k?.ok;
+  if (!ME?.local) return {html: `<div class="conn"><div class="conn-h"><b>Kaggle</b>${ok ? chip("COMPLETE", t("connected")) : chip("", t("not_connected"))}<span class="muted" style="font-size:12px">${ok ? esc(k.user || "") : ""}</span></div><p class="desc" style="margin:8px 0 0">${t("local_only")}</p></div>`, bind: () => {}};
+  const html = `<div class="conn">
+    <div class="conn-h"><b>Kaggle</b>${ok ? chip("COMPLETE", t("connected")) : chip("", t("not_connected"))}<span class="muted" style="font-size:12px">${ok ? `${esc(k.user)}${k.quota ? ` · ${t("gpu_quota")} ${k.quota.used_h} / ${k.quota.total_h} h` : ""}` : ""}</span></div>
+    ${ok ? `<p class="desc" style="margin:8px 0 0">${t("token_where")} <span class="mono">${esc(k.file)}</span>${k.source === "env" ? " (KAGGLE_API_TOKEN)" : ""}</p>
+      <div class="toolbar" style="margin:10px 0 0"><button class="btn" data-k="replace">${t("replace_token")}</button><button class="btn danger" data-k="forget">${t("disconnect")}</button></div>
+      <div class="kform hide">` : `<ol class="steps">
+        <li>${t("k_step1")} <a href="https://www.kaggle.com/settings/api" target="_blank" rel="noopener">kaggle.com/settings/api ↗</a></li>
+        <li>${t("k_step2")}</li><li>${t("k_step3")}</li></ol><div class="kform">`}
+      <div class="tokenrow"><input type="password" class="ktok" autocomplete="off" spellcheck="false" placeholder="KGAT_…" aria-label="Kaggle API token"><button class="btn primary" data-k="save">${t("save_test")}</button></div>
+      <p class="desc" style="margin:6px 0 0">${t("token_note")}</p>${k && !k.installed ? `<div class="msg warn" style="margin-top:8px">pip install kaggle</div>` : ""}</div></div>`;
+  const bind = root => {
+    const on = (k, f) => { const b = root.querySelector(`[data-k="${k}"]`); if (b) b.onclick = f; };
+    on("replace", () => root.querySelector(".kform").classList.toggle("hide"));
+    on("forget", async () => {
+      if (!confirm(t("sure_disconnect"))) return;
+      await api("/api/connections/kaggle", {method: "DELETE"}).catch(e => alert(e.message)); onDone?.();
+    });
+    on("save", async e => {
+      const inp = root.querySelector(".ktok"), b = e.target; if (!inp.value.trim()) return inp.focus();
+      b.disabled = true; b.textContent = "…";
+      try { await api("/api/connections/kaggle", {json: {token: inp.value.trim()}}); inp.value = ""; toast(t("kaggle_ok")); await loadProjects(); onDone?.(); }
+      catch (err) { alert(err.message); b.disabled = false; b.textContent = t("save_test"); }
+    });
+  };
+  return {html, bind};
+}
+
+/* ================= new-project wizard ================= */
+const W = {step: 1, path: "", fs: null, scan: null, kind: "yolo", name: "", description: "", color: "#2c6b5a",
+           yolo: {data: "", models: ["yolo11n.pt", "yolo11s.pt"], epochs: 50, imgsz: 640, batch: 16, seeds: "0", exclude_test: true},
+           script: {file: "", runs: [{id: "run1", args: ""}], files: [], pip: "", data_dir: "", report: "", metric: "score"},
+           backends: ["local"], default_backend: "local", conn: null, preview: null, error: null};
+const MODELS = {yolo11: "YOLO11", yolo26: "YOLO26", yolov8: "YOLOv8"};
+function wSpec() {
+  return {path: W.path, name: W.name, description: W.description, color: W.color, kind: W.kind, backends: W.backends,
+          default_backend: W.default_backend,
+          yolo: {...W.yolo, seeds: String(W.yolo.seeds).split(/[,\s]+/).filter(Boolean).map(Number)},
+          script: {...W.script, pip: W.script.pip.split(/[,\s]+/).filter(Boolean)}};
+}
+async function renderWizard() {
+  setTitle(t("new_project"), `<a href="#/">${t("projects")}</a> / ${t("new_project")}`);
+  if (!ME?.local) { morph($("#content"), `<div class="msg warn">${t("local_only")}</div>`); return; }
+  if (!W.fs) W.fs = await api("/api/fs").catch(() => ({roots: [], dirs: []}));
+  if (W.step === 3 && !W.conn) W.conn = await api("/api/connections").catch(() => null);
+  if (stale("new")) return;
+  const steps = [t("w_folder"), t("w_kind"), t("w_where"), t("w_review")];
+  const bar = `<div class="stepper">${steps.map((s, i) => `<div class="stp ${i + 1 === W.step ? "on" : i + 1 < W.step ? "done" : ""}"><span>${i + 1 < W.step ? "✓" : i + 1}</span>${s}</div>`).join("")}</div>`;
+  let body = "";
+  if (W.step === 1) {
+    const fs = W.fs;
+    body = `<p class="desc">${t("w_folder_desc")}</p>
+      <div class="toolbar">${(fs.roots || []).map(r => `<button class="btn" data-dir="${esc(r.path)}">${esc(r.name)}</button>`).join("")}</div>
+      <div class="pathrow"><input id="wpath" value="${esc(fs.path || W.path)}" placeholder="C:\\Users\\…\\my-project" spellcheck="false"><button class="btn" id="wgo">${t("open")}</button></div>
+      ${fs.path ? `<div class="card fl">${fs.parent ? `<div class="fi" data-dir="${esc(fs.parent)}">↰ ..</div>` : ""}
+        ${fs.dirs.length ? fs.dirs.map(d => `<div class="fi" data-dir="${esc(d.path)}"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>${esc(d.name)}${d.project ? chip("COMPLETE", "runboard") : ""}</div>`).join("") : `<div class="empty" style="padding:20px">${t("w_no_sub")}</div>`}</div>` : ""}
+      <div class="wnav"><span class="muted mono" style="overflow:hidden;text-overflow:ellipsis">${esc(fs.path || "")}</span><button class="btn primary" id="wpick" ${fs.path ? "" : "disabled"}>${t("w_use_folder")}</button></div>`;
+  } else if (W.step === 2) {
+    const sc = W.scan, y = W.yolo, sp = W.script;
+    if (!y.data && sc.datasets.length) y.data = sc.datasets[0].file;
+    if (!sp.file && sc.scripts.length) sp.file = sc.scripts[0];
+    const ds = sc.datasets.find(d => d.file === y.data);
+    const nRuns = y.models.length * Math.max(1, String(y.seeds).split(/[,\s]+/).filter(Boolean).length);
+    body = `${sc.has_manifest ? `<div class="msg ok">${t("w_has_manifest")} <button class="btn" id="wexisting" style="margin-left:8px">${t("w_add_existing")}</button></div>` : ""}
+      <p class="desc">${t("w_kind_desc")}</p>
+      <div class="choices">
+        <div class="choice ${W.kind === "yolo" ? "on" : ""}" data-kind="yolo"><b>${t("w_yolo")}</b><span>${t("w_yolo_desc")}</span>${sc.datasets.length ? chip("COMPLETE", t("w_found_ds", {n: sc.datasets.length})) : ""}</div>
+        <div class="choice ${W.kind === "script" ? "on" : ""}" data-kind="script"><b>${t("w_script")}</b><span>${t("w_script_desc")}</span>${sc.scripts.length ? chip("", t("w_found_py", {n: sc.scripts.length})) : ""}</div>
+      </div>
+      ${W.kind === "yolo" ? `<div class="form" style="margin-top:18px">
+        <label class="wide">${t("w_dataset")}${sc.datasets.length ? `<select id="ydata">${sc.datasets.map(d => `<option value="${esc(d.file)}" ${d.file === y.data ? "selected" : ""}>${esc(d.file)}</option>`).join("")}</select>` : `<input id="ydata" value="${esc(y.data)}" placeholder="data/data.yaml">`}</label>
+        <label>${t("w_epochs")}<input id="yep" type="number" min="1" max="1000" value="${y.epochs}"></label>
+        <label>${t("w_imgsz")}<input id="yimg" type="number" min="64" step="32" value="${y.imgsz}"></label>
+        <label>${t("w_batch")}<input id="ybatch" type="number" min="1" value="${y.batch}"></label>
+        <label>${t("w_seeds")}<input id="yseeds" value="${esc(y.seeds)}" placeholder="0, 1, 2"></label></div>
+        ${ds ? `<p class="desc" style="margin-top:10px">${t("w_classes")}: <b>${esc(ds.classes.join(", "))}</b></p>` : `<div class="msg warn" style="margin-top:12px">${t("w_no_ds")}</div>`}
+        <h3 class="wh">${t("w_models")}</h3>
+        <div class="models">${Object.entries(MODELS).map(([f, label]) => `<div class="mg"><b>${label}</b>${"nsmlx".split("").map(sz => { const m = `${f}${sz}.pt`; return `<label class="tog"><input type="checkbox" class="ym" value="${m}" ${y.models.includes(m) ? "checked" : ""}>${sz}</label>`; }).join("")}</div>`).join("")}</div>
+        <p class="desc" style="margin-top:10px">${t("w_runs_will", {n: nRuns})}</p>
+        <label class="tog"><input type="checkbox" id="yex" ${y.exclude_test ? "checked" : ""}> ${t("w_exclude_test")}</label>`
+      : `<div class="form" style="margin-top:18px">
+        <label class="wide">${t("w_script_file")}${sc.scripts.length ? `<select id="sfile">${sc.scripts.map(f => `<option ${f === sp.file ? "selected" : ""}>${esc(f)}</option>`).join("")}</select>` : `<input id="sfile" value="${esc(sp.file)}" placeholder="train.py">`}</label>
+        <label class="wide">${t("w_pip")}<input id="spip" value="${esc(sp.pip)}" placeholder="ultralytics timm"></label></div>
+        <h3 class="wh">${t("w_runs")}</h3><p class="desc">${t("w_runs_desc")}</p>
+        <div class="card tw"><table><tr><th style="width:180px">${t("run")}</th><th>${t("w_args")}</th><th style="width:60px"></th></tr>
+        ${sp.runs.map((r, i) => `<tr><td><input class="srid" data-i="${i}" value="${esc(r.id)}" style="width:100%"></td><td><input class="sargs" data-i="${i}" value="${esc(r.args)}" placeholder="--epochs 50 --lr 0.01" style="width:100%"></td><td class="n">${sp.runs.length > 1 ? `<button class="btn danger sdel" data-i="${i}">×</button>` : ""}</td></tr>`).join("")}</table></div>
+        <div class="toolbar" style="margin-top:10px"><button class="btn" id="sadd">+ ${t("run")}</button></div>
+        <details style="margin-top:8px"><summary>${t("w_advanced")}</summary><div class="form" style="margin-top:12px">
+          <label class="wide">${t("w_extra_files")}<select id="sfiles" multiple size="5">${[...sc.scripts, ...sc.configs].filter(f => f !== sp.file).map(f => `<option ${sp.files.includes(f) ? "selected" : ""}>${esc(f)}</option>`).join("")}</select></label>
+          <label>${t("w_data_dir")}<input id="sdata" value="${esc(sp.data_dir)}" placeholder="data/"></label>
+          <label>${t("w_report")}<input id="sreport" value="${esc(sp.report)}" placeholder="{out}/metrics.json"></label>
+          <label>${t("w_metric")}<input id="smetric" value="${esc(sp.metric)}"></label></div></details>`}
+      <div class="wnav"><button class="btn" id="wback">← ${t("back")}</button><button class="btn primary" id="wnext">${t("next")} →</button></div>`;
+  } else if (W.step === 3) {
+    const k = W.conn?.kaggle, l = W.conn?.local || {};
+    const kb = kaggleBox(k, async () => { W.conn = null; renderWizard(); });
+    body = `<p class="desc">${t("w_where_desc")}</p>
+      <div class="choices three">
+        <label class="choice ${W.backends.includes("local") ? "on" : ""}"><input type="checkbox" class="wb" value="local" ${W.backends.includes("local") ? "checked" : ""}><b>${t("local_gpu")}</b><span>${l.gpu ? esc(l.gpu) + ` · ${l.total_gb} GB` : t("w_no_gpu")}</span><span>${t("w_local_desc")}</span></label>
+        <label class="choice ${W.backends.includes("kaggle") ? "on" : ""}"><input type="checkbox" class="wb" value="kaggle" ${W.backends.includes("kaggle") ? "checked" : ""}><b>Kaggle</b><span>${t("w_kaggle_desc")}</span>${k?.ok ? chip("COMPLETE", t("connected")) : chip("", t("not_connected"))}</label>
+        <div class="choice off"><b>Colab</b><span>${t("w_colab_desc")}</span>${chip("", t("planned"))}</div>
+      </div>
+      ${W.backends.includes("kaggle") && !k?.ok ? `<div class="card" style="margin-top:16px"><div class="cb" id="kbox">${kb.html}</div></div>` : ""}
+      ${W.backends.length > 1 ? `<div class="form" style="margin-top:16px;max-width:360px"><label>${t("w_default")}<select id="wdef">${W.backends.map(b => `<option value="${b}" ${b === W.default_backend ? "selected" : ""}>${b === "local" ? t("local_gpu") : "Kaggle"}</option>`).join("")}</select></label></div>` : ""}
+      <div class="wnav"><button class="btn" id="wback">← ${t("back")}</button><button class="btn primary" id="wnext" ${W.backends.length ? "" : "disabled"}>${t("next")} →</button></div>`;
+    setTimeout(() => { const b = $("#kbox"); if (b) kb.bind(b); });
+  } else {
+    const pv = W.preview;
+    body = `<div class="form"><label>${t("w_name")}<input id="wname" value="${esc(W.name)}"></label>
+        <label class="wide">${t("w_desc")}<input id="wdesc" value="${esc(W.description)}" placeholder="${esc(t("w_desc_ph"))}"></label>
+        <label>${t("w_color")}<input id="wcolor" type="color" value="${esc(W.color)}" style="height:36px;padding:2px"></label></div>
+      <div class="summary">
+        <div><span>${t("w_folder")}</span><b class="mono">${esc(W.path)}</b></div>
+        <div><span>${t("w_kind")}</span><b>${W.kind === "yolo" ? t("w_yolo") : t("w_script")}</b></div>
+        <div><span>${t("w_where")}</span><b>${W.backends.map(b => b === "local" ? t("local_gpu") : "Kaggle").join(" + ")}</b></div>
+        <div><span>${t("runs")}</span><b>${pv ? pv.nruns : "—"}</b></div>
+      </div>
+      ${pv ? `<p class="desc">${t("w_files_will")}: ${Object.keys(pv.files).map(f => `<span class="mono">${esc(f)}</span>`).join(", ")}</p>
+        <details><summary>${t("w_show_files")}</summary>${Object.entries(pv.files).filter(([f]) => f.endsWith(".yaml")).map(([f, c]) => `<p class="mono" style="margin:12px 0 0">${esc(f)}</p><pre class="raw">${esc(c)}</pre>`).join("")}</details>` : ""}
+      ${W.error ? `<div class="msg bad" style="margin-top:12px">${esc(W.error)}</div>` : ""}
+      <div class="wnav"><button class="btn" id="wback">← ${t("back")}</button><button class="btn primary" id="wcreate" ${pv ? "" : "disabled"}>${t("w_create")}</button></div>`;
+  }
+  morph($("#content"), `<div class="wizard">${bar}<div class="card"><div class="cb">${body}</div></div></div>`);
+  wireWizard();
+}
+function readStep2() {
+  const y = W.yolo, sp = W.script;
+  if (W.kind === "yolo") {
+    if (!$("#yep")) return;
+    y.data = $("#ydata").value; y.epochs = +$("#yep").value || y.epochs; y.imgsz = +$("#yimg").value || y.imgsz;
+    y.batch = +$("#ybatch").value || y.batch; y.seeds = $("#yseeds").value; y.exclude_test = $("#yex").checked;
+    y.models = [...document.querySelectorAll(".ym:checked")].map(x => x.value);
+  } else if ($("#sfile")) {
+    sp.file = $("#sfile").value; sp.pip = $("#spip").value;
+    sp.runs = [...document.querySelectorAll(".srid")].map((x, i) => ({id: x.value, args: document.querySelector(`.sargs[data-i="${i}"]`).value}));
+    if ($("#sfiles")) { sp.files = [...$("#sfiles").selectedOptions].map(o => o.value); sp.data_dir = $("#sdata").value; sp.report = $("#sreport").value; sp.metric = $("#smetric").value; }
+  }
+}
+function wireWizard() {
+  const open = async dir => { try { W.fs = await api(`/api/fs?path=${encodeURIComponent(dir)}`); renderWizard(); } catch (e) { alert(e.message); } };
+  document.querySelectorAll("[data-dir]").forEach(el => el.onclick = () => open(el.dataset.dir));
+  const on = (id, ev, f) => { const el = $(id); if (el) el["on" + ev] = f; };  // property handlers: re-wiring a patched page is harmless
+  on("#wgo", "click", () => open($("#wpath").value));
+  on("#wpath", "keydown", e => e.key === "Enter" && open(e.target.value));
+  on("#wpick", "click", async () => {
+    try { W.scan = await api("/api/wizard/scan", {json: {path: W.fs.path}}); W.path = W.scan.path; W.name = W.scan.name; W.kind = W.scan.suggest;
+      W.yolo.data = ""; W.script.file = ""; W.step = 2; renderWizard(); } catch (e) { alert(e.message); }
+  });
+  on("#wexisting", "click", async () => {
+    const cmds = W.scan?.commands || [];
+    if (cmds.length && !confirm(`${t("w_trust")}\n\n${cmds.join("\n")}`)) return;
+    try { const j = await api("/api/projects", {json: {path: W.path}}); await loadProjects(); go(`#/p/${j.key}/overview`); } catch (e) { alert(e.message); } });
+  document.querySelectorAll("[data-kind]").forEach(el => el.onclick = () => { readStep2(); W.kind = el.dataset.kind; renderWizard(); });
+  document.querySelectorAll(".ym, #yseeds, #ydata").forEach(el => el.onchange = () => { readStep2(); renderWizard(); });
+  on("#sadd", "click", () => { readStep2(); W.script.runs.push({id: `run${W.script.runs.length + 1}`, args: ""}); renderWizard(); });
+  document.querySelectorAll(".sdel").forEach(b => b.onclick = () => { readStep2(); W.script.runs.splice(+b.dataset.i, 1); renderWizard(); });
+  document.querySelectorAll(".wb").forEach(cb => cb.onchange = () => {
+    W.backends = [...document.querySelectorAll(".wb:checked")].map(x => x.value);
+    if (!W.backends.includes(W.default_backend)) W.default_backend = W.backends[0] || "local"; renderWizard();
+  });
+  on("#wdef", "change", e => W.default_backend = e.target.value);
+  on("#wback", "click", () => { if (W.step === 2) readStep2(); W.step--; W.error = null; renderWizard(); });
+  on("#wnext", "click", async () => {
+    if (W.step === 2) { readStep2(); if (W.kind === "yolo" && !W.yolo.models.length) return alert(t("w_pick_model")); }
+    if (W.step === 3) await previewWizard();
+    W.step++; renderWizard();
+  });
+  [["#wname", "name"], ["#wdesc", "description"], ["#wcolor", "color"]].forEach(([id, k]) => on(id, "input", e => { W[k] = e.target.value; }));
+  on("#wcreate", "click", () => createWizard(false));
+}
+async function previewWizard() {
+  W.error = null;
+  try {
+    const j = await api("/api/wizard/preview", {json: wSpec()});
+    const runsPart = (j.files["runboard_runs.yaml"] || "").split(/^runs:\s*$/m)[1] || "";
+    W.preview = {files: j.files, nruns: runsPart.split("\n").filter(l => /^  [^\s#]/.test(l)).length};
+  } catch (e) { W.preview = null; W.error = e.message; }
+}
+async function createWizard(overwrite) {
+  try {
+    const j = await api("/api/wizard/create", {json: {...wSpec(), overwrite}});
+    toast(t("w_created")); await loadProjects(); Object.assign(W, {step: 1, preview: null, scan: null, name: "", error: null}); go(`#/p/${j.key}/overview`);
+  } catch (e) {
+    if (/Already exists/.test(e.message) && confirm(t("w_overwrite", {f: e.message.replace("Already exists: ", "")}))) return createWizard(true);
+    W.error = e.message; renderWizard();
+  }
+}
+
+/* ================= main loop ================= */
+async function loadProjects() { PS = await api("/api/projects"); }
+function notify() {
+  for (const p of PS.projects) for (const r of (P && P.key === p.key ? P.runs : p.active)) {
+    const k = p.key + ":" + r.id;
+    if (prevStatus[k] && prevStatus[k] !== r.status && ["COMPLETE", "ERROR"].includes(r.status)) {
+      const msg = t(r.status === "COMPLETE" ? "toast_done" : "toast_err", {run: `${p.name} · ${r.id}`});
+      toast(msg); try { if (Notification.permission === "granted") new Notification("runboard", {body: msg}); } catch {}
+    }
+    prevStatus[k] = r.status;
+  }
+}
+/* ================= live connection ================= */
+// One EventSource per screen. The server sends what changed (projects, the open project, the open run) plus appended
+// log and job lines; the page patches itself. The browser reconnects by itself after network drops.
+let ES = null, esUrl = "";
+function subscribe(force) {
+  const q = new URLSearchParams();
+  if (route.view === "project") {
+    q.set("p", route.key);
+    const rid = ["runs", "run"].includes(route.tab) ? route.run : route.tab === "overview" ? P?.runs.find(r => ACTIVE.includes(r.status))?.id : null;
+    if (rid) q.set("run", rid);
+    if (rid && rid === route.run && sub === "log") { q.set("log", "1"); if (allLog) q.set("all", "1"); }
+    if (route.tab === "data") q.set("jobs", route.key);
+  } else if (route.view === "system") q.set("jobs", "*");
+  const url = "/api/events?" + q;
+  if (!force && url === esUrl && ES && ES.readyState !== 2) return;
+  ES?.close(); esUrl = url; ES = new EventSource(location.origin + url);
+  const on = (name, f) => ES.addEventListener(name, e => { try { f(JSON.parse(e.data)); } catch (err) { console.error(name, err); } });
+  on("projects", d => { PS = d; notify(); renderChrome(); if (route.view === "home") renderHome(); });
+  on("project", d => { if (d.error || route.view !== "project" || d.key !== route.key) return; P = d; notify(); renderChrome(); projectChanged(); });
+  on("run", d => {
+    if (d.error || route.view !== "project") return;
+    if (route.tab === "overview") { activeDetail = d; renderOverview(); }
+    else if (d.id === route.run) { detail = d; renderDetail(); }
+  });
+  on("log", logEvent);
+  on("job", jobEvent);
+  ES.onopen = () => setConn(true);
+  ES.onerror = () => {
+    setConn(false);
+    if (ES.readyState === 2) setTimeout(() => api("/api/projects").then(() => subscribe(true)).catch(() => setTimeout(() => subscribe(true), 5000)), 3000);
+  };
+}
+function setConn(ok) { $("#upd").textContent = ok ? `● ${t("conn_live")}` : t("reconnecting"); $("#upd").classList.toggle("off", !ok); }
+function projectChanged() {
+  if (route.tab === "overview") { renderOverview(); subscribe(); }
+  else if (route.tab === "runs") renderRunsTab();
+  else if (route.tab === "run") renderRunPage();
+  else if (route.tab === "results") renderResults();
+}
+async function render() {
+  route = parseRoute();
+  if (route.view === "project") {
+    if (!P || P.key !== route.key) { try { P = await api(`/api/p/${route.key}`); } catch (e) { $("#content").innerHTML = `<div class="msg bad">${esc(e.message)}</div>`; return; } }
+    const onRun = route.tab === "run";
+    setTitle(onRun ? route.run : t(route.tab), `<a href="#/">${t("projects")}</a> / <a href="#/p/${P.key}/overview">${esc(P.name)}</a>${onRun ? ` / <a href="#/p/${P.key}/runs">${t("runs")}</a>` : ""}`);
+    renderChrome();
+    if (route.tab !== "runs") $("#content").innerHTML = "";
+    ({overview: renderOverview, runs: renderRunsTab, run: renderRunPage, settings: renderSettings, data: renderData, results: renderResults})[route.tab]?.();
+  } else {
+    P = null; renderChrome();
+    route.view === "system" ? renderSystem() : route.view === "new" ? renderWizard() : renderHome();
+  }
+  subscribe();
+}
+// After an action: fetch at once instead of waiting for the next event.
+async function refresh() {
+  try {
+    await loadProjects();
+    if (route.view === "project") { P = await api(`/api/p/${route.key}`); }
+    notify(); renderChrome();
+    if (route.view === "home") renderHome();
+    if (route.view === "project" && route.tab === "overview") renderOverview();
+    if (route.view === "project" && route.tab === "runs") renderRunsTab();
+    if (route.view === "project" && route.tab === "run") renderRunPage();
+  } catch (e) { setConn(false); }
+}
+try { if (window.Notification && Notification.permission === "default") document.addEventListener("click", () => Notification.requestPermission(), {once: true}); } catch {}
+if (store("rb-side") === "mini") $("#app").classList.add("mini-side");
+$("#collapse").onclick = () => { const on = $("#app").classList.toggle("mini-side"); store("rb-side", on ? "mini" : "full"); };
+document.documentElement.lang = LANG;
+Promise.all([loadProjects(), api("/api/me").then(m => { ME = m; })]).then(render).catch(() => { $("#upd").textContent = t("unreachable"); });
+</script>
+</body>
+</html>

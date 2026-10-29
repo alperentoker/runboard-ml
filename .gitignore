@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+.pytest_cache/
+
+# runboard keeps all state, secrets and logs in ~/.runboard — never in the repo.
+# These guard against accidental copies:
+.runboard/
+access_token
+kaggle.json
+password.txt
+*.log
