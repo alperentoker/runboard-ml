@@ -43,6 +43,23 @@ class Backend:
     def cancel(self, project, run_id: str, st: dict) -> None:
         raise NotImplementedError("This backend cannot cancel runs")
 
+    def resume_info(self, project, run_id: str, st: dict, info: dict) -> dict:
+        """What a resumed attempt needs ({resume} for the command template), or an error why it cannot resume."""
+        from ..errors import Invalid
+        cfg = (project.m.get("backends") or {}).get(self.name) or {}
+        if not cfg.get("resume"):
+            raise Invalid("no_resume", backend=self.label)
+        if st.get("status") not in ("ERROR", "CANCELLED") or st.get("backend") != self.name:
+            raise Invalid("cannot_resume", run=run_id)
+        return self._resume_info(project, run_id, st, info)
+
+    def _resume_info(self, project, run_id: str, st: dict, info: dict) -> dict:
+        raise NotImplementedError
+
+    def may_still_run(self, project, run_id: str, st: dict) -> bool:
+        """True when a run already marked as finished could in fact still be going (it is then checked again)."""
+        return False
+
     def delete(self, project, run_id: str, st: dict) -> None:
         """Removes the remote copy of a finished run (optional)."""
         raise NotImplementedError

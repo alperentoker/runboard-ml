@@ -122,3 +122,17 @@ def test_secrets_masked_in_logs():
     assert redact("token: KGAT_abcdef1234567") == "token: ***"
     assert "abc123456789" not in redact("export KAGGLE_API_TOKEN=abc123456789")
     assert redact("max_tokens: 4096") == "max_tokens: 4096"
+
+
+def test_pages_run_only_their_own_scripts(server):
+    import base64
+    import hashlib
+    import re
+    c = client(server, True)
+    for path in ("/", "/mini", "/pair"):
+        r = c.get(path)
+        csp = r.headers["content-security-policy"]
+        assert "'unsafe-inline'" not in csp.split("script-src", 1)[1].split(";", 1)[0], path
+        for script in re.findall(r"<script>(.*?)</script>", r.text, re.S):
+            assert "'sha256-" + base64.b64encode(hashlib.sha256(script.encode()).digest()).decode() + "'" in csp
+        assert not re.search(r"\son[a-z]+=\"", r.text), f"{path} has an inline handler"

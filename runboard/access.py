@@ -184,12 +184,22 @@ def set_cookie_header(value: str) -> str:
     return f"{COOKIE}={value}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Strict"
 
 
+CSP = ("default-src 'self'; script-src 'self'{scripts}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; "
+       "media-src 'self' blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
 SECURITY_HEADERS = [
     (b"x-frame-options", b"DENY"),
     (b"x-content-type-options", b"nosniff"),
     (b"referrer-policy", b"no-referrer"),
-    (b"content-security-policy", b"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' "
-                                 b"'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; "
-                                 b"connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"),
+    (b"content-security-policy", CSP.format(scripts="").encode()),
 ]
+
+
+def page_csp(html: str) -> str:
+    """The policy for one page: only the page's own scripts run, named by their SHA-256. A script that got into the page
+    any other way (an injected tag or an onclick attribute) is refused by the browser."""
+    import base64
+    import re
+    hashes = [base64.b64encode(hashlib.sha256(m.encode("utf-8")).digest()).decode()
+              for m in re.findall(r"<script>(.*?)</script>", html, re.S)]
+    return CSP.format(scripts="".join(f" 'sha256-{h}'" for h in hashes))
 

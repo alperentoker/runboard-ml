@@ -3,6 +3,7 @@ network access is on and after pairing; every request is checked against DNS reb
 from __future__ import annotations
 
 import asyncio
+import atexit
 import json
 import math
 import os
@@ -10,10 +11,10 @@ import platform
 import re
 import shutil
 import socket
-import subprocess
 import sys
 import threading
 import time
+import traceback
 from pathlib import Path
 
 from fastapi import Body, Depends, FastAPI, HTTPException, Request
@@ -26,7 +27,9 @@ from .backends import ACTIVE, BACKENDS
 from .progress import Parser
 from .project import Project
 from .errors import Busy, Denied, Err, Invalid, Missing
+from .proc import spawn_detached
 from .runtime import Runtime
+from .watch import ensure_running, note
 
 def finite(obj):
     """NaN/inf (early epochs, empty CSV cells) are not valid JSON; they become null."""
@@ -80,7 +83,8 @@ class Guard:
 
         async def with_headers(msg):
             if msg["type"] == "http.response.start":
-                msg["headers"] = list(msg.get("headers", [])) + access.SECURITY_HEADERS
+                have = {k.lower() for k, _ in msg.get("headers", [])}  # a page's own policy is kept
+                msg["headers"] = list(msg.get("headers", [])) + [h for h in access.SECURITY_HEADERS if h[0] not in have]
             await send(msg)
 
         await self.inner(scope, receive, with_headers)
@@ -120,14 +124,19 @@ def proj(key: str) -> Project:
 
 # ---------------------------------------------------------------- pages
 
+def page(name: str) -> HTMLResponse:
+    html = (STATIC / name).read_text(encoding="utf-8")
+    return HTMLResponse(html, headers={**NO_CACHE, "Content-Security-Policy": access.page_csp(html)})
+
+
 @app.get("/", response_class=HTMLResponse)
 def index():
-    return HTMLResponse((STATIC / "index.html").read_text(encoding="utf-8"), headers=NO_CACHE)
+    return page("index.html")
 
 
 @app.get("/mini", response_class=HTMLResponse)
 def mini():
-    return HTMLResponse((STATIC / "mini.html").read_text(encoding="utf-8"), headers=NO_CACHE)
+    return page("mini.html")
 
 
 @app.get("/icon.svg")
@@ -157,12 +166,11 @@ def own_remote(p: Project, run_id: str, st: dict) -> bool:
 def run_rows(p: Project, with_history: bool = False) -> list[dict]:
     saved = p.state.all()
     doc = p.doc()
-    parser = Parser(p.m.get("progress"))
     data_field = (p.m.get("data") or {}).get("field")
     rows = []
     for info in p.infos():
         st = rt.run_state(p, info, saved)
-        prog = parser.parse(rt.log(p, info["id"])) if st else None
+        prog = rt.progress(p, info["id"]) if st else None
         if prog and not with_history:
             hist = prog.pop("history", [])
             prog["spark"] = [h.get("map") for h in hist if h.get("map") is not None][-100:]
@@ -170,7 +178,7 @@ def run_rows(p: Project, with_history: bool = False) -> list[dict]:
                                                        "collected", "check", "metrics", "kernel")}, "progress": prog,
                      "own_remote": own_remote(p, info["id"], st),
                      "changed_since_start": p.changed_since_start(info["id"], st, doc) if st.get("status") else [],
-                     "data_key": p.spec(info["id"]).get(data_field) if data_field else None})
+                     "data_key": p.spec(info["id"], doc).get(data_field) if data_field else None})
     return rows
 
 
@@ -257,7 +265,7 @@ def api_log(key: str, run_id: str, all: bool = False):
 def api_start(key: str, run_id: str, body: dict = Body(default={})):
     p = proj(key)
     try:
-        return rt.start(p, run_id, body.get("backend") or p.m.get("default_backend", "kaggle"))
+        return rt.start(p, run_id, body.get("backend") or p.m.get("default_backend", "kaggle"), bool(body.get("resume")))
     except Exception as e:
         bad(e)
 
@@ -308,7 +316,7 @@ def api_config(key: str):
     r = p.m.get("runs", {})
     return {"runs": p.infos(), "fields": r.get("fields", []), "locked": bool(r.get("locked")),
             "shared": {s: doc.get(s) for s in r.get("show", [])}, "extras": p.extras or None,
-            "extra_choices": {k: (sorted({p.spec(i, doc).get(k) for i in doc[p.section]} - {None})
+            "extra_choices": {k: (sorted({p.spec(i, doc).get(k) for i in doc.get(p.section) or {}} - {None})
                                   if v.get("choices") == "$existing" else v.get("choices"))
                               for k, v in (p.extras.get("fields") or {}).items()},
             "decisions": p.decisions(), "raw": p.runs_file.read_text(encoding="utf-8"),
@@ -404,9 +412,11 @@ def api_queue():
 @app.post("/api/queue")
 def api_enqueue(request: Request, body: dict = Body(...)):
     p = proj(str(body.get("project", "")))
-    runs = body.get("runs") or [body.get("run")]
     backend = body.get("backend") or p.m.get("default_backend", "kaggle")
-    added = [rt.enqueue(p, str(r), backend, who(request)) for r in runs if r]
+    if body.get("runs"):  # a sweep: checked as a whole, runs already queued are left as they are
+        added = rt.enqueue_many(p, [str(r) for r in body["runs"] if r], backend, who(request))
+    else:
+        added = [rt.enqueue(p, str(body.get("run", "")), backend, who(request))]
     threading.Thread(target=rt.run_queue, daemon=True).start()  # a free backend starts at once
     return {"added": added}
 
@@ -714,7 +724,7 @@ def pair_page(request: Request, c: str = ""):
         r = RedirectResponse("/mini" if "Mobile" in request.headers.get("user-agent", "") else "/", 303)
         r.headers["set-cookie"] = access.set_cookie_header(access.add_device(access.device_name(request.headers.get("user-agent", ""))))
         return r
-    return HTMLResponse((STATIC / "pair.html").read_text(encoding="utf-8"), headers=NO_CACHE)
+    return page("pair.html")
 
 
 @app.post("/api/pair")
@@ -815,12 +825,32 @@ def api_autostart(body: dict = Body(...)):
 
 @app.post("/api/system/restart")
 def api_restart():
-    exe = Path(sys.executable).with_name("pythonw.exe")
-    exe = exe if exe.exists() else Path(sys.executable)
-    subprocess.Popen([str(exe), "-m", "runboard", "serve", "--wait-port"],
-                     creationflags=getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    note("restart requested from the dashboard")
+    spawn_detached(["-m", "runboard", "serve", "--wait-port"])
     threading.Timer(1.0, lambda: os._exit(0)).start()
     return {"ok": True}
+
+
+def listen_sockets(p: int, lan: bool) -> list[socket.socket]:
+    """IPv4 and IPv6 both: browsers try `localhost` as ::1 first, and an IPv4-only server makes every request wait
+    for that attempt to fail. Without IPv6 on the machine the IPv4 socket is enough."""
+    out = []
+    for family, host in ((socket.AF_INET, "0.0.0.0" if lan else "127.0.0.1"), (socket.AF_INET6, "::" if lan else "::1")):
+        s = socket.socket(family, socket.SOCK_STREAM)
+        try:
+            if family == socket.AF_INET6:
+                s.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
+            elif os.name != "nt":
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.bind((host, p))
+            s.listen(2048)
+            s.setblocking(False)
+            out.append(s)
+        except OSError:
+            s.close()
+            if family == socket.AF_INET:
+                raise
+    return out
 
 
 def port_busy(p: int) -> bool:
@@ -831,8 +861,8 @@ def port_busy(p: int) -> bool:
 def serve(wait_port: bool = False) -> None:
     import uvicorn
 
+    home.HOME.mkdir(parents=True, exist_ok=True)  # a fresh machine has none yet
     if sys.stdout is None:  # pythonw: log to a file
-        home.HOME.mkdir(parents=True, exist_ok=True)
         sys.stdout = sys.stderr = open(home.HOME / "server.log", "a", encoding="utf-8", buffering=1)
     p = port()
     if wait_port:
@@ -843,6 +873,16 @@ def serve(wait_port: bool = False) -> None:
     if port_busy(p):
         print(f"runboard is already running: http://localhost:{p}")
         return
+    # Anything that ends this process is written down, so a dashboard that disappeared says why; the watchdog
+    # (watch.py) starts it again unless it was stopped on purpose.
+    (home.HOME / "stopped").unlink(missing_ok=True)
+    (home.HOME / "server.pid").write_text(str(os.getpid()))
+    sys.excepthook = lambda *exc: note("unexpected error:\n" + "".join(traceback.format_exception(*exc)))
+    threading.excepthook = lambda a: note(f"unexpected error in thread {a.thread.name}:\n"
+                                          + "".join(traceback.format_exception(a.exc_type, a.exc_value, a.exc_traceback)))
+    atexit.register(lambda: note(f"dashboard stopped (pid {os.getpid()})"))
+    if home.config().get("watchdog", True):
+        ensure_running()
     old = home.HOME / "password.txt"
     if old.exists():  # earlier versions used a password; access is now by machine and paired device
         old.unlink()
@@ -851,5 +891,11 @@ def serve(wait_port: bool = False) -> None:
     print(f"\nrunboard {__version__}\n  this machine : http://localhost:{p}" +
           (f"\n  tablet       : http://{local_ip()}:{p}  (pair it once: System → Tablet access)" if lan else
            "\n  tablet access is off (System → Tablet access)") + "\n", flush=True)
-    uvicorn.run(app, host="0.0.0.0" if lan else "127.0.0.1", port=p, log_level="warning", log_config=None,
-                timeout_graceful_shutdown=3)  # open event streams never end by themselves
+    note(f"dashboard started (pid {os.getpid()}, port {p}, {'tablet access on' if lan else 'this computer only'})")
+    try:
+        config = uvicorn.Config(app, port=p, log_level="warning", log_config=None,
+                                timeout_graceful_shutdown=3)  # open event streams never end by themselves
+        uvicorn.Server(config).run(sockets=listen_sockets(p, lan))
+    except BaseException as e:  # noqa: BLE001 — written down, then let it end the process as before
+        note(f"dashboard ended by {type(e).__name__}:\n" + traceback.format_exc())
+        raise

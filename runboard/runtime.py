@@ -1,6 +1,8 @@
 """The engine: keeps track of every registered project's runs, streams live logs and collects finished runs."""
 from __future__ import annotations
 
+import copy
+import json
 import os
 import re
 import secrets
@@ -60,6 +62,9 @@ class Runtime:
         self.start_lock = threading.Lock()
         self.queue_lock = threading.Lock()
         self.logs: dict[tuple[str, str], list[str]] = {}
+        self._files: dict[Path, tuple] = {}
+        self._parsed: dict[tuple[str, str], tuple] = {}
+        self._saved_len: dict[tuple[str, str], int] = {}
         self.streams: dict[tuple[str, str], threading.Thread] = {}
         self.jobs: dict[tuple[str, str], Job] = {}
         self.backend_info: dict[str, dict] = {}
@@ -107,21 +112,69 @@ class Runtime:
 
     def log(self, project: Project, run_id: str) -> list[str]:
         with self.lock:
-            live = self.logs.get((project.key, run_id))
-        if live:
-            return list(live)
+            live = list(self.logs.get((project.key, run_id)) or [])
+        saved = self._saved(project, run_id)
+        # after a restart the stream replays from the start: until it has caught up, the saved copy is further along
+        return live if len(live) >= len(saved) else saved
+
+    def _saved(self, project: Project, run_id: str) -> list[str]:
         p = project.state.logs / f"{run_id}.log"
-        return p.read_text(encoding="utf-8").splitlines() if p.exists() else []
+        if not p.exists():
+            return []
+        stat = p.stat()
+        hit = self._files.get(p)
+        if not hit or hit[0] != (stat.st_mtime_ns, stat.st_size):  # a finished run's log is read once, not every look
+            hit = (stat.st_mtime_ns, stat.st_size), p.read_text(encoding="utf-8").splitlines()
+            with self.lock:
+                self._files[p] = hit
+                while len(self._files) > self.KEEP_LOGS:  # the oldest read go first; one comes back from disk
+                    self._files.pop(next(iter(self._files)))
+        return list(hit[1])
+
+    KEEP_LOGS = 32  # logs of runs that no longer stream, kept in memory
 
     def save_log(self, project: Project, run_id: str, lines: list[str]) -> None:
         if lines:
             project.state.logs.mkdir(parents=True, exist_ok=True)
-            (project.state.logs / f"{run_id}.log").write_text("\n".join(lines), encoding="utf-8")
+            p = project.state.logs / f"{run_id}.log"
+            tmp = p.with_name(f"{p.name}.{threading.get_ident()}.tmp")
+            tmp.write_text("\n".join(lines), encoding="utf-8")
+            home._retry(lambda: tmp.replace(p))
+
+    def _checkpoint_log(self, project: Project, run_id: str) -> None:
+        """A running log is saved to disk every poll, so after a restart the page shows where the run is at once
+        instead of starting from zero until the stream has replayed."""
+        with self.lock:
+            live = list(self.logs.get((project.key, run_id)) or [])
+        key = (project.key, run_id)
+        if key not in self._saved_len:
+            self._saved_len[key] = len(self._saved(project, run_id))
+        if len(live) > self._saved_len[key]:  # never a shorter copy over a longer one (a replay in progress)
+            self.save_log(project, run_id, live)
+            self._saved_len[key] = len(live)
 
     def progress(self, project: Project, run_id: str) -> dict:
-        return Parser(project.m.get("progress")).parse(self.log(project, run_id))
+        """Parsed progress, kept until the log grows or the project's progress settings change: every open page asks
+        for every run every few seconds, and most logs no longer change."""
+        lines = self.log(project, run_id)
+        cfg = project.m.get("progress")
+        sig = (len(lines), lines[-1] if lines else None, json.dumps(cfg, sort_keys=True, default=str))
+        key = (project.key, run_id)
+        with self.lock:
+            hit = self._parsed.get(key)
+        if not hit or hit[0] != sig:
+            saved = project.state.logs / f"{run_id}.log"
+            # a saved log is read against the time it was last written, not today (lines carry only a clock time)
+            streaming = (t := self.streams.get(key)) is not None and t.is_alive()
+            at = None if streaming or not saved.exists() else saved.stat().st_mtime
+            hit = (sig, Parser(cfg).parse(lines, at))
+            with self.lock:
+                self._parsed[key] = hit
+                while len(self._parsed) > self.KEEP_LOGS * 4:
+                    self._parsed.pop(next(iter(self._parsed)))
+        return copy.deepcopy(hit[1])
 
-    def start(self, project: Project, run_id: str, backend: str) -> dict:
+    def start(self, project: Project, run_id: str, backend: str, resume: bool = False) -> dict:
         info = project.info(run_id)
         if not info["ready"]:
             raise Invalid("not_ready", run=run_id, fields=info["missing"])
@@ -130,6 +183,8 @@ class Runtime:
             raise Invalid("unknown_backend", backend=backend)
         if backend not in (project.m.get("backends") or {}):
             raise Invalid("not_configured", backend=backend)
+        if resume:  # carry on from the stopped attempt's last checkpoint (backends.<name>.resume in runboard.yaml)
+            info = {**info, **b.resume_info(project, run_id, project.state.get(run_id), info)}
         # The run is recorded as STARTING before anything is launched, under a lock, so a second click (or a
         # second tab) sees the backend as busy; a failed launch restores the previous record.
         with self.start_lock:
@@ -141,7 +196,9 @@ class Runtime:
             # the settings it starts with are kept: later edits to the runs file never rewrite what a run was
             project.state.set(run_id, {"backend": backend, "status": "STARTING", "collected": False,
                                        "pushed_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
-                                       "spec": project.spec(run_id)})
+                                       "spec": previous.get("spec") if resume else project.spec(run_id),
+                                       **({"resumed_from": info["resume"], "attempt": previous.get("attempt", 1) + 1}
+                                          if resume else {})})
         try:
             fields = b.submit(project, run_id, info)
         except Exception:
@@ -198,9 +255,9 @@ class Runtime:
                                        "can_cancel": b.can_cancel, "has_data": b.has_data}
         for project in self.projects().values():
             for run_id, st in project.state.all().items():
-                if st.get("status") in DONE and (st.get("collected") or st.get("status") != "COMPLETE"):
-                    continue
                 b = BACKENDS.get(st.get("backend", "kaggle"))
+                if st.get("status") in DONE and (st.get("collected") or st.get("status") != "COMPLETE")                         and not (b and b.may_still_run(project, run_id, st)):  # e.g. marked lost while asleep
+                    continue
                 if not b or not self.backend_info.get(b.name, {}).get("ok"):
                     continue
                 try:
@@ -214,6 +271,7 @@ class Runtime:
                     if not t or not t.is_alive():
                         self.streams[key] = threading.Thread(target=self._stream, args=(project, run_id), daemon=True)
                         self.streams[key].start()
+                    self._checkpoint_log(project, run_id)
                 elif status in DONE:
                     try:
                         lines = b.final_log(project, run_id, st)
@@ -248,7 +306,9 @@ class Runtime:
     def _save_queue(self, q: list[dict]) -> None:
         home.write_json(home.HOME / "queue.json", q)
 
-    def enqueue(self, project: Project, run_id: str, backend: str, who: str = "") -> dict:
+    MIN_QUOTA_H = 1.0
+
+    def _can_queue(self, project: Project, run_id: str, backend: str) -> None:
         if run_id not in project.run_ids():
             raise Invalid("unknown_run", run=run_id)
         info = project.info(run_id)
@@ -258,15 +318,35 @@ class Runtime:
             raise Invalid("not_configured", backend=backend)
         if project.state.get(run_id).get("status") in ACTIVE:
             raise Busy("busy", backend=BACKENDS[backend].label, runs=[run_id])
+
+    @staticmethod
+    def _entry(project: Project, run_id: str, backend: str, who: str) -> dict:
+        return {"id": secrets.token_hex(4), "project": project.key, "run": run_id, "backend": backend,
+                "added": time.strftime("%Y-%m-%dT%H:%M:%S"), "who": who, "waiting": None}
+
+    def enqueue(self, project: Project, run_id: str, backend: str, who: str = "") -> dict:
+        self._can_queue(project, run_id, backend)
         with self.queue_lock:
             q = self.queue()
             if any(e["project"] == project.key and e["run"] == run_id for e in q):
                 raise Invalid("queue_has", run=run_id)
-            entry = {"id": secrets.token_hex(4), "project": project.key, "run": run_id, "backend": backend,
-                     "added": time.strftime("%Y-%m-%dT%H:%M:%S"), "who": who, "waiting": None}
+            entry = self._entry(project, run_id, backend, who)
             q.append(entry)
             self._save_queue(q)
         return entry
+
+    def enqueue_many(self, project: Project, run_ids: list[str], backend: str, who: str = "") -> list[dict]:
+        """All or nothing: every run is checked before one is added, so a refused run leaves the queue as it was.
+        Runs already waiting in the queue are skipped."""
+        for rid in run_ids:
+            self._can_queue(project, rid, backend)
+        with self.queue_lock:
+            q = self.queue()
+            have = {e["run"] for e in q if e["project"] == project.key}
+            added = [self._entry(project, rid, backend, who) for rid in dict.fromkeys(run_ids) if rid not in have]
+            q += added
+            self._save_queue(q)
+        return added
 
     def forget(self, project_key: str, run_id: str) -> None:
         """A run removed from the plan leaves the queue too."""
@@ -338,8 +418,9 @@ class Runtime:
                     e["waiting"] = "backend"
                     continue
                 quota = self.backend_info.get(b, {}).get("quota") if b == "kaggle" else None
-                need = self.estimate_hours(p, e["run"]) if quota else None
-                if quota and need and quota["total_h"] - quota["used_h"] < need:
+                # without a finished run to estimate from, an hour left is the least a run gets started with
+                need = (self.estimate_hours(p, e["run"]) or self.MIN_QUOTA_H) if quota else None
+                if quota and quota["total_h"] - quota["used_h"] < need:
                     e["waiting"] = "quota"
                     continue
                 try:

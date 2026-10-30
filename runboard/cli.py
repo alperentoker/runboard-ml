@@ -1,6 +1,8 @@
 """runboard command line.
 
-  runboard serve                       start the dashboard (http://localhost:8000)
+  runboard serve                       start the dashboard (http://localhost:8000) and its watchdog
+  runboard stop                        stop the dashboard and its watchdog
+  runboard --version
   runboard add PATH                    register a project folder (must contain runboard.yaml)
   runboard remove PATH                 unregister it (files are untouched)
   runboard list                        registered projects
@@ -13,14 +15,17 @@ import argparse
 import sys
 from pathlib import Path
 
-from . import home
+from . import __version__, home
 
 
 def main(argv: list[str] | None = None) -> int:
     if sys.stdout is not None:
         sys.stdout.reconfigure(line_buffering=True, encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser(prog="runboard", description="Self-hosted dashboard for ML training runs.")
+    ap.add_argument("--version", action="version", version=f"runboard {__version__}")
     sub = ap.add_subparsers(dest="cmd")
+    sub.add_parser("stop")
+    sub.add_parser("watch")
     s = sub.add_parser("serve")
     s.add_argument("--wait-port", action="store_true")
     s.add_argument("--port", type=int)
@@ -44,6 +49,26 @@ def main(argv: list[str] | None = None) -> int:
             cfg["port"] = args.port
             home.save_config(cfg)
         serve(getattr(args, "wait_port", False))
+        return 0
+    if args.cmd == "watch":
+        from .watch import main as watch
+
+        return watch()
+    if args.cmd == "stop":
+        from .proc import pid_alive, stop_pid
+
+        from .watch import note
+
+        home.HOME.mkdir(parents=True, exist_ok=True)
+        (home.HOME / "stopped").write_text("runboard stop")  # the watchdog leaves it stopped
+        note("stopped with runboard stop")
+        f = home.HOME / "server.pid"
+        pid = int(f.read_text().strip()) if f.exists() and f.read_text().strip().isdigit() else None
+        if pid and pid_alive(pid):
+            stop_pid(pid)
+            print(f"stopped the dashboard (pid {pid})")
+        else:
+            print("the dashboard was not running")
         return 0
     if args.cmd == "add":
         from .runtime import Runtime

@@ -13,10 +13,8 @@ import time
 from typing import Callable
 
 from ..errors import Invalid
+from ..proc import pid_alive, popen_detached
 from .base import Backend
-
-FLAGS = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NO_WINDOW", 0) | \
-    getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
 
 
 class LocalBackend(Backend):
@@ -46,11 +44,10 @@ class LocalBackend(Backend):
         log, code, alive = self._files(project, run_id)
         for f in (log, code, alive):
             f.unlink(missing_ok=True)
-        cmd = project.render(cfg["command"], info)
+        cmd = project.render(cfg["resume"] if info.get("resume") else cfg["command"], info)
         python = cfg.get("python") or sys.executable
-        proc = subprocess.Popen([sys.executable, "-m", "runboard.localrun", str(log), str(code), str(alive), python, cmd],
-                                cwd=project.root, creationflags=FLAGS, start_new_session=os.name != "nt",
-                                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        proc = popen_detached([sys.executable, "-m", "runboard.localrun", str(log), str(code), str(alive), python, cmd],
+                              cwd=project.root)
         return {"pid": proc.pid, "command": cmd, "url": None}
 
     def status(self, project, run_id, st):
@@ -62,9 +59,23 @@ class LocalBackend(Backend):
             return ("COMPLETE", None) if c == "0" else ("ERROR", f"exit code {c}")
         if alive.exists() and time.time() - alive.stat().st_mtime < 60:
             return "RUNNING", None
+        if pid_alive(st.get("pid")):  # the heartbeat is old but the runner lives: the computer was asleep
+            return "RUNNING", None
         if alive.exists() or log.exists():
             return "ERROR", "process stopped without an exit code (machine restarted?)"
+        if st.get("pid"):  # launched, but gone before it wrote a line (blocked by antivirus, a broken Python)
+            return "ERROR", "the runner exited before the run started"
         return "STARTING", None
+
+    def _resume_info(self, project, run_id, st, info):
+        out = project.output_dir(run_id, info, self.name)
+        if not out or not out.is_dir():
+            raise Invalid("resume_missing", run=run_id, path=out)
+        return {"resume": str(out)}
+
+    def may_still_run(self, project, run_id, st):
+        _, code, _ = self._files(project, run_id)
+        return not code.exists() and pid_alive(st.get("pid"))
 
     def stream(self, project, run_id, st, sink, alive: Callable[[], bool]):
         log, code, _ = self._files(project, run_id)

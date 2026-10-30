@@ -15,7 +15,7 @@ from pathlib import Path
 import yaml
 
 from .errors import Denied, Err, Invalid
-from .home import State, read_json
+from .home import State, load_yaml, read_json
 
 MANIFEST = "runboard.yaml"
 FILTERS = {
@@ -40,7 +40,7 @@ def slugify(s: str) -> str:
 class Project:
     def __init__(self, root: Path):
         self.root = Path(root).resolve()
-        self.m = yaml.safe_load((self.root / MANIFEST).read_text(encoding="utf-8")) or {}
+        self.m = load_yaml(self.root / MANIFEST) or {}
         self.key = slugify(self.m.get("id") or self.m.get("name") or self.root.name)
         self.state = State(self.key)
         r = self.m.get("runs", {})
@@ -75,7 +75,7 @@ class Project:
     # ------------------------------------------------------------ runs
 
     def doc(self) -> dict:
-        return yaml.safe_load(self.runs_file.read_text(encoding="utf-8")) or {}
+        return load_yaml(self.runs_file) or {}
 
     def run_ids(self) -> list[str]:
         return list((self.doc().get(self.section) or {}).keys())
@@ -144,14 +144,13 @@ class Project:
             raise Invalid("not_extra")
         if self.state.get(run_id).get("status"):
             raise Invalid("launched")
-        lines = self.runs_file.read_text(encoding="utf-8").splitlines(keepends=True)
-        kept = [ln for ln in lines if not ln.startswith(f"  {run_id}:")]
-        if len(kept) == len(lines):
-            raise Invalid("unknown_run", run=run_id)
-        content = "".join(kept)
+        from .runsfile import RunsFile
+        f = RunsFile(self.runs_file, self.section)
+        content = f.remove_run(run_id)  # found by its key, whatever the file's indentation
         if not any(self.is_extra(k) for k in yaml.safe_load(content)[self.section]):
             heading = self.extras.get("heading", "Extra runs: added from runboard, not part of the pre-registered plan.")
-            content = re.sub(rf"\n*  # {re.escape(heading)}\n", "\n", content)
+            content = re.sub(rf"\n*[ \t]*# {re.escape(heading)}\n", "\n", content)
+        f.verify(content, {run_id: None})
         self._write(content)
 
     # ------------------------------------------------------------ editing the plan
@@ -507,10 +506,27 @@ class Project:
         if len(reason.strip()) < 10:
             raise Invalid("reason_short")
         content = self.runs_file.read_text(encoding="utf-8")
-        token = f"{d['field']}: null"
-        if token not in content:
+        # every run still waiting for this field gets the value; another field ending in the same name
+        # (teacher_model) and comments are left alone, and the result is read back before it is written
+        field = re.compile(rf"(?<![\w.-]){re.escape(d['field'])}: null\b")
+        lines = content.splitlines(keepends=True)
+        for i, ln in enumerate(lines):
+            if not ln.lstrip().startswith("#"):
+                code, hash_, comment = ln.partition(" #")
+                lines[i] = field.sub(f"{d['field']}: {value}", code) + hash_ + comment
+        new = "".join(lines)
+        if new == content:
             raise Invalid("decided")
-        self._write(content.replace(token, f"{d['field']}: {value}"))
+        before, after = yaml.safe_load(content), yaml.safe_load(new)
+        filled = yaml.safe_load(f"v: {value}")["v"]
+
+        def fill(node):
+            if isinstance(node, dict):
+                return {k: filled if k == d["field"] and v is None else fill(v) for k, v in node.items()}
+            return [fill(v) for v in node] if isinstance(node, list) else node
+        if after != fill(before):
+            raise Invalid("decided")
+        self._write(new)
         log = self.root / d.get("log", "decisions.md")
         log.parent.mkdir(parents=True, exist_ok=True)
         keys = [k for k in ("primary", "secondary", "best_epoch", "hours") if any(k in m for m in mets.values())]

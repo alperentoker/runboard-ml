@@ -91,7 +91,7 @@ class KaggleBackend(Backend):
         files = {dst: base64.b64encode((project.root / src).read_bytes()).decode()
                  for dst, src in (cfg.get("files") or {}).items()}
         setup = [project.render(s, info) for s in cfg.get("setup", [])]
-        command = project.render(cfg.get("command", ""), info)
+        command = project.render(cfg.get("resume") if info.get("resume") else cfg.get("command", ""), info)
         code = (f"# runboard · {project.m.get('name', project.key)} · {run_id} — generated, do not edit.\n"
                 "import base64, json, os, pathlib, subprocess, sys\n"
                 f"FILES = json.loads({json.dumps(json.dumps(files))})\n"
@@ -106,12 +106,13 @@ class KaggleBackend(Backend):
         folder.mkdir(parents=True)
         (folder / "run.py").write_text(code, encoding="utf-8")
         ds = self.dataset_for(project, info)
-        slug = self.slug(project, run_id)
+        slug = info.get("_kernel") or self.slug(project, run_id)
         write_json(folder / "kernel-metadata.json", {
             "id": f"{owner}/{slug}", "title": slug, "code_file": "run.py", "language": "python", "kernel_type": "script",
             "is_private": True, "enable_gpu": bool(cfg.get("accelerator", "NvidiaTeslaT4")), "enable_tpu": False,
             "enable_internet": cfg.get("internet", True), "machine_shape": cfg.get("accelerator", "NvidiaTeslaT4"),
-            "dataset_sources": [f"{owner}/{ds}"] if ds else [], "competition_sources": [], "kernel_sources": [],
+            "dataset_sources": [f"{owner}/{ds}"] if ds else [], "competition_sources": [],
+            "kernel_sources": [f"{owner}/{info['_from_kernel']}"] if info.get("_from_kernel") else [],
             "model_sources": []})
 
     def submit(self, project, run_id, info):
@@ -119,13 +120,24 @@ class KaggleBackend(Backend):
         field = self._cfg(project).get("data_field") or data.get("field")
         if field and not self.dataset_for(project, info):
             raise Invalid("not_on_kaggle", data=project.spec(run_id).get(field))
-        a = api()
-        folder = project.state.dir / "push" / self.slug(project, run_id)
-        self.build(project, run_id, info, folder, user(a))
-        res = a.kernels_push(str(folder))
+        slug = info.get("_kernel") or self.slug(project, run_id)
+        folder = project.state.dir / "push" / slug
+        try:  # Kaggle's own wording is kept, inside a message the page can put in its language
+            a = api()
+            self.build(project, run_id, info, folder, user(a))
+            res = a.kernels_push(str(folder))
+        except Exception as e:  # noqa: BLE001
+            raise Invalid("kaggle_error", problem=(str(e).strip().splitlines() or [type(e).__name__])[-1][:300])
         if res.error:
-            raise RuntimeError(res.error)
-        return {"kernel": self.slug(project, run_id), "version": res.version_number, "url": res.url}
+            raise Invalid("kaggle_error", problem=str(res.error)[:300])
+        return {"kernel": slug, "version": res.version_number, "url": res.url}
+
+    def _resume_info(self, project, run_id, st, info):
+        """A new kernel (<slug>-r<attempt>) with the stopped kernel's output attached; Kaggle mounts it under
+        /kaggle/input/<stopped kernel>/. This works when Kaggle kept the outputs of the stopped version."""
+        prev = st.get("kernel") or self.slug(project, run_id)
+        new = f"{self.slug(project, run_id)}-r{st.get('attempt', 1) + 1}"
+        return {"resume": f"/kaggle/input/{prev}/{info['name']}", "_kernel": new, "_from_kernel": prev}
 
     def status(self, project, run_id, st):
         res = api().kernels_status(self.ref(project, run_id, st))

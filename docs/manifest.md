@@ -116,6 +116,7 @@ backends:
     files: {train.py: scripts/train.py}  # copied into the kernel (destination: source)
     setup: ["pip install -q ultralytics=={yaml:configs/runs.yaml:ultralytics}"]
     command: "python -u train.py --run {id}"   # runs inside the kernel's code folder
+    resume: "python -u train.py --run {id} --resume {resume}"   # optional, see "Resuming" below
     accelerator: NvidiaTeslaT4
     internet: true
     output_dir: runs/kaggle              # where outputs are downloaded (the kernel writes to /kaggle/working)
@@ -126,6 +127,15 @@ backends:
 ```
 
 Only one run per backend at a time. Kaggle runs cannot be cancelled through the API (use *Open on Kaggle*); local runs can.
+
+### Resuming
+
+With a `resume:` command, a run that stopped (error or cancelled) gets *Resume* on its page. The new attempt runs the
+`resume` command with `{resume}` set to the stopped attempt's output, keeps the settings the run first started with and
+counts attempts. On the **local** backend `{resume}` is the run's output folder. On **Kaggle** the attempt is a new
+kernel `<kernel>-r2`, `-r3` … with the stopped kernel's output attached, and `{resume}` is
+`/kaggle/input/<stopped kernel>/<run name>`; this works only if Kaggle kept the stopped version's output (check the version's *Output* tab first). Your training script decides what
+resuming means, for example Ultralytics `model.train(resume=True)` from `weights/last.pt`.
 
 ## data (Kaggle)
 

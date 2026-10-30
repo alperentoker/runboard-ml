@@ -40,10 +40,11 @@ class Parser:
             t -= timedelta(days=1)
         return t.timestamp()
 
-    def parse(self, lines: list[str]) -> dict:
+    def parse(self, lines: list[str], written: float | None = None) -> dict:
+        """`written`: when a saved log was last written; its clock-only times are placed before that moment."""
         p: dict = {}
         hist: dict[int, dict] = {}
-        now = datetime.now(timezone.utc)
+        now = datetime.fromtimestamp(written, timezone.utc) if written else datetime.now(timezone.utc)
         for ln in lines:
             if ln.startswith(PREFIX):
                 try:

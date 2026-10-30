@@ -165,3 +165,76 @@ def test_api_errors_carry_codes(tmp_path, monkeypatch):
     assert r.status_code == 400 and r.json()["code"] == "bad_token"
     tablet = TestClient(server.app, base_url="http://192.168.1.9:8000", client=("192.168.1.9", 1))
     assert tablet.get("/api/projects").json()["code"] == "not_paired"
+
+
+def test_state_writes_from_many_threads_are_never_lost(tmp_path, monkeypatch):
+    import threading
+    monkeypatch.setattr(home, "HOME", tmp_path / ".rb")
+    errors = []
+
+    def writer(i):
+        try:
+            for j in range(15):
+                home.State("p").update(f"run{i}", step=j)  # a fresh State each time, like a rebuilt project
+        except Exception as e:  # noqa: BLE001
+            errors.append(e)
+
+    threads = [threading.Thread(target=writer, args=(i,)) for i in range(12)]
+    [t.start() for t in threads]
+    [t.join() for t in threads]
+    assert not errors
+    assert home.State("p").all() == {f"run{i}": {"step": 14} for i in range(12)}
+    assert not list((tmp_path / ".rb" / "state" / "p").glob("*.tmp"))
+
+
+def test_decision_fills_only_its_own_field(tmp_path, monkeypatch):
+    monkeypatch.setattr(home, "HOME", tmp_path / ".rb")
+    runs = ("defaults:\n  epochs: 50\n  seed: 0\n\nruns:\n"
+            "  # base: {model: null} is decided later\n"
+            "  base: {data: ground, model: small.pt}\n"
+            "  big: {data: ground, model: null, teacher_model: null}\n"
+            "  air: {data: air, model: null}  # model: null until D1\n")
+    (tmp_path / "runs.yaml").write_text(runs, encoding="utf-8")
+    (tmp_path / "runboard.yaml").write_text(yaml.safe_dump(MANIFEST), encoding="utf-8")
+    p = Project(tmp_path)
+    (tmp_path / "out").mkdir()
+    (tmp_path / "out" / "base-GROUND-small-s0.json").write_text(json.dumps({"score": 51.2}))
+    p.decide("D1", "small.pt", "highest score, only candidate")
+    text = p.runs_file.read_text(encoding="utf-8")
+    assert "big: {data: ground, model: small.pt, teacher_model: null}" in text
+    assert "air: {data: air, model: small.pt}  # model: null until D1" in text
+    assert "# base: {model: null} is decided later" in text
+    with pytest.raises(ValueError, match="already"):
+        p.decide("D1", "small.pt", "highest score, only candidate")
+
+
+def test_extra_runs_are_removed_whatever_the_indentation(tmp_path, monkeypatch):
+    monkeypatch.setattr(home, "HOME", tmp_path / ".rb")
+    (tmp_path / "runs.yaml").write_text(RUNS.replace("\n  base", "\n    base").replace("\n  big", "\n    big"), encoding="utf-8")
+    (tmp_path / "runboard.yaml").write_text(yaml.safe_dump(MANIFEST), encoding="utf-8")
+    p = Project(tmp_path)
+    before = p.runs_file.read_bytes()
+    assert p.add_extra({"data": "ground", "seed": 3}) == "X1"
+    p.remove_extra("X1")
+    assert p.runs_file.read_bytes() == before
+
+
+def test_config_written_by_hand_without_projects(tmp_path, monkeypatch):
+    monkeypatch.setattr(home, "HOME", tmp_path / ".rb")
+    monkeypatch.setattr(home, "CONFIG", tmp_path / ".rb" / "config.yaml")
+    home.HOME.mkdir()
+    home.CONFIG.write_text("port: 8001\n")  # written by hand
+    home.register(tmp_path)
+    assert home.project_paths() == [tmp_path.resolve()] and home.config()["port"] == 8001
+    home.CONFIG.write_text("port: 8001\n")
+    home.unregister(tmp_path)
+
+
+def test_saved_log_clock_times_are_read_against_when_it_was_written():
+    from datetime import datetime, timezone
+    p = Parser({"patterns": {"epoch": r"(?P<clock>\d\d:\d\d:\d\d) epoch (?P<epoch>\d+)/(?P<epochs>\d+)"},
+                "clock": r"(?P<clock>\d\d:\d\d:\d\d)"})
+    written = datetime(2026, 10, 30, 23, 30, tzinfo=timezone.utc).timestamp()
+    at = p._clock("22:00:00 epoch 1/2", datetime.fromtimestamp(written, timezone.utc))
+    assert at == datetime(2026, 10, 30, 22, 0, tzinfo=timezone.utc).timestamp()
+    assert p.parse(["22:00:00 epoch 1/2"], written) == p.parse(["22:00:00 epoch 1/2"], written)

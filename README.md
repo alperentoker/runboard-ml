@@ -34,7 +34,7 @@ project you work on.
 
 - **Projects home** — every project is a card: live progress of its active run, plan completion, best score.
 - **Live runs** — log streaming, second-by-second progress between log lines, metric and loss charts, run-to-run comparison.
-- **Compute backends** — Kaggle Notebooks (private kernels, live logs, weekly GPU quota, dataset upload) and the local GPU (detached, survives dashboard restarts, can be cancelled). The backend interface is small; Colab is planned.
+- **Compute backends** — Kaggle Notebooks (private kernels, live logs, weekly GPU quota, dataset upload; a Kaggle run cannot be cancelled from the dashboard, stop it on Kaggle with *Open on Kaggle*) and the local GPU (detached, survives dashboard restarts, can be cancelled). The backend interface is small; Colab is planned.
 - **Pre-registration friendly** — lock the planned runs and shared settings, add clearly-marked extra runs, and record decisions (e.g. "winning architecture") with the numbers they were based on.
 - **Plan editing** — edit, copy and add runs, shared settings or the whole runs file from the dashboard; only the changed lines are touched, every change is previewed as a diff, started runs keep their settings.
 - **Sweeps and a queue** — one draft run per combination of values; a queue per backend that starts the next run when the backend is free and waits when the Kaggle quota would not cover it.
@@ -116,6 +116,9 @@ them with regular expressions instead (`progress.patterns`).
 ## Run it permanently
 
 *System → Start runboard when Windows starts* (Windows), or a systemd/launchd service running `runboard serve`.
+`runboard serve` also starts a small watchdog: if the dashboard stops answering for 20 s it is started again, and every
+start, stop and unexpected error is written with its time to `~/.runboard/server.log`. `runboard stop` stops both and
+keeps them stopped until the next `runboard serve` (set `watchdog: false` in `~/.runboard/config.yaml` to go without).
 To reach it from outside your home network, put it behind a private network such as Tailscale rather than exposing the port.
 
 ## Development
