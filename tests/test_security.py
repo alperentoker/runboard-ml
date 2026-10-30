@@ -136,3 +136,11 @@ def test_pages_run_only_their_own_scripts(server):
         for script in re.findall(r"<script>(.*?)</script>", r.text, re.S):
             assert "'sha256-" + base64.b64encode(hashlib.sha256(script.encode()).digest()).decode() + "'" in csp
         assert not re.search(r"\son[a-z]+=\"", r.text), f"{path} has an inline handler"
+
+
+def test_system_page_without_a_kaggle_token(server, monkeypatch):
+    # newer Kaggle clients call exit(1) without a token; the System page must still load
+    from kaggle.api.kaggle_api_extended import KaggleApi
+    monkeypatch.setattr(KaggleApi, "authenticate", lambda self: exit(1))
+    r = client(server, True).get("/api/connections")
+    assert r.status_code == 200 and r.json()["kaggle"]["ok"] is False

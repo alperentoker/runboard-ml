@@ -24,10 +24,18 @@ STATUS = {"QUEUED": "QUEUED", "RUNNING": "RUNNING", "NEW_SCRIPT": "STARTING", "C
 
 
 def api():
+    import contextlib
+    import io
+
     from kaggle.api.kaggle_api_extended import KaggleApi
 
     a = KaggleApi()
-    a.authenticate()
+    # without a token, newer clients print a sign-in guide and call exit(1) instead of raising
+    with contextlib.redirect_stdout(io.StringIO()):
+        try:
+            a.authenticate()
+        except SystemExit:
+            raise RuntimeError("no Kaggle token (~/.kaggle/access_token)") from None
     return a
 
 

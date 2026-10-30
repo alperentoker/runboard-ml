@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "runboard"
-version = "0.1.1"
+version = "0.1.2"
 description = "A self-hosted control panel for ML training runs: launch on Kaggle or a local GPU, watch them live, collect results — one dashboard for all your projects."
 readme = "README.md"
 license = { text = "MIT" }

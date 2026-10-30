@@ -2,6 +2,12 @@
 
 All notable changes to runboard. Versions follow [semantic versioning](https://semver.org/).
 
+## 0.1.2 — 2026-10-30
+
+### Fixed
+- Without a Kaggle token the System page did not load: newer Kaggle clients print a sign-in guide and call
+  `exit(1)` instead of raising, which ended the request. The missing token is now shown as "not connected".
+
 ## 0.1.1 — 2026-10-30
 
 ### Fixed

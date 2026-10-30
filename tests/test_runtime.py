@@ -296,3 +296,16 @@ def test_serve_and_stop_on_a_fresh_machine(tmp_path, monkeypatch):
     monkeypatch.setattr(server, "port_busy", lambda p: True)  # stops right after the start checks
     server.serve()
     assert (tmp_path / "fresh2").is_dir()
+
+
+def test_a_missing_kaggle_token_is_reported_not_fatal(monkeypatch):
+    # newer Kaggle clients print a guide and call exit(1) when there is no token
+    from kaggle.api.kaggle_api_extended import KaggleApi
+
+    from runboard.backends.kaggle import KaggleBackend
+
+    def no_token(self):
+        print("Authentication required to call the Kaggle API.")
+        exit(1)
+    monkeypatch.setattr(KaggleApi, "authenticate", no_token)
+    assert KaggleBackend().available() == (False, "no Kaggle token (~/.kaggle/access_token)")
