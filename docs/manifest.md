@@ -123,7 +123,8 @@ backends:
   local:
     command: '"{python}" -u scripts/train.py --run {id}'
     output_dir: runs/local
-    python: C:/envs/train/python.exe     # optional: put another environment first on PATH
+    python: C:/envs/train/python.exe     # optional: {python} in the commands is this interpreter, and its folder
+                                         # comes first on PATH (default: the one runboard runs on)
 ```
 
 Only one run per backend at a time. Kaggle runs cannot be cancelled through the API (use *Open on Kaggle*); local runs can.
@@ -165,6 +166,7 @@ results:
   per_class: {path: per_class, metric: map50_95, scale: 100, names: [person, vehicle]}
   curves: {file: "{out}/results.csv", format: ultralytics}   # or columns: {csv column: key}
   after: '"{python}" scripts/check_run.py "{out}"'             # runs after outputs are downloaded
+  column: model                          # optional: the field shown after the run in the results table
   note: …
 ```
 

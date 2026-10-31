@@ -154,6 +154,8 @@ class KaggleBackend(Backend):
 
     def stream(self, project, run_id, st, sink, alive: Callable[[], bool]):
         for ev in api().kernels_logs_stream(self.ref(project, run_id, st)):
+            if not alive():  # the run stopped or the dashboard is closing: let the thread end
+                return
             for line in re.split(r"[\r\n]+", fix_text(ev.get("data", ""))):
                 if line.strip() and not re.search(r"Debugger warning|frozen modules|PYDEVD|debugger miss", line):
                     sink.append(line.rstrip())

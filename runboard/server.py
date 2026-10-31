@@ -221,8 +221,8 @@ def api_remove_project(key: str):
 @app.get("/api/p/{key}/logo")
 def api_logo(key: str):
     p = proj(key)
-    f = p.root / p.m.get("logo", "")
-    if not p.m.get("logo") or not f.is_file():
+    f = (p.root / p.m.get("logo", "")).resolve()
+    if not p.m.get("logo") or not f.is_file() or not f.is_relative_to(p.root.resolve()):  # only a file of the project
         raise HTTPException(404)
     return FileResponse(f)
 
@@ -283,8 +283,10 @@ def api_collect(key: str, run_id: str):
 def api_cancel(key: str, run_id: str):
     p = proj(key)
     st = p.state.get(run_id)
+    if not st or st.get("status") not in ACTIVE:
+        raise Invalid("not_launched", run=run_id)
     try:
-        BACKENDS[st.get("backend", "kaggle")].cancel(p, run_id, st)
+        BACKENDS[st.get("backend") or p.m.get("default_backend", "kaggle")].cancel(p, run_id, st)
     except Exception as e:
         bad(e)
     p.state.update(run_id, status="CANCELLING")
@@ -511,7 +513,7 @@ def api_results(key: str):
         rows[info["id"]] = {**info, "metrics": {k: v for k, v in (met or {}).items() if k != "_raw"} or None,
                             "classes": classes}
     return {"rows": rows, "tables": p.m.get("tables") or [], "labels": res.get("labels") or {},
-            "note": res.get("note"), "classes": pc.get("names", [])}
+            "note": res.get("note"), "classes": pc.get("names", []), "column": res.get("column")}
 
 
 # ---------------------------------------------------------------- live updates (server-sent events)

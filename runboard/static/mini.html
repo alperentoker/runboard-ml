@@ -100,7 +100,7 @@ function paint() {
 function draw(v) {
   const c = $("#cv"), g = c.getContext("2d"), W = c.width, H = c.height;
   g.fillStyle = "#121211"; g.fillRect(0, 0, W, H);
-  g.fillStyle = "#93938c"; g.font = "600 13px system-ui, sans-serif"; g.fillText(v.proj.toUpperCase().slice(0, 40), 20, 24);
+  g.fillStyle = "#93938c"; g.font = "600 13px system-ui, sans-serif"; g.fillText(v.proj.toLocaleUpperCase(LANG).slice(0, 40), 20, 24);
   g.fillStyle = "#ededea"; g.font = "700 32px system-ui, sans-serif"; g.fillText(v.id, 20, 60);
   const w = g.measureText(v.id).width; g.font = "600 17px system-ui, sans-serif"; g.fillStyle = v.cls === "on" ? "#82abef" : "#93938c"; g.fillText(v.st, 34 + w, 60);
   g.fillStyle = "#2a2a28"; g.fillRect(20, 78, W - 40, 12); g.fillStyle = "#6cc3a6"; g.fillRect(20, 78, (W - 40) * v.frac, 12);

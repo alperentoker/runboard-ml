@@ -121,6 +121,9 @@ class State:
     def update(self, run_id: str, **fields) -> None:
         with self.lock:
             data = self.all()
+            rec = data.get(run_id)
+            if rec is not None and all(k in rec and rec[k] == v for k, v in fields.items()):
+                return  # every poll reports the same status; the file is written only when something changed
             data.setdefault(run_id, {}).update(fields)
             write_json(self.file, data)
 

@@ -56,15 +56,32 @@ def ensure_running() -> None:
     spawn_detached(["-m", "runboard", "watch"])
 
 
+def _claim(f) -> bool:
+    """Writes our pid to watch.pid unless a live watchdog holds it. Creating the file is atomic, so two watchdogs
+    started at the same moment cannot both win; a file left by a dead one is taken over."""
+    for _ in range(2):
+        try:
+            fd = os.open(f, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            try:
+                pid = int(f.read_text().strip() or 0)
+            except (ValueError, OSError):
+                pid = 0
+            if pid == os.getpid() or (pid and pid_alive(pid)):
+                return pid == os.getpid()
+            f.unlink(missing_ok=True)  # left by a watchdog that died
+            continue
+        with os.fdopen(fd, "w") as out:
+            out.write(str(os.getpid()))
+        return True
+    return False
+
+
 def main() -> int:
     f = home.HOME / "watch.pid"
     home.HOME.mkdir(parents=True, exist_ok=True)
-    try:
-        if f.exists() and int(f.read_text().strip() or 0) != os.getpid() and pid_alive(int(f.read_text().strip())):
-            return 0  # another watchdog is on duty
-    except ValueError:
-        pass
-    f.write_text(str(os.getpid()))
+    if not _claim(f):
+        return 0  # another watchdog is on duty
     note(f"watchdog started (pid {os.getpid()})")
     state: dict = {}
     try:

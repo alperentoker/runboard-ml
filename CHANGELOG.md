@@ -2,6 +2,37 @@
 
 All notable changes to runboard. Versions follow [semantic versioning](https://semver.org/).
 
+## 0.1.3 — 2026-10-31
+
+### Fixed
+- `{python}` in a local command was always the dashboard's interpreter, so with `backends.local.python` set the
+  training ran in the wrong environment; it is now the configured interpreter.
+- A decision whose value needs quotes in YAML (`"a: b"`) was written without them and broke the runs file; values
+  are written as YAML now, and a file that does not parse is reported with a code.
+- Stopping a run that never started was sent to Kaggle and answered with a raw error; it is refused with a message.
+- A Kaggle log stream never looked whether it should stop, so its thread could outlive the run.
+- A process that exited with code 259 counted as running on Windows (259 also means "still active").
+- Two watchdogs started at the same moment could both run; the pid file is now claimed atomically.
+- An error code without a text, or a plan with 999 copies of one run, ended in an empty error.
+
+### Security
+- A project logo outside the project folder is not served; a colour from the manifest reaches the page only when
+  it is a colour. SECURITY.md says that a paired device can restart the dashboard.
+
+### Performance
+- Starting a queued run (a network call) no longer holds the queue: adding, moving or removing entries meanwhile
+  is not delayed. Downloading a finished run's outputs runs beside the status poll instead of stopping it.
+- `results.csv`, `{yaml:...}` values and `devices.json` are read again only when they change; a run record is
+  written only when it changes; the System page loads every project at once.
+
+### Changed
+- The results table takes the column after the run from `results.column` (default: the plan's second field) and
+  reads it by name, so runs with different fields line up. Initials and the mini view upper-case Turkish letters
+  correctly.
+- Packaging: SPDX license field, Python 3.11–3.13 classifiers, pytest settings in `pyproject.toml`.
+- Tests for the QR encoder (checked with OpenCV where it is installed), the command line, the local runner and
+  each fix above.
+
 ## 0.1.2 — 2026-10-30
 
 ### Fixed

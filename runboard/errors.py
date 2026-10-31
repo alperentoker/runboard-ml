@@ -59,6 +59,7 @@ MESSAGES = {
     "kaggle_error": "Kaggle refused: {problem}",
     "no_local_command": "backends.local.command is not set in runboard.yaml",
     "only_finished_delete": "Only finished runs can be deleted",
+    "not_launched": "Not started yet: there is nothing to stop",
     "foreign_kernel": "This run is linked to a notebook runboard did not create; delete it on Kaggle",
     "unknown_project": "Unknown project",
     "not_run_yet": "Not run yet",
@@ -92,7 +93,7 @@ class Err(Exception):
     def __init__(self, code: str, run: str | None = None, **params):
         self.code, self.run = code, run
         self.params = {k: _plain(v) for k, v in params.items()} | ({"run": run} if run else {})
-        tpl = MESSAGES[code]
+        tpl = MESSAGES.get(code, code)  # a code without a text still reaches the page as an error, not a crash
         text = tpl.format(**self.params)
         super().__init__(f"{run}: {text}" if run and "{run}" not in tpl else text)
 

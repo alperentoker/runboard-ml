@@ -481,8 +481,9 @@ const ACTIVE = ["QUEUED", "STARTING", "RUNNING", "CANCELLING"];
 const COLORS = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)", "var(--s5)"];
 const PALETTE = ["#2c6b5a", "#2558a8", "#b0562b", "#7a4fa3", "#8a6d1f", "#1f7a8a"];
 const chip = (st, txt) => `<span class="chip ${st || ""}">${txt || (st ? t(st) : t("st_none"))}</span>`;
+const okColor = c => /^#[0-9a-f]{3,8}$|^[a-z]{3,20}$/i.test(c || "") ? c : null;  // only a colour reaches style=""
 const avatar = (p, size) => p.logo ? `<span class="avatar"${size ? ` style="width:${size}px;height:${size}px"` : ""}><img src="/api/p/${p.key}/logo" alt=""></span>`
-  : `<span class="avatar" style="background:${p.color || PALETTE[[...p.key].reduce((a, c) => a + c.charCodeAt(0), 0) % PALETTE.length]}${size ? `;width:${size}px;height:${size}px` : ""}">${esc((p.name || p.key).split(/[\s\-_]+/).map(w => w[0]).join("").slice(0, 2).toUpperCase())}</span>`;
+  : `<span class="avatar" style="background:${okColor(p.color) || PALETTE[[...p.key].reduce((a, c) => a + c.charCodeAt(0), 0) % PALETTE.length]}${size ? `;width:${size}px;height:${size}px` : ""}">${esc((p.name || p.key).split(/[\s\-_]+/).map(w => w[0]).join("").slice(0, 2).toLocaleUpperCase(LANG))}</span>`;
 function signedOut() {  // the browser dropped the login: say so instead of failing silently
   if (document.querySelector("#signin")) return;
   const d = document.createElement("div"); d.id = "signin"; d.className = "msg warn"; d.style.cssText = "position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:30";
@@ -564,7 +565,7 @@ const ERR_TR = {
   unknown_backend: "Bilinmeyen ortam: {backend}", not_configured: "{backend} bu proje için ayarlanmamış", busy: "{backend} meşgul: {runs}",
   unknown_job: "Bilinmeyen iş", no_resume: "{backend} için sürdürme komutu yok (runboard.yaml'da backends.<ad>.resume)",
   cannot_resume: "Yalnızca duran (hata vermiş ya da durdurulmuş) bir koşu, çalıştığı ortamda sürdürülebilir", resume_missing: "Önceki çıktı bulunamadı: {path}", job_running: "Zaten çalışan bir iş var: {job}", not_on_kaggle: "{data} henüz Kaggle'da değil (Veri sekmesi)", kaggle_error: "Kaggle reddetti: {problem}",
-  no_local_command: "runboard.yaml içinde backends.local.command tanımlı değil", only_finished_delete: "Yalnızca bitmiş koşular silinebilir",
+  no_local_command: "runboard.yaml içinde backends.local.command tanımlı değil", only_finished_delete: "Yalnızca bitmiş koşular silinebilir", not_launched: "Henüz başlatılmadı; durdurulacak bir şey yok",
   foreign_kernel: "Bu koşu runboard'un oluşturmadığı bir not defterine bağlı; Kaggle'dan sil", unknown_project: "Böyle bir proje yok",
   not_run_yet: "Henüz çalıştırılmadı", nothing_selected: "Hiçbir şey seçilmedi",
   queue_unknown: "{run} kuyrukta değil", queue_has: "{run} zaten kuyrukta",
@@ -1156,7 +1157,6 @@ function renderDetail() {
   const d = detail; if (!d || d.id !== route.run || !$("#detail")) return;
   const r = run(d.id) || {}, p = d.progress || {}, active = ACTIVE.includes(r.status), H = seriesOf(d), f = d.final, met = r.metrics || {};
   const bk = P.backends, bnow = r.backend || P.default_backend, binfo = P.backend_info?.[bnow] || {};
-  const busyOn = b => P.busy.filter(id => run(id)?.backend === b);
   const kv = (l, v, s = "") => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div>${s ? `<div class="s">${s}</div>` : ""}</div>`;
   const lab = tx(P.labels.primary) || "score", lab2 = tx(P.labels.secondary) || "";
   let body = "";
@@ -1662,8 +1662,10 @@ async function renderResults() {
   if (stale("results")) return;
   const R = d.rows, lab = tx(d.labels.primary) || "score", lab2 = tx(d.labels.secondary) || "";
   const v = (id, k = "primary") => R[id]?.metrics?.[k];
-  const head = `<tr><th>${t("run")}</th><th>${en(Object.keys(Object.values(R)[0]?.fields || {})[1] || "")}</th><th class="n">${esc(lab)}</th>${lab2 ? `<th class="n">${esc(lab2)}</th>` : ""}${d.classes.map(c => `<th class="n">${en(c)}</th>`).join("")}<th class="n">${t("best_epoch")}</th><th class="n">${t("duration")}</th></tr>`;
-  const row = id => { const r = R[id]; if (!r) return ""; const f2 = Object.values(r.fields || {})[1];
+  // the column after the run: results.column in runboard.yaml, else the second field of the plan
+  const col = d.column || Object.keys(Object.values(R)[0]?.fields || {})[1] || "";
+  const head = `<tr><th>${t("run")}</th><th>${en(col)}</th><th class="n">${esc(lab)}</th>${lab2 ? `<th class="n">${esc(lab2)}</th>` : ""}${d.classes.map(c => `<th class="n">${en(c)}</th>`).join("")}<th class="n">${t("best_epoch")}</th><th class="n">${t("duration")}</th></tr>`;
+  const row = id => { const r = R[id]; if (!r) return ""; const f2 = r.fields?.[col];
     return `<tr class="click" tabindex="0" role="link" data-go="${runPage(id)}"><td><b>${esc(id)}</b></td><td>${f2 == null ? `<span class="muted">${t("pending")}</span>` : esc(short(f2))}</td><td class="n"><b>${fmt(v(id))}</b></td>${lab2 ? `<td class="n">${fmt(v(id, "secondary"))}</td>` : ""}${d.classes.map(c => `<td class="n">${fmt(r.classes?.[c])}</td>`).join("")}<td class="n">${v(id, "best_epoch") != null ? `${v(id, "best_epoch")}/${v(id, "epochs") ?? "?"}` : "—"}</td><td class="n">${v(id, "hours") != null ? v(id, "hours") + " h" : "—"}</td></tr>`; };
   const stat = ids => { const xs = ids.map(i => v(i)).filter(x => x != null); if (!xs.length) return "—";
     const m = xs.reduce((a, b) => a + b) / xs.length, s = xs.length > 1 ? Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / (xs.length - 1)) : null;
@@ -1722,9 +1724,10 @@ async function renderSystem() {
     try { await api(`/api/devices/${b.dataset.unpair}`, {method: "DELETE"}); renderSystem(); } catch (e) { say(e.message); }
   });
   $("#restart").onclick = async () => { if (!await ask(t("sure_restart"))) return; await api("/api/system/restart", {method: "POST"}).catch(() => {}); toast(t("restarting")); setTimeout(() => location.reload(), 6000); };
-  for (const p of PS.projects) {
-    const info = await api(`/api/p/${p.key}`).catch(() => null); if (!info) continue;
-    if (stale("system")) return;
+  const infos = await Promise.all(PS.projects.map(p => api(`/api/p/${p.key}`).catch(() => null)));  // all at once
+  if (stale("system")) return;
+  for (const [i, p] of PS.projects.entries()) {
+    const info = infos[i]; if (!info) continue;
     morph($(`#jb-${p.key}`), Object.entries(info.jobs).filter(([, j]) => !j.per_run).map(([k, j]) => `<button class="btn" data-j="${k}" data-p="${p.key}">${esc(tx(j.title))}</button>`).join(" "));
     showJobs(p.key);
   }

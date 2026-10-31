@@ -37,6 +37,9 @@ def slugify(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-") or "project"
 
 
+_CSV: dict[str, tuple] = {}  # parsed results.csv per file, until it changes
+
+
 class Project:
     def __init__(self, root: Path):
         self.root = Path(root).resolve()
@@ -58,7 +61,7 @@ class Project:
             head = parts[0]
             if head.startswith("yaml:"):
                 _, rel, key = head.split(":", 2)
-                v = yaml.safe_load((self.root / rel).read_text(encoding="utf-8"))
+                v = load_yaml(self.root / rel)  # parsed once until the file changes
                 for k in key.split("."):
                     v = v[k]
             elif head == "python":  # the interpreter runboard runs on
@@ -400,7 +403,9 @@ class Project:
                 own[k] = v
         if not run_id:
             base = f"{copy_from}-copy" if copy_from else "run"
-            run_id = next(c for c in [base] + [f"{base}{i}" for i in range(2, 1000)] if c not in runs)
+            run_id = next((c for c in [base] + [f"{base}{i}" for i in range(2, 1000)] if c not in runs), None)
+            if not run_id:
+                raise Invalid("exists", run=f"{base}999")
         f = RunsFile(self.runs_file, self.section)
         res = self._commit(f, f.add_run(run_id, own, note), {run_id: own}, version, dry, f"add {run_id}", who)
         return {"id": run_id, **res}
@@ -508,17 +513,22 @@ class Project:
         content = self.runs_file.read_text(encoding="utf-8")
         # every run still waiting for this field gets the value; another field ending in the same name
         # (teacher_model) and comments are left alone, and the result is read back before it is written
+        from .runsfile import scalar
         field = re.compile(rf"(?<![\w.-]){re.escape(d['field'])}: null\b")
+        written = scalar(value)  # as YAML writes it: "a: b" keeps its quotes
         lines = content.splitlines(keepends=True)
         for i, ln in enumerate(lines):
             if not ln.lstrip().startswith("#"):
                 code, hash_, comment = ln.partition(" #")
-                lines[i] = field.sub(f"{d['field']}: {value}", code) + hash_ + comment
+                lines[i] = field.sub(lambda _: f"{d['field']}: {written}", code) + hash_ + comment
         new = "".join(lines)
         if new == content:
             raise Invalid("decided")
-        before, after = yaml.safe_load(content), yaml.safe_load(new)
-        filled = yaml.safe_load(f"v: {value}")["v"]
+        try:
+            before, after = yaml.safe_load(content), yaml.safe_load(new)
+        except yaml.YAMLError as e:
+            raise Invalid("yaml", problem=str(e).splitlines()[0]) from None
+        filled = value
 
         def fill(node):
             if isinstance(node, dict):
@@ -580,8 +590,14 @@ class Project:
         p = Path(self.render(c["file"], {**info, "out": out}))
         if not p.exists():
             return None
-        with open(p, encoding="utf-8") as f:
-            rows = [{k.strip(): v for k, v in r.items()} for r in csv.DictReader(f)]
+        st = p.stat()
+        key, sig = str(p), (st.st_mtime_ns, st.st_size)
+        if _CSV.get(key, (None,))[0] != sig:  # every open page asks every few seconds; the file rarely changes
+            with open(p, encoding="utf-8") as f:
+                _CSV[key] = (sig, [{k.strip(): v for k, v in r.items()} for r in csv.DictReader(f)])
+            while len(_CSV) > 64:
+                _CSV.pop(next(iter(_CSV)))
+        rows = _CSV[key][1]
         cols = c.get("columns") or ULTRALYTICS_COLUMNS
         scale = set(c.get("percent", ["map", "map50", "p", "r"] if not c.get("columns") else []))
         out_rows = []

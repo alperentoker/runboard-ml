@@ -9,6 +9,7 @@
 """
 from __future__ import annotations
 
+import copy
 import hashlib
 import ipaddress
 import secrets
@@ -32,8 +33,21 @@ def _devices_file():
     return home.HOME / "devices.json"
 
 
+_devices_cache: tuple = (None, [])
+
+
 def devices() -> list[dict]:
-    return home.read_json(_devices_file(), [])
+    """Paired devices; every request from a tablet asks, so the file is read again only when it changed."""
+    global _devices_cache
+    f = _devices_file()
+    try:
+        st = f.stat()
+        sig = (str(f), st.st_mtime_ns, st.st_size)
+    except FileNotFoundError:
+        return []
+    if _devices_cache[0] != sig:
+        _devices_cache = (sig, home.read_json(f, []))
+    return copy.deepcopy(_devices_cache[1])
 
 
 def _hash(key: str) -> str:

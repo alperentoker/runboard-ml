@@ -60,7 +60,9 @@ class Runtime:
     def __init__(self):
         self.lock = threading.Lock()
         self.start_lock = threading.Lock()
-        self.queue_lock = threading.Lock()
+        self.queue_lock = threading.Lock()  # the queue file: held only while reading and writing it
+        self.queue_run_lock = threading.Lock()  # one pass of run_queue at a time
+        self._collecting: set[tuple[str, str]] = set()
         self.logs: dict[tuple[str, str], list[str]] = {}
         self._files: dict[Path, tuple] = {}
         self._parsed: dict[tuple[str, str], tuple] = {}
@@ -172,6 +174,8 @@ class Runtime:
                 self._parsed[key] = hit
                 while len(self._parsed) > self.KEEP_LOGS * 4:
                     self._parsed.pop(next(iter(self._parsed)))
+                while len(self._saved_len) > self.KEEP_LOGS * 4:
+                    self._saved_len.pop(next(iter(self._saved_len)))
         return copy.deepcopy(hit[1])
 
     def start(self, project: Project, run_id: str, backend: str, resume: bool = False) -> dict:
@@ -281,11 +285,18 @@ class Runtime:
                             self.save_log(project, run_id, lines)
                     except Exception:
                         pass
-                    if status == "COMPLETE" and not st.get("collected"):
-                        try:
-                            self.collect(project, run_id)
-                        except Exception as e:
-                            project.state.update(run_id, check={"error": f"collect: {e}"})
+                    if status == "COMPLETE" and not st.get("collected") and key not in self._collecting:
+                        # downloading outputs can take minutes: the next poll must not wait for it
+                        self._collecting.add(key)
+                        threading.Thread(target=self._collect_bg, args=(project, run_id), daemon=True).start()
+
+    def _collect_bg(self, project: Project, run_id: str) -> None:
+        try:
+            self.collect(project, run_id)
+        except Exception as e:
+            project.state.update(run_id, check={"error": f"collect: {e}"})
+        finally:
+            self._collecting.discard((project.key, run_id))
 
     def loop(self) -> None:
         while True:
@@ -398,8 +409,11 @@ class Runtime:
     def run_queue(self) -> list[str]:
         """Starts the first waiting entry of every free backend. Returns what it started."""
         started = []
-        with self.queue_lock:
-            q = self.queue()
+        with self.queue_run_lock:
+            # starting a run is a network call that can take seconds; the queue file is locked only to read it
+            # and to write the outcome, so adding, moving and removing entries meanwhile is not held up
+            with self.queue_lock:
+                q = self.queue()
             if not q:
                 return started
             ps = self.projects()
@@ -428,9 +442,17 @@ class Runtime:
                 except Exception as ex:
                     e["waiting"] = f"error: {ex}"[:300]
                     continue
-                q.remove(e)
+                e["started"] = True
                 started.append(f"{p.key}:{e['run']}")
-            self._save_queue(q)
+            outcome = {e["id"]: e for e in q}
+            with self.queue_lock:  # entries added or removed meanwhile stay as they are now
+                now = []
+                for e in self.queue():
+                    seen = outcome.get(e["id"])
+                    if seen and seen.get("started"):
+                        continue
+                    now.append({**e, "waiting": seen["waiting"]} if seen else e)
+                self._save_queue(now)
         return started
 
     # ------------------------------------------------------------ jobs

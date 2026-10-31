@@ -18,7 +18,8 @@ limited and what is outside its scope.
   keeps a random 256-bit key in an `HttpOnly`, `SameSite=Strict` cookie; `~/.runboard/devices.json` holds only its
   SHA-256 hash. Removing a device in *System* locks it out at once.
 - **This computer only.** Saving or removing the Kaggle token, adding or removing projects, the folder browser, the
-  new-project wizard, tablet access and the Windows startup setting are refused for paired devices.
+  new-project wizard, tablet access and the Windows startup setting are refused for paired devices. A paired
+  device can restart the dashboard (as it can start and stop runs); a restart does not touch runs in progress.
 
 ## Protection against web pages
 

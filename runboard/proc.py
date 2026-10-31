@@ -51,15 +51,15 @@ def pid_alive(pid: int | None) -> bool:
 
         k32 = ctypes.WinDLL("kernel32", use_last_error=True)
         k32.OpenProcess.restype = wintypes.HANDLE
-        handle = k32.OpenProcess(0x1000, False, int(pid))  # PROCESS_QUERY_LIMITED_INFORMATION
+        handle = k32.OpenProcess(0x1000 | 0x100000, False, int(pid))  # QUERY_LIMITED_INFORMATION | SYNCHRONIZE
         if not handle:
             return False
         try:
-            code = wintypes.DWORD()
-            ok = k32.GetExitCodeProcess(handle, ctypes.byref(code))
-            return bool(ok) and code.value == 259  # STILL_ACTIVE
+            # WAIT_TIMEOUT (258): still running. The exit code alone cannot tell: a process may exit with 259,
+            # the value that also means STILL_ACTIVE.
+            return k32.WaitForSingleObject(wintypes.HANDLE(handle), 0) == 258
         finally:
-            k32.CloseHandle(handle)
+            k32.CloseHandle(wintypes.HANDLE(handle))
     try:
         os.kill(int(pid), 0)
     except ProcessLookupError:
