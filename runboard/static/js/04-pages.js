@@ -246,7 +246,7 @@ function paintLog(added, force) {
 
 /* ================= project: settings ================= */
 async function renderSettings() {
-  let c; try { [c, PLAN, FILES] = await Promise.all([api(`/api/p/${P.key}/config`), api(`/api/p/${P.key}/plan`), api(`/api/p/${P.key}/files`)]); } catch (e) { if (!stale("settings")) $("#content").innerHTML = `<div class="msg bad">${esc(e.message)}</div>`; return; }
+  let c; try { [c, PLAN, FILES, TPL] = await Promise.all([api(`/api/p/${P.key}/config`), api(`/api/p/${P.key}/plan`), api(`/api/p/${P.key}/files`), api(`/api/p/${P.key}/templates`)]); } catch (e) { if (!stale("settings")) $("#content").innerHTML = `<div class="msg bad">${esc(e.message)}</div>`; return; }
   if (stale("settings")) return;
   const lab = tx(P.labels.primary) || "score";
   const dec = c.decisions.map(d => {
@@ -273,7 +273,8 @@ async function renderSettings() {
     ${Object.entries(c.shared).map(([s, v]) => `<div class="card tw" style="margin-bottom:12px"><table><tr><th colspan="2">${esc(s)}</th></tr>${typeof v === "object" && v ? Object.entries(v).map(([k, x]) => `<tr><td class="mono">${esc(k)}</td><td><b>${esc(JSON.stringify(x))}</b></td></tr>`).join("") : `<tr><td colspan="2"><b>${esc(JSON.stringify(v))}</b></td></tr>`}</table></div>`).join("")}
     <details><summary>${esc(c.runs_file)}</summary><pre class="raw">${esc(c.raw)}</pre></details></div></div>` : ""}
   ${c.decision_log ? `<div class="card"><div class="ch"><h2>${t("decision_log")}</h2></div><div class="cb"><pre class="raw">${esc(c.decision_log)}</pre></div></div>` : ""}
-  ${filesCards()}`);
+  ${filesCards()}
+  ${templatesCard()}`);
   document.querySelectorAll(".dsave").forEach(b => b.onclick = async () => {
     const id = b.dataset.d, v = document.querySelector(`.dv[data-d="${id}"]`).value, reason = document.querySelector(`.dr[data-d="${id}"]`).value;
     if (!await ask(t("sure_decide", {d: id, v}))) return;
@@ -283,6 +284,6 @@ async function renderSettings() {
     const values = Object.fromEntries([...document.querySelectorAll(".xf")].map(i => [i.dataset.k, i.type === "number" ? +i.value : i.value]));
     try { const j = await api(`/api/p/${P.key}/runs`, {json: {values, note: $("#xnote").value}}); toast(j.id); $("#xnote").value = ""; await refresh(); renderSettings(); } catch (e) { say(e.message); }
   };
-  wirePlan(); wireShared(); wireFiles();
+  wirePlan(); wireShared(); wireFiles(); wireTemplates();
 }
 

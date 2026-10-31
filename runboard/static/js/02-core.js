@@ -94,6 +94,8 @@ const ERR_TR = {
   manifest_runs: "runboard.yaml'da runs.file var olan bir koşu dosyasını göstermeli", migrate_by_hand: "{what} geçişin taşıyamayacağı biçimde yazılmış; elle taşı",
   criterion: "Ölçüt: {problem}", evidence: "{file}: {problem}", already_locked: "Plan zaten kilitli",
   deviation_reason: "Plan kilitli: neden değiştiğini yaz (en az 10 karakter); değişiklik sapma olarak kaydedilir",
+  not_locked: "Plan kilitli değil", unknown_template: "{name} adında bir şablon yok", not_template: "{file} bu şablondan yazılmamış; başka bir yol seç",
+  owned: "{file} senin değişikliklerini içeriyor; runboard onu bir daha yazmaz", template_param: "{field}: şöyle yaz: {shape}", bad_path: "{path}: proje içinde bir .py dosyası ver",
   not_as_intended: "{file} istendiği gibi çıkmadı; hiçbir şey yazılmadı", conflict: "{file} bu sayfa açıldıktan sonra değişti; yeniden yükleyip tekrar dene",
   unknown_decision: "Böyle bir karar yok", finish_first: "Önce bütün aday koşular bitmeli", from_candidates: "Değer aday koşulardan birinden gelmeli",
   reason_short: "Bir gerekçe yaz (en az 10 karakter)", decided: "Bu karar zaten verildi",

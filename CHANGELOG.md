@@ -18,6 +18,10 @@ Pre-registered experiments: the groundwork (RB-0) and the core (RB-1); see [ROAD
   then changes only with a reason, recorded in `deviations.md`; the page shows whether the files match.
 - A ledger of sealed-set (held-out test) evaluations; the same weights twice are refused unless asked for, and marked.
 - The project's Hypotheses page, and `runboard verdicts` on the command line.
+- Code templates (RB-2): `convert` (COCO / VOC to YOLO), `split` (seeded, group-aware train / val / test), `check`
+  (label errors, leaks between splits, look-alike images), `subsets` (nested data-size lists), `evaluate` (YOLO,
+  writing the verdicts' evaluation files) and `speed` (milliseconds per stage, FPS). Written from the Settings page or `runboard template`, listed in `runboard.yaml` with a job,
+  rewritten only while unchanged; under a lock a rewrite is a deviation and a hand edit shows until it is recorded.
 - Manifest version 2: questions, hypotheses, the evaluation protocol, seed groups, decisions and the lock live in
   `plan.yaml`, apart from how runs are started (`runboard.yaml`). Version 1 projects keep working unchanged.
 - `runboard migrate` moves a project's decisions and lock into `plan.yaml`, comments included, and checks that the

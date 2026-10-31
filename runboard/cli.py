@@ -41,6 +41,12 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("lock", help="lock the plan (plan.lock.json)").add_argument("path", type=Path, nargs="?", default=Path("."))
     sub.add_parser("verdicts", help="the hypotheses' verdicts").add_argument("path", type=Path, nargs="?",
                                                                           default=Path("."))
+    tp = sub.add_parser("template", help="write a script from a template (split, check, subsets, evaluate)")
+    tp.add_argument("name")
+    tp.add_argument("path", type=Path, nargs="?", default=Path("."), help="the project folder")
+    tp.add_argument("--to", help="where in the project (default: scripts/<name>.py)")
+    tp.add_argument("--set", action="append", default=[], metavar="KEY=VALUE", help="a parameter")
+    tp.add_argument("--reason", default="", help="under a lock: why (recorded as a deviation)")
     u = sub.add_parser("upload")
     u.add_argument("path", type=Path)
     u.add_argument("keys", nargs="+")
@@ -104,6 +110,18 @@ def main(argv: list[str] | None = None) -> int:
     from .project import Project
 
     p = Project(args.path)
+    if args.cmd == "template":
+        from . import templating
+        from .errors import Err
+
+        try:
+            out = templating.write(p, args.name, dict(kv.split("=", 1) for kv in args.set), args.to,
+                                   who="command line", reason=args.reason)
+        except Err as e:
+            print(e)
+            return 1
+        print(f"wrote {out['path']}" if out["diff"] else f"{out['path']} is up to date")
+        return 0
     if args.cmd in ("lock", "verdicts"):
         from . import prereg
         from .errors import Err

@@ -54,6 +54,13 @@ MESSAGES = {
     "evidence": "{file}: {problem}",
     "already_locked": "The plan is already locked",
     "deviation_reason": "The plan is locked: say why it changes (at least 10 characters); the change is recorded as a deviation",
+    "not_locked": "The plan is not locked",
+    # code templates
+    "unknown_template": "No template called {name}",
+    "not_template": "{file} was not written from this template; pick another path",
+    "owned": "{file} has your changes, so runboard does not write it again",
+    "template_param": "{field}: write it as {shape}",
+    "bad_path": "{path}: give a .py file inside the project",
     # decisions
     "unknown_decision": "Unknown decision",
     "finish_first": "All candidate runs must finish first",

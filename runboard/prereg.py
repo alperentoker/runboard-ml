@@ -40,6 +40,13 @@ def runs_hash(project) -> str:
     return hashlib.sha256(json.dumps(blank(doc), sort_keys=True, default=str, ensure_ascii=False).encode()).hexdigest()
 
 
+def code_hashes(project) -> dict[str, str | None]:
+    """The fingerprints of the code written from templates (runboard.yaml, templates:), read fresh from disk."""
+    from .home import load_yaml
+    m = load_yaml(project.root / "runboard.yaml") or {}
+    return {str(p): text_hash(project.root / str(p)) for p in (m.get("templates") or {})}
+
+
 def git_info(root: Path) -> dict | None:
     def git(*a):
         return subprocess.run(["git", *a], cwd=root, capture_output=True, text=True, timeout=10,
@@ -77,7 +84,7 @@ def lock(project, who: str = "") -> dict:
            "by": who, "plan": project.plan_file.relative_to(project.root).as_posix(),
            "plan_sha256": text_hash(project.plan_file), "runs": project.runs_file.relative_to(project.root).as_posix(),
            "runs_sha256": runs_hash(project),
-           "resample": {s: (ev.plan(s) or {}).get("ids_sha256") for s in ev.sets},
+           "resample": {s: (ev.plan(s) or {}).get("ids_sha256") for s in ev.sets}, "code": code_hashes(project),
            "git": git_info(project.root)}
     lock_file(project).write_text(json.dumps(rec, indent=1, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
     return rec
@@ -92,12 +99,25 @@ def add_deviation(project, file: str, reason: str, diff: str, who: str) -> None:
     """Called after the change is written: the entry carries the fingerprints the files have now."""
     f = project.root / DEVIATIONS
     entry = {"time": datetime.now().astimezone().isoformat(timespec="seconds"), "file": file, "who": who,
-             "reason": reason.strip(), "plan_sha256": text_hash(project.plan_file), "runs_sha256": runs_hash(project)}
+             "reason": reason.strip(), "plan_sha256": text_hash(project.plan_file), "runs_sha256": runs_hash(project),
+             "code": code_hashes(project)}
     head = "" if f.exists() else ("# Deviations from the pre-registered plan\n\nEvery change of the plan or the runs "
                                   "after the lock, with its reason. Written by runboard.\n")
     with open(f, "a", encoding="utf-8", newline="\n") as out:
         out.write(f"{head}\n## {entry['time'][:16].replace('T', ' ')} — {file}\n\n**Reason:** {entry['reason']}\n\n"
                   f"```diff\n{diff.rstrip()}\n```\n<!-- runboard-deviation: {json.dumps(entry, ensure_ascii=False)} -->\n")
+
+
+def record_deviation(project, reason: str, who: str = "") -> None:
+    """A change made outside runboard (a script edited by hand): recorded with its reason and the fingerprints now."""
+    if not record(project):
+        raise Invalid("not_locked")
+    if len((reason or "").strip()) < 10:
+        raise Invalid("deviation_reason")
+    st = status(project)
+    changed = ([project.plan_file.name] if not st.get("plan_ok") else []) + \
+        ([project.runs_file.name] if not st.get("runs_ok") else []) + st.get("code_changed", [])
+    add_deviation(project, ", ".join(changed) or "(nothing changed)", reason, "(changed outside runboard)", who)
 
 
 def ledger(ev: Evidence) -> list[dict]:
@@ -120,6 +140,11 @@ def status(project) -> dict:
         want = devs[-1] if devs else rec
         out["plan_ok"] = text_hash(project.plan_file) == want.get("plan_sha256")
         out["runs_ok"] = runs_hash(project) == want.get("runs_sha256")
+        if "code" in rec:
+            code = next((d["code"] for d in reversed(devs) if "code" in d), rec["code"])
+            now = code_hashes(project)
+            out["code_ok"] = now == code
+            out["code_changed"] = sorted(k for k in set(now) | set(code) if now.get(k) != code.get(k))
     return out
 
 

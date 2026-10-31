@@ -478,6 +478,33 @@ def api_hypotheses(key: str):
     return plan_call(lambda: prereg.hypotheses(p)) if p.v2 else {"status": {"v2": False}}
 
 
+@app.post("/api/p/{key}/deviation")
+def api_deviation(key: str, request: Request, body: dict = Body(...)):
+    """Records a change made outside runboard (a script edited by hand) as a deviation, with its reason."""
+    from . import prereg
+    p = proj(key)
+    plan_call(lambda: prereg.record_deviation(p, str(body.get("reason") or ""), who(request)))
+    return {"ok": True}
+
+
+@app.get("/api/p/{key}/templates")
+def api_templates(key: str, request: Request):
+    from . import templating
+    p = proj(key)
+    return {"catalog": [{"name": n, **{k: t[k] for k in ("version", "target", "title", "desc", "params")}}
+                        for n, t in templating.TEMPLATES.items()],
+            "files": templating.files(p), "can_write": bool(request.state.local), "locked": p.v2 and p.locked}
+
+
+@app.post("/api/p/{key}/templates/{name}", dependencies=LOCAL)
+def api_template_write(key: str, name: str, request: Request, body: dict = Body(...)):
+    """From this computer only: it writes code that runs here."""
+    from . import templating
+    p = proj(key)
+    return plan_call(lambda: templating.write(p, name, body.get("params") or {}, body.get("path") or None,
+                                              bool(body.get("dry")), who(request), str(body.get("reason") or "")))
+
+
 @app.post("/api/p/{key}/lock", dependencies=LOCAL)
 def api_lock(key: str, request: Request):
     from . import prereg

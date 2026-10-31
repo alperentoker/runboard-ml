@@ -379,3 +379,17 @@ def test_hypotheses_page_shows_verdicts_and_the_lock(page):
         assert page.js("__errors") == []
     finally:
         (root / "plan.yaml").write_text("questions: []\n", encoding="utf-8")
+
+
+def test_a_script_is_written_from_a_template_after_its_diff(page):
+    root = Path(home.config()["projects"][0])
+    go(page, "#/p/demo/settings", "document.querySelector('#tplsel')")
+    page.js("(() => { const s = document.querySelector('#tplsel'); s.value = 'check'; s.dispatchEvent(new Event('change')); })()")
+    page.until("document.querySelector('#tplgo')")
+    page.js("document.querySelector('#tplgo').click()")
+    page.until("document.querySelector('#tplout .diff')")
+    assert "runboard-template: check" in page.js("document.querySelector('#tplout').innerText")
+    page.js("document.querySelector('#tplgo').click()")
+    page.until("document.querySelector('[data-tedit]')")
+    assert (root / "scripts" / "check.py").is_file()
+    assert page.js("__errors") == []

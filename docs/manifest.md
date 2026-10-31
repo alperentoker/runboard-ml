@@ -275,6 +275,33 @@ the fingerprints after it, so the page can tell whether the files on disk are th
 deviations. A version 1 project, or `locked: true` without a record, keeps the older rule: only decisions and extra
 runs.
 
+## templates (code written by runboard)
+
+The Settings page (*Code templates*, on this computer) and `runboard template NAME [folder] --set key=value` write
+ordinary Python scripts into the project and list them here. Each starts with the template, its version, its
+parameters and the SHA-256 of the text below; while the text matches, runboard may rewrite it (new settings, a newer
+template, always after showing the diff). Once you change it, it is yours and runboard does not write it again.
+
+```yaml
+templates:
+  scripts/split.py: split
+  scripts/evaluate.py: evaluate
+jobs:                                   # added the first time, run from the dashboard
+  evaluate: {title: Evaluate for the hypotheses, cmd: '"{python}" -u scripts/evaluate.py --run {id} --weights "{out}/weights/best.pt"', per_run: true}
+```
+
+| Template | Writes |
+| :--- | :--- |
+| `convert` | YOLO `images/` and `labels/` (hard links or copies) with `classes.txt` from a COCO `.json` or VOC `.xml` files; crowd regions and, if asked, VOC difficult objects left out; boxes clipped to the image |
+| `split` | train / val / test lists from a YOLO image folder, seeded; images with the same group key (a regex on the name: a video, a scene) stay in one split; `data.yaml`, `split.json` with the lists' SHA-256 |
+| `check` | label errors, the same image in two splits (a leak), duplicates, look-alike images across splits (with Pillow); exits 1 on errors or leaks |
+| `subsets` | nested training lists with 10 / 25 / 50 % of one source added to a base, each with its `data.yaml` |
+| `evaluate` | every evaluation set through the Ultralytics validator, with the shared bootstrap replicates: the files the hypotheses are decided from; sealed sets once per weights (`--again` is recorded) |
+| `speed` | milliseconds per image at batch 1 for preprocessing, inference and postprocessing (median, p90) and FPS, with the software and device |
+
+Under a lock, the tracked scripts are part of what is locked: rewriting one needs a reason (a deviation), and a
+script changed by hand shows on the Hypotheses page until it is recorded there as a deviation.
+
 ## jobs
 
 ```yaml

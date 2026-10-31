@@ -25,9 +25,11 @@ function lockCard(s) {
     ${ME?.local ? `<button class="btn primary" id="hlock">${t("h_lock_now")}</button>` : `<div class="msg warn">${t("h_lock_local")}</div>`}</div></div>`;
   const ok = (good, label) => chip(good ? "COMPLETE" : "ERROR", `${label} ${good ? "✓" : "✕"}`);
   const git = rec.git ? `${t("h_commit")} <span class="mono">${esc(rec.git.commit.slice(0, 10))}</span>${rec.git.dirty ? ` · <b>${t("h_dirty")}</b>` : ""}` : t("h_no_git");
-  return `<div class="card"><div class="ch"><h2>${t("h_lock")}</h2>${chip("lock", t("h_locked"))}${ok(s.plan_ok, esc(rec.plan))} ${ok(s.runs_ok, esc(rec.runs))}</div><div class="cb">
+  const fine = s.plan_ok && s.runs_ok && s.code_ok !== false;
+  return `<div class="card"><div class="ch"><h2>${t("h_lock")}</h2>${chip("lock", t("h_locked"))}${ok(s.plan_ok, esc(rec.plan))} ${ok(s.runs_ok, esc(rec.runs))}${s.code_ok == null ? "" : " " + ok(s.code_ok, t("tpl_code"))}</div><div class="cb">
     <p class="desc">${t("h_locked_at")} ${esc(rec.locked_at.replace("T", " ").slice(0, 16))} · ${git}</p>
-    ${!s.plan_ok || !s.runs_ok ? `<div class="msg bad">${t("h_tampered")}</div>` : ""}
+    ${fine ? "" : `<div class="msg bad">${t("h_tampered")}${s.code_changed?.length ? ` (${s.code_changed.map(esc).join(", ")})` : ""}</div>
+      <div class="form" style="margin:10px 0 14px"><label class="wide">${t("h_reason")}<input id="hdevr"></label><button class="btn" id="hdev">${t("h_record")}</button></div>`}
     ${s.deviations.length ? `<div class="card tw"><table><tr><th>${t("h_when")}</th><th>${t("h_file")}</th><th>${t("reason")}</th></tr>${s.deviations.map(d => `<tr><td class="mono">${esc((d.time || "").replace("T", " ").slice(0, 16))}</td><td class="mono">${esc(d.file)}</td><td>${esc(d.reason)}</td></tr>`).join("")}</table></div>`
       : `<p class="desc">${t("h_no_deviations")}</p>`}</div></div>`;
 }
@@ -53,6 +55,9 @@ async function renderHypotheses() {
     ${qs}${loose.length ? `<h3 class="qhead">${t("h_other")}</h3>${loose.map(hypothesisCard).join("")}` : ""}
     ${!d.hypotheses.length ? `<div class="msg warn">${t("h_empty")}</div>` : ""}
     ${ledgerCard(d.status)}`);
+  if ($("#hdev")) $("#hdev").onclick = async () => {
+    try { await api(`/api/p/${P.key}/deviation`, {json: {reason: $("#hdevr").value}}); toast(t("saved")); renderHypotheses(); } catch (e) { say(e.message); }
+  };
   if ($("#hlock")) $("#hlock").onclick = async () => {
     if (!await ask(t("h_lock_sure"))) return;
     try { await api(`/api/p/${P.key}/lock`, {method: "POST"}); toast(t("h_locked")); renderHypotheses(); } catch (e) { say(e.message); }
