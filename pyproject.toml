@@ -41,4 +41,4 @@ testpaths = ["tests"]
 include = ["runboard*"]
 
 [tool.setuptools.package-data]
-runboard = ["static/*", "templates/*"]
+runboard = ["static/*", "static/js/*", "templates/*"]

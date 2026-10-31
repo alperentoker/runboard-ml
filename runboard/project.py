@@ -16,6 +16,7 @@ import yaml
 
 from .errors import Denied, Err, Invalid
 from .home import State, load_yaml, read_json
+from .planfile import PLAN, check_manifest, check_plan, parse
 
 MANIFEST = "runboard.yaml"
 FILTERS = {
@@ -51,6 +52,18 @@ class Project:
         self.section = r.get("section", "runs")
         self.defaults_section = r.get("defaults")
         self.extras = r.get("extras") or {}
+        # manifest v2: the science (questions, hypotheses, decisions, the lock) is in plan.yaml (docs/design-v2.md)
+        self.v2 = int(self.m.get("version") or 1) >= 2
+        self.plan_file = self.root / str(self.m.get("plan") or PLAN)
+        self.pl = (load_yaml(self.plan_file) or {}) if self.v2 and self.plan_file.is_file() else {}
+
+    @property
+    def locked(self) -> bool:
+        """A pre-registered plan: runs change only through decisions and extra runs."""
+        return bool(self.pl.get("locked")) if self.v2 else bool((self.m.get("runs") or {}).get("locked"))
+
+    def decision_specs(self) -> list[dict]:
+        return list((self.pl if self.v2 else self.m).get("decisions") or [])
 
     # ------------------------------------------------------------ templates
 
@@ -101,16 +114,19 @@ class Project:
         return {"id": run_id, **fields, "fields": fields, "ready": ready,
                 "missing": [k for k in required if s.get(k) is None],
                 "name": self.render(r.get("name", "{id}"), s) if ready else None,
-                "locked": bool(r.get("locked")) and not self.is_extra(run_id), "extra": self.is_extra(run_id)}
+                "locked": self.locked and not self.is_extra(run_id), "extra": self.is_extra(run_id)}
 
     def infos(self) -> list[dict]:
         doc = self.doc()
         return [self.info(k, doc) for k in (doc.get(self.section) or {})]
 
-    def backup(self) -> None:
+    def backup(self, path: Path | None = None) -> None:
+        path = path or self.runs_file
+        if not path.is_file():
+            return
         d = self.state.dir / "backup"
         d.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(self.runs_file, d / f"{self.runs_file.stem}-{datetime.now():%Y%m%d-%H%M%S}{self.runs_file.suffix}")
+        shutil.copy2(path, d / f"{path.stem}-{datetime.now():%Y%m%d-%H%M%S}{path.suffix}")
 
     def _newline(self) -> str:
         """Keep the file's own line endings (CRLF or LF)."""
@@ -226,7 +242,7 @@ class Project:
                 return "started"
         except Exception:
             pass
-        if bool((self.m.get("runs") or {}).get("locked")) and not self.is_extra(run_id):
+        if self.locked and not self.is_extra(run_id):
             return "locked"
         return None
 
@@ -235,7 +251,7 @@ class Project:
         f = RunsFile(self.runs_file, self.section)
         doc = self.doc()
         rules = self.schema()
-        return {"version": f.version, "locked": bool((self.m.get("runs") or {}).get("locked")),
+        return {"version": f.version, "locked": self.locked,
                 "extra_fields": list((self.extras.get("fields") or {})), "order": list((self.m.get("runs") or {}).get("fields", [])),
                 "file": self.runs_file.relative_to(self.root).as_posix(),
                 "fields": {k: {**v, "choices": self.choices(k, v, doc)} if "choices" in v else v for k, v in rules.items()},
@@ -255,7 +271,7 @@ class Project:
         return [s for i, s in enumerate(names) if s not in names[:i] and isinstance(doc.get(s), dict)]
 
     def _plan_locked(self) -> bool:
-        return bool((self.m.get("runs") or {}).get("locked"))
+        return self.locked
 
     def affects(self, section: str, keys: list[str], doc: dict | None = None) -> dict:
         """Which runs a change of these shared keys reaches. Defaults reach runs that do not set the key themselves;
@@ -338,6 +354,37 @@ class Project:
         f = RunsFile(self.runs_file, self.section)
         return self._commit(f, text, None, version, dry, "edit file", who)
 
+    # ------------------------------------------------------------ plan.yaml and runboard.yaml
+
+    def file_of(self, kind: str) -> Path:
+        return {"plan": self.plan_file, "manifest": self.root / MANIFEST}[kind]
+
+    def files(self) -> dict:
+        """The plan (v2) and the manifest as text, for the dashboard's editors."""
+        from .runsfile import RunsFile
+        out = {}
+        for kind in (("plan", "manifest") if self.v2 else ("manifest",)):
+            f = RunsFile(self.file_of(kind))
+            out[kind] = {"file": f.path.relative_to(self.root).as_posix(), "text": f.text, "version": f.version}
+        return {"v2": self.v2, "locked": self.locked, "files": out}
+
+    def edit_file(self, kind: str, text: str, version: str | None, dry: bool = False, who: str = "") -> dict:
+        """The whole plan.yaml or runboard.yaml, checked before anything is written. A locked plan is not edited
+        (RB-1 turns such a change into a deviation with a reason); the manifest keeps what the lock depends on."""
+        from .runsfile import RunsFile
+        f = RunsFile(self.file_of(kind))
+        if kind == "plan" and not self.v2:
+            raise Invalid("not_v2")
+        if kind == "plan" and self.locked:
+            raise Denied("locked")
+        text = text.replace("\r\n", "\n")
+        doc = parse(text, f.path.name)
+        if kind == "plan":
+            check_plan(doc, set(self.run_ids()))
+        else:
+            check_manifest(doc, self.m, self.root, self.locked)
+        return self._commit(f, text, None, version, dry, f"edit {f.path.name}", who)
+
     def _clean(self, values: dict, doc: dict) -> dict:
         rules = self.schema()
         unknown = [k for k in values if k not in rules]
@@ -353,7 +400,7 @@ class Project:
             return {"diff": diff, "version": f.version}
         if not diff:
             return {"diff": "", "version": f.version}
-        self.backup()
+        self.backup(f.path)
         v = f.save(new, version)
         log = self.state.dir / "plan-log.jsonl"
         log.parent.mkdir(parents=True, exist_ok=True)
@@ -386,7 +433,7 @@ class Project:
         runs = doc.get(self.section) or {}
         if copy_from and copy_from not in runs:
             raise Invalid("unknown_run", run=copy_from)
-        if bool((self.m.get("runs") or {}).get("locked")):
+        if self.locked:
             if not self.extras:
                 raise Denied("locked")
             src = self.spec(copy_from, doc) if copy_from else {}
@@ -487,7 +534,7 @@ class Project:
     def decisions(self, lang: str = "en") -> list[dict]:
         out = []
         content = self.runs_file.read_text(encoding="utf-8")
-        for d in self.m.get("decisions", []):
+        for d in self.decision_specs():
             cands = []
             for rid in d["candidates"]:
                 inf = self.info(rid)
@@ -499,7 +546,7 @@ class Project:
         return out
 
     def decide(self, decision_id: str, value: str, reason: str) -> None:
-        d = next((x for x in self.m.get("decisions", []) if x["id"] == decision_id), None)
+        d = next((x for x in self.decision_specs() if x["id"] == decision_id), None)
         if not d:
             raise Invalid("unknown_decision")
         cands = [(rid, self.info(rid)) for rid in d["candidates"]]

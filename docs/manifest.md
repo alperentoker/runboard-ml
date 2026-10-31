@@ -191,6 +191,42 @@ tables:
   - {title: Variance, groups: [{label: Ground, runs: [R4, R9, R10]}]}
 ```
 
+In a version 2 project, `decisions` live in `plan.yaml` (below); `phases` and `tables` stay here.
+
+## plan.yaml (version 2)
+
+`version: 2` in `runboard.yaml` moves the science of the project into its own file, so that a lock can cover what is
+tested without covering how it is run ([design](design-v2.md)). `runboard migrate` turns a version 1 project into
+version 2: it moves `decisions` and `runs.locked` with their comments and checks that nothing else changed.
+
+```yaml
+# runboard.yaml
+version: 2
+plan: plan.yaml              # the default
+```
+
+```yaml
+# plan.yaml
+questions:
+  - {id: S1, text: {en: Does a ground-trained detector collapse from the air?}}
+hypotheses:
+  - id: H1
+    question: S1
+    text: {en: The ground model loses most of its accuracy on aerial images.}
+    criterion: "collapse(R4, ground, aerial) > 50"   # checked from RB-1 on; plain text until then
+protocol: {metric: map50_95, sets: [ground, aerial], replicates: 200}
+groups:
+  ground_only: [R4, R9, R10]  # seed repeats; a group name can stand where a run does
+decisions:                    # as above
+  - {id: A3, candidates: [R1, R2, R3], field: model, tie: 1.0}
+locked: true                  # pre-registered: runs change only through decisions and extra runs
+```
+
+Both files can be edited on the project's Settings page. Every edit is checked before it is written (ids are
+unique, every run and question named exists), shown as a diff first, refused if the file changed meanwhile, and
+backed up. A locked plan is shown read-only, and the manifest cannot point the lock at another runs file.
+`runboard.yaml` holds the commands runboard runs, so it is edited only on the computer runboard runs on.
+
 ## jobs
 
 ```yaml

@@ -2,6 +2,26 @@
 
 All notable changes to runboard. Versions follow [semantic versioning](https://semver.org/).
 
+## Unreleased
+
+The groundwork (RB-0) for pre-registered experiments; see [ROADMAP.md](ROADMAP.md) and
+[docs/design-v2.md](docs/design-v2.md).
+
+### Added
+- Manifest version 2: questions, hypotheses, the evaluation protocol, seed groups, decisions and the lock live in
+  `plan.yaml`, apart from how runs are started (`runboard.yaml`). Version 1 projects keep working unchanged.
+- `runboard migrate` moves a project's decisions and lock into `plan.yaml`, comments included, and checks that the
+  two files mean exactly what the old one did.
+- `plan.yaml` and `runboard.yaml` are edited on the Settings page like the runs file: checked while typing, shown as
+  a diff, refused after a concurrent change, backed up. The project file only on this computer, since it holds
+  commands; a locked plan read-only.
+- CI on macOS as well as Linux and Windows.
+
+### Changed
+- GPU memory reads "3.2 GB free of 4 GB" instead of "3.2 / 4 GB", which looked like memory in use.
+- The page script is served as nine files under `/js/` instead of one inline block; the content security policy
+  allows this server's scripts only.
+
 ## 0.1.3 — 2026-10-31
 
 ### Fixed

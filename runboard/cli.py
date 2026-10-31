@@ -36,6 +36,8 @@ def main(argv: list[str] | None = None) -> int:
     for n in ("path", "run", "kernel"):
         a.add_argument(n)
     a.add_argument("version", type=int)
+    sub.add_parser("migrate", help="move decisions and the lock into plan.yaml (manifest v2)").add_argument(
+        "path", type=Path, nargs="?", default=Path("."))
     u = sub.add_parser("upload")
     u.add_argument("path", type=Path)
     u.add_argument("keys", nargs="+")
@@ -83,6 +85,18 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "list":
         for p in home.project_paths():
             print(p)
+        return 0
+    if args.cmd == "migrate":
+        from .errors import Err
+        from .planfile import migrate
+        from .project import Project
+
+        try:
+            out = migrate(args.path, Project(args.path).state.dir / "backup")
+        except Err as e:
+            print(e)
+            return 1
+        print(f"wrote {out['plan']} (moved: {', '.join(out['moved']) or 'nothing'}); runboard.yaml is version 2")
         return 0
     from .project import Project
 

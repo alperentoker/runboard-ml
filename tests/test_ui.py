@@ -109,11 +109,12 @@ def page():
     (proj / "out" / "base-s0").mkdir(parents=True)
     (proj / "runs.yaml").write_text("# demo plan\ndefaults: {epochs: 20, seed: 0}\nruns:\n  base: {model: a.pt}\n  other: {model: b.pt, seed: 1}\n")
     (proj / "runboard.yaml").write_text(yaml.safe_dump({
-        "name": "Demo", "id": "demo", "runs": {"file": "runs.yaml", "defaults": "defaults", "name": "{id}-s{seed}",
+        "version": 2, "name": "Demo", "id": "demo", "runs": {"file": "runs.yaml", "defaults": "defaults", "name": "{id}-s{seed}",
                                               "fields": ["model", "seed", "epochs"],
                                               "schema": {"model": {"choices": ["a.pt", "b.pt"]}, "seed": {"int": [0, 9]}}},
         "backends": {"local": {"command": "echo {id}", "output_dir": "out"}},
         "results": {"report": "{out}/summary.json", "metrics": {"primary": "map"}, "curves": {"file": "{out}/results.csv", "format": "ultralytics"}}}))
+    (proj / "plan.yaml").write_text("questions: []\n")
     with open(proj / "out" / "base-s0" / "results.csv", "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["epoch", "metrics/mAP50-95(B)", "metrics/mAP50(B)", "train/box_loss", "val/box_loss"])
@@ -329,6 +330,19 @@ def test_plan_copy_shows_the_diff_before_saving(page):
     assert "base-copy: {model: a.pt, seed: 3}" in page.js("document.querySelector('#fout').innerText")
     page.js("document.querySelector('#fx').click()", 0.2)
     assert "base-copy" not in Path(page.js("PLAN.file") and home.config()["projects"][0], "runs.yaml").read_text()
+    assert page.js("__errors") == []
+
+
+def test_plan_and_project_files_are_checked_as_they_are_typed(page):
+    go(page, "#/p/demo/settings", "document.querySelector('#pfed') && document.querySelector('#mfed')")
+    page.js("(() => { const t = document.querySelector('#pfed'); t.value = 'runs: {}'; t.dispatchEvent(new Event('input')); })()")
+    page.until("document.querySelector('#pfstate').textContent.includes('runs')")
+    page.js("document.querySelector('#pfreset').click()")
+    page.until("document.querySelector('#pfstate').textContent === 'No changes'")
+    page.js("""(() => { const t = document.querySelector('#mfed'); t.value = t.value.replace('name: Demo', 'name: Demo\\ndescription: d');
+        t.dispatchEvent(new Event('input')); document.querySelector('#mfgo').click(); })()""")
+    page.until("document.querySelector('#mfout .diff')")
+    assert "description: d" in page.js("document.querySelector('#mfout').innerText")
     assert page.js("__errors") == []
 
 

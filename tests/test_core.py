@@ -144,7 +144,7 @@ def test_every_error_has_a_turkish_text_with_the_same_values():
     import re
     from pathlib import Path
     from runboard.errors import MESSAGES
-    page = (Path(__file__).parents[1] / "runboard" / "static" / "index.html").read_text(encoding="utf-8")
+    page = (Path(__file__).parents[1] / "runboard" / "static" / "js" / "02-core.js").read_text(encoding="utf-8")
     block = page[page.index("const ERR_TR"):page.index("function errText")]
     tr = dict(re.findall(r'(?:^\s*|, )(\w+): "([^"]*)"', block, re.M))
     assert set(tr) == set(MESSAGES)

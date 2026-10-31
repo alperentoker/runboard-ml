@@ -38,6 +38,17 @@ MESSAGES = {
     "would_break": "The edit would break {file}: {problem}",
     "not_as_intended": "The edit did not come out as intended in {file}; nothing was written",
     "conflict": "{file} changed since this page loaded it; reload and try again",
+    # plan.yaml and runboard.yaml (manifest v2)
+    "plan_key": "plan.yaml has no section '{key}'; it holds questions, hypotheses, protocol, groups, decisions and locked",
+    "plan_shape": "{what} must be {shape}",
+    "plan_ref": "{item} names {ref}, which does not exist",
+    "plan_dup": "{id} is used twice",
+    "not_v2": "This project has no plan.yaml yet; run `runboard migrate` first",
+    "already_v2": "This project already uses plan.yaml",
+    "in_plan": "{key} belongs in plan.yaml in this project",
+    "keep_version": "The manifest version changes only through `runboard migrate`",
+    "manifest_runs": "runboard.yaml needs runs.file naming an existing runs file",
+    "migrate_by_hand": "{what} is written in a way the migration cannot move; move it by hand",
     # decisions
     "unknown_decision": "Unknown decision",
     "finish_first": "All candidate runs must finish first",

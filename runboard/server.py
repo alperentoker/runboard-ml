@@ -139,6 +139,15 @@ def mini():
     return page("mini.html")
 
 
+@app.get("/js/{name}")
+def script(name: str):
+    """The page's scripts (static/js, loaded in order by index.html); the policy allows scripts from this server only."""
+    f = STATIC / "js" / name
+    if not re.fullmatch(r"[a-z0-9-]+\.js", name) or not f.is_file():
+        raise HTTPException(404)
+    return FileResponse(f, media_type="text/javascript", headers=NO_CACHE)
+
+
 @app.get("/icon.svg")
 def icon():
     return FileResponse(STATIC / "icon.svg", media_type="image/svg+xml")
@@ -316,7 +325,7 @@ def api_config(key: str):
     p = proj(key)
     doc = p.doc()
     r = p.m.get("runs", {})
-    return {"runs": p.infos(), "fields": r.get("fields", []), "locked": bool(r.get("locked")),
+    return {"runs": p.infos(), "fields": r.get("fields", []), "locked": p.locked,
             "shared": {s: doc.get(s) for s in r.get("show", [])}, "extras": p.extras or None,
             "extra_choices": {k: (sorted({p.spec(i, doc).get(k) for i in doc.get(p.section) or {}} - {None})
                                   if v.get("choices") == "$existing" else v.get("choices"))
@@ -324,7 +333,7 @@ def api_config(key: str):
             "decisions": p.decisions(), "raw": p.runs_file.read_text(encoding="utf-8"),
             "runs_file": p.runs_file.relative_to(p.root).as_posix(),
             "decision_log": next(((p.root / d.get("log", "decisions.md")).read_text(encoding="utf-8")
-                                  for d in p.m.get("decisions", []) if (p.root / d.get("log", "decisions.md")).exists()), None)}
+                                  for d in p.decision_specs() if (p.root / d.get("log", "decisions.md")).exists()), None)}
 
 
 @app.post("/api/p/{key}/runs")
@@ -447,6 +456,26 @@ def api_plan_raw(key: str, request: Request, body: dict = Body(...)):
     p = proj(key)
     return plan_call(lambda: p.edit_raw(str(body.get("text", "")), body.get("version"), bool(body.get("dry")),
                                         who(request)))
+
+
+@app.get("/api/p/{key}/files")
+def api_files(key: str, request: Request):
+    return {**plan_call(proj(key).files), "can_edit_manifest": bool(request.state.local)}
+
+
+@app.put("/api/p/{key}/files/plan")
+def api_file_plan(key: str, request: Request, body: dict = Body(...)):
+    p = proj(key)
+    return plan_call(lambda: p.edit_file("plan", str(body.get("text", "")), body.get("version"), bool(body.get("dry")),
+                                         who(request)))
+
+
+@app.put("/api/p/{key}/files/manifest", dependencies=LOCAL)
+def api_file_manifest(key: str, request: Request, body: dict = Body(...)):
+    """From this computer only: the manifest holds the commands runboard runs."""
+    p = proj(key)
+    return plan_call(lambda: p.edit_file("manifest", str(body.get("text", "")), body.get("version"),
+                                         bool(body.get("dry")), who(request)))
 
 
 @app.get("/api/p/{key}/data")

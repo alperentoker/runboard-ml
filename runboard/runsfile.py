@@ -44,7 +44,7 @@ def _end(node) -> int:
 class RunsFile:
     def __init__(self, path: Path, section: str = "runs"):
         self.path, self.section = Path(path), section
-        raw = self.path.read_bytes()
+        raw = self.path.read_bytes() if self.path.exists() else b""  # a plan.yaml not written yet
         self.version = version_of(raw)
         self.nl = "\r\n" if b"\r\n" in raw else "\n"
         self.text = raw.decode("utf-8").replace("\r\n", "\n")
@@ -178,7 +178,8 @@ class RunsFile:
             raise Invalid("not_as_intended", file=self.path.name)
 
     def save(self, new: str, expected_version: str | None) -> str:
-        if expected_version and version_of(self.path.read_bytes()) != expected_version:
+        now = self.path.read_bytes() if self.path.exists() else b""
+        if expected_version and version_of(now) != expected_version:
             raise Conflict("conflict", file=self.path.name)
         self.path.write_bytes(new.replace("\n", self.nl).encode("utf-8"))
         return version_of(self.path.read_bytes())
