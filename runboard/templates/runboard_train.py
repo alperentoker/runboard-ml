@@ -89,7 +89,8 @@ def main() -> int:
     t0 = time.time()
     model.train(data=str(data), epochs=int(spec.get("epochs", 50)), imgsz=int(spec.get("imgsz", 640)),
                 batch=spec.get("batch", 16), seed=int(spec.get("seed", 0)), deterministic=True,
-                project=a.out, name=name, exist_ok=True, verbose=False, device=0 if _cuda() else "cpu")
+                project=a.out, name=name, exist_ok=True, verbose=False, device=0 if _cuda() else "cpu",
+                **(spec.get("train") or {}))  # any other Ultralytics setting the run sets (an ablation, say)
     hours = (time.time() - t0) / 3600
     run_dir = Path(a.out) / name
     rb.stage("Final validation of best.pt")

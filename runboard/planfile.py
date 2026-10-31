@@ -59,6 +59,14 @@ def check_plan(doc: dict, runs: set[str]) -> None:
             raise Invalid("plan_ref", item=h["id"], ref=h["question"])
         if h.get("criterion") is not None and not isinstance(h["criterion"], str):
             raise Invalid("plan_shape", what=f"{h['id']}: criterion", shape="text")
+    sets = (doc.get("protocol") or {}).get("sets") if isinstance(doc.get("protocol"), dict) else None
+    for h in hypotheses:  # read now, against the runs, groups and sets that exist, not when the verdict is due
+        if isinstance(h.get("criterion"), str) and h["criterion"].strip():
+            from .hypotheses import check
+            try:
+                check(h["criterion"], runs, list(sets) if isinstance(sets, (list, dict)) else None, doc.get("groups") or {})
+            except Invalid as e:
+                raise Invalid("criterion", problem=f"{h['id']}: {e.params.get('problem', e)}") from None
     groups = doc.get("groups") or {}
     if not isinstance(groups, dict):
         raise Invalid("plan_shape", what="groups", shape="a mapping of names to lists of runs")

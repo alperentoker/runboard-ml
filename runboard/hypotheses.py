@@ -298,6 +298,27 @@ class Walker:
         return {"slope": Vec.apply(lambda *y: fit(*y)[0], *ys), "r2": Vec.apply(lambda *y: fit(*y)[1], *ys)}
 
 
+class Planned(Evidence):
+    """For planning: every planned run has a value on every set, so a criterion is checked for its names and form
+    before any run exists. sets None accepts any set name."""
+
+    def __init__(self, runs, sets=None, metric: str = "map50_95"):
+        self.runs, self.metric, self.missing, self.dir = set(map(str, runs)), metric, [], Path(".")
+        self.sets = {str(s): {} for s in sets} if sets else {}
+
+    def get(self, run: str, s: str, metric: str | None) -> Vec:
+        if run not in self.runs:
+            raise Invalid("criterion", problem=f"there is no run or group called {run}")
+        if self.sets and s not in self.sets:
+            raise Invalid("criterion", problem=f"'{s}' is not an evaluation set of the protocol ({', '.join(self.sets)})")
+        return Vec(1.0, [1.0] * 20)
+
+
+def check(criterion: str, runs, sets=None, groups: dict | None = None) -> None:
+    """Raises Invalid("criterion") if the criterion cannot be read or names a run, group or set that does not exist."""
+    decide(criterion, Planned(runs, sets), groups or {})
+
+
 def verdict_of(margin: Vec) -> str:
     ci = margin.interval()
     lo, hi = (ci if ci else [margin.point, margin.point])

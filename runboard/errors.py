@@ -55,6 +55,7 @@ MESSAGES = {
     "already_locked": "The plan is already locked",
     "deviation_reason": "The plan is locked: say why it changes (at least 10 characters); the change is recorded as a deviation",
     "not_locked": "The plan is not locked",
+    "research": "Research plan: {problem}",
     # code templates
     "unknown_template": "No template called {name}",
     "not_template": "{file} was not written from this template; pick another path",

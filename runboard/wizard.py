@@ -1,8 +1,10 @@
 """New-project wizard: browse folders, inspect a folder, and write a ready runboard project from a few answers.
 
-Two kinds of project:
+Three kinds of project:
 - "yolo": no code needed. runboard writes runboard_train.py (+ rb.py) and a runs file from the chosen dataset,
   models, epochs and seeds.
+- "research": a YOLO project planned as a pre-registered study: questions, experiment designs, an evaluation
+  protocol and hypotheses (research.py), with plan.yaml and the evaluation scripts.
 - "script": the user's own training script; each run is a set of command-line arguments.
 """
 from __future__ import annotations
@@ -128,7 +130,21 @@ def _run_id(model: str, seed: int, seeds: list[int]) -> str:
 
 def build(spec: dict) -> dict[str, str]:
     """Answers -> {relative file name: content}. Pure: nothing is written."""
+    return build_all(spec)[0]
+
+
+def build_all(spec: dict) -> tuple[dict[str, str], dict | None]:
+    """The files, and for a research project what the wizard shows about its plan (runs, groups, suggestions)."""
     root = Path(spec["path"]).expanduser().resolve()
+    research_meta = None
+    if spec.get("kind") == "research":  # a YOLO project underneath; research.build adds the plan to it
+        r = spec.get("research") or {}
+        pk = r.get("packages") or []
+        if not pk:
+            raise Invalid("research", problem="add at least one data package (a YOLO data.yaml)")
+        spec = {**spec, "yolo": {"data": pk[0]["data"] if pk else None, "models": [r.get("model") or "yolo11s.pt"],
+                                 "seeds": [0], "epochs": r.get("epochs", 100), "imgsz": r.get("imgsz", 640),
+                                 "batch": r.get("batch", 16), "exclude_test": True}}
     name = (spec.get("name") or root.name).strip()
     key = slugify(spec.get("id") or name)
     kind = spec.get("kind", "yolo")
@@ -140,7 +156,7 @@ def build(spec: dict) -> dict[str, str]:
         m["color"] = spec["color"]
     files: dict[str, str] = {}
 
-    if kind == "yolo":
+    if kind in ("yolo", "research"):
         y = spec.get("yolo") or {}
         data = y.get("data")
         if not data or not (root / data).exists():
@@ -212,21 +228,32 @@ def build(spec: dict) -> dict[str, str]:
         if s.get("report"):
             m["results"] = {"report": s["report"], "metrics": {"primary": s.get("metric", "score")},
                             "labels": {"primary": s.get("metric", "score")}}
+    if kind == "research":
+        from . import research
+        research_meta = research.build(spec, files, m, root, "runboard_train.py", RUNS_FILE)
+        m = {"version": 2, **{k: v for k, v in m.items() if k != "version"}}
     m["default_backend"] = spec.get("default_backend") if spec.get("default_backend") in m["backends"] else next(iter(m["backends"]))
     files[MANIFEST] = ("# runboard project (written by the wizard). Reference: docs/manifest.md in the runboard repository.\n"
                        + yaml.safe_dump(m, sort_keys=False, allow_unicode=True, width=120))
-    return files
+    return files, research_meta
 
 
 def create(spec: dict, overwrite: bool = False) -> Path:
     root = Path(spec["path"]).expanduser().resolve()
-    files = build(spec)
-    clash = [f for f in files if (root / f).exists() and f in (MANIFEST, RUNS_FILE)]
+    files, meta = build_all(spec)
+    if meta and meta["problems"]:
+        raise Invalid("criterion", problem="; ".join(f"{k}: {v}" for k, v in meta["problems"].items()))
+    clash = [f for f in files if (root / f).exists() and f in (MANIFEST, RUNS_FILE, "plan.yaml")]
     if clash and not overwrite:
         raise FileExistsError(f"Already exists: {', '.join(clash)}")
     for rel, content in files.items():
         dst = root / rel
         if dst.exists() and rel not in (MANIFEST, RUNS_FILE):
             shutil.copy2(dst, dst.with_suffix(dst.suffix + ".bak"))
+        dst.parent.mkdir(parents=True, exist_ok=True)
         dst.write_text(content, encoding="utf-8", newline="\n")
+    if meta and (spec.get("research") or {}).get("lock"):  # pre-registered from the first minute
+        from .prereg import lock
+        from .project import Project
+        lock(Project(root), "wizard")
     return root

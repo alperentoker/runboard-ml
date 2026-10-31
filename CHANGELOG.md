@@ -20,7 +20,14 @@ Pre-registered experiments: the groundwork (RB-0) and the core (RB-1); see [ROAD
 - The project's Hypotheses page, and `runboard verdicts` on the command line.
 - Code templates (RB-2): `convert` (COCO / VOC to YOLO), `split` (seeded, group-aware train / val / test), `check`
   (label errors, leaks between splits, look-alike images), `subsets` (nested data-size lists), `evaluate` (YOLO,
-  writing the verdicts' evaluation files) and `speed` (milliseconds per stage, FPS). Written from the Settings page or `runboard template`, listed in `runboard.yaml` with a job,
+  writing the verdicts' evaluation files) and `speed` (milliseconds per stage, FPS).
+- Research wizard (RB-3): *Pre-registered study* in the new-project wizard asks for questions, data packages,
+  experiment designs (specialists, a data-size curve, architectures, an ablation; seed repeats as groups), the
+  evaluation protocol and the hypotheses, suggests criteria from the designs and checks every criterion against the
+  planned runs while it is typed. It writes a version 2 project with its runs, phases, tables, `plan.yaml` and the
+  evaluation (and subsets, check) scripts, and can lock the plan at once.
+- `plan.yaml` edits check each criterion against the runs, groups and sets that exist, not only when its verdict is
+  due. The YOLO training script passes a run's `train:` settings to Ultralytics. Written from the Settings page or `runboard template`, listed in `runboard.yaml` with a job,
   rewritten only while unchanged; under a lock a rewrite is a deviation and a hand edit shows until it is recorded.
 - Manifest version 2: questions, hypotheses, the evaluation protocol, seed groups, decisions and the lock live in
   `plan.yaml`, apart from how runs are started (`runboard.yaml`). Version 1 projects keep working unchanged.

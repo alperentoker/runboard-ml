@@ -393,3 +393,38 @@ def test_a_script_is_written_from_a_template_after_its_diff(page):
     page.until("document.querySelector('[data-tedit]')")
     assert (root / "scripts" / "check.py").is_file()
     assert page.js("__errors") == []
+
+
+
+def test_research_wizard_plans_runs_checks_hypotheses_and_creates_the_project(page):
+    folder = Path(tempfile.mkdtemp(prefix="rb-study-")) / "study"
+    for key in ("ground", "aerial"):
+        d = folder / "data" / key
+        d.mkdir(parents=True)
+        (d / "train.txt").write_text("./images/a.jpg\n")
+        (d / "data.yaml").write_text("train: train.txt\nval: val.txt\nnames: [person, vehicle]\n")
+    go(page, "#/new", "document.querySelector('.stepper')")
+    page.js(f"W.fs = {{path: {json.dumps(str(folder))}, dirs: [], roots: []}}; W.step = 1; renderWizard()", 0.3)
+    page.js("document.querySelector('#wpick').click()")
+    page.until("document.querySelector('[data-kind=research]')")
+    page.js("document.querySelector('[data-kind=research]').click()", 0.3)
+    for ready in ("[data-r='questions.0.id']", "[data-r='packages.0.key']", "[data-r='protocol.sets']", "[data-ruse]"):
+        page.js("document.querySelector('#wnext').click()")
+        page.until(f"document.querySelector(\"{ready}\")")
+    assert page.js("document.querySelectorAll('.stp').length") == 8
+    page.js("document.querySelector('[data-ruse]').click()")
+    page.until("document.querySelector('[data-wh=\"0\"] .msg.ok')")
+    assert "collapse(" in page.js("document.querySelector(\"[data-r='hypotheses.0.criterion']\").value")
+    page.js("(() => { const c = document.querySelector(\"[data-r='hypotheses.0.criterion']\"); c.value = 'R9.ground > 0'; c.dispatchEvent(new Event('input')); })()")
+    page.until("document.querySelector('[data-wh=\"0\"] .msg.bad')")  # R9 is not planned
+    page.js("(() => { const c = document.querySelector(\"[data-r='hypotheses.0.criterion']\"); c.value = 'R1.ground > R2.ground'; c.dispatchEvent(new Event('input')); })()")
+    page.until("document.querySelector('[data-wh=\"0\"] .msg.ok')")
+    page.js("document.querySelector('#wnext').click()")
+    page.until("document.querySelector('.wb')")
+    page.js("document.querySelector('#wnext').click()")
+    page.until("document.querySelector('#wcreate') && !document.querySelector('#wcreate').disabled")
+    page.js("document.querySelector('#wcreate').click()")
+    page.until("location.hash.endsWith('/hypotheses') && document.querySelector('[data-h=H1]')", 15)
+    assert (folder / "plan.yaml").is_file() and (folder / "scripts" / "evaluate.py").is_file()
+    assert "waiting for evaluations" in page.js("document.querySelector('[data-h=H1]').innerText")
+    assert page.js("__errors") == []

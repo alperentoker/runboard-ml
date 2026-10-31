@@ -716,7 +716,8 @@ def api_scan(body: dict = Body(...)):
 @app.post("/api/wizard/preview", dependencies=LOCAL)
 def api_preview(body: dict = Body(...)):
     try:
-        return {"files": wizard.build(body)}
+        files, research = wizard.build_all(body)
+        return {"files": files, "research": research}
     except Exception as e:
         bad(e)
 

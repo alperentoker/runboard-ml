@@ -231,7 +231,9 @@ it is edited only on the computer runboard runs on.
 
 ### Criteria
 
-A criterion is one comparison, or several joined with `and`:
+A criterion is one comparison, or several joined with `and`. It is checked whenever `plan.yaml` is saved: it must
+parse, and every run, group and set it names must exist.
+
 
 | Written | Means |
 | :--- | :--- |
@@ -274,6 +276,23 @@ runs and without the fields decisions fill) and of each resampling plan. Commit 
 the fingerprints after it, so the page can tell whether the files on disk are the locked ones plus recorded
 deviations. A version 1 project, or `locked: true` without a record, keeps the older rule: only decisions and extra
 runs.
+
+## The research wizard
+
+*New project → Pre-registered study (YOLO)* writes a version 2 project from a few answers:
+
+| Step | Asks for | Becomes |
+| :--- | :--- | :--- |
+| Questions | ids and one line each | `plan.yaml` questions; phase titles |
+| Design | data packages (`key` → data.yaml), model and schedule, experiment designs | runs `R1, R2, ...` with `data`, `model`, `seed` and `train:` settings; a phase and a table per design; seed repeats `R1s1, R1s2` and the group `R1_seeds` |
+| Protocol | evaluation sets (`name=image list`), sealed sets, metric, replicates | `plan.yaml` protocol; `scripts/evaluate.py` |
+| Hypotheses | id, question, text, criterion | `plan.yaml` hypotheses, each criterion checked against the planned runs as it is typed |
+
+Designs: **specialists** (one run per package), **data-size curve** (a base package plus nested shares of another;
+`scripts/subsets_N.py` writes the lists the runs train on), **architectures** (several models on one package),
+**ablation** (one Ultralytics setting at several values). The wizard suggests criteria from them (which specialist
+collapses more, a logarithmic fit of the curve, the first ablation value against the second). *Lock the plan when the
+project is created* writes `plan.lock.json` right away; commit the new files after it.
 
 ## templates (code written by runboard)
 
