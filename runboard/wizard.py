@@ -196,6 +196,8 @@ def build_all(spec: dict) -> tuple[dict[str, str], dict | None]:
                         "per_class": {"path": "per_class", "metric": "map50_95", "scale": 100},
                         "curves": {"file": "{out}/results.csv", "format": "ultralytics"}}
         m["tables"] = [{"title": {"en": "All runs", "tr": "Bütün koşular"}, "runs": list(runs)}]
+        m["jobs"] = {"smoke": {"title": {"en": "Smoke test: one short epoch", "tr": "Duman testi: kısa bir epoch"},
+                               "cmd": '"{python}" -u runboard_train.py --run {id} --smoke', "per_run": True}}
     else:
         s = spec.get("script") or {}
         script = s.get("file")

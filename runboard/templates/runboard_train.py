@@ -74,6 +74,8 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--run", required=True)
     ap.add_argument("--out", default="/kaggle/working" if ON_KAGGLE else str(HERE / "runs" / "local"))
+    ap.add_argument("--smoke", action="store_true", help="one short epoch on a few images, nothing kept: try the "
+                    "data, the model and the settings before a real run (and before it costs cloud quota)")
     a = ap.parse_args()
     doc = yaml.safe_load((HERE / "runboard_runs.yaml").read_text(encoding="utf-8"))
     spec = {**(doc.get("defaults") or {}), **doc["runs"][a.run]}
@@ -85,6 +87,14 @@ def main() -> int:
 
     rb.stage(f"Loading {spec['model']}")
     model = YOLO(spec["model"])
+    if a.smoke:
+        import tempfile
+        with tempfile.TemporaryDirectory(prefix="rb-smoke-") as tmp:
+            model.train(data=str(data), epochs=1, imgsz=min(int(spec.get("imgsz", 640)), 320), batch=2, fraction=0.02,
+                        val=False, plots=False, workers=0, seed=0, project=tmp, name="smoke", verbose=False,
+                        device=0 if _cuda() else "cpu", **(spec.get("train") or {}))
+        print(f"smoke test passed: {a.run} trains ({spec['model']}, {spec['data']})")
+        return 0
     rb.ultralytics(model)
     t0 = time.time()
     model.train(data=str(data), epochs=int(spec.get("epochs", 50)), imgsz=int(spec.get("imgsz", 640)),

@@ -321,6 +321,17 @@ jobs:                                   # added the first time, run from the das
 Under a lock, the tracked scripts are part of what is locked: rewriting one needs a reason (a deviation), and a
 script changed by hand shows on the Hypotheses page until it is recorded there as a deviation.
 
+## The Code page
+
+Every project has a *Code* page: the text files of the project (Python, YAML, JSON, TOML, shell, notebooks, text),
+without data packages, backend outputs, environments and hidden folders, up to 512 KB each. Any paired device can
+read them; only this computer can change them. Before a save, Python must compile and YAML / JSON must parse, and the
+change is shown as a diff. `plan.yaml`, the runs file and `runboard.yaml` open on the Settings page instead. Under a
+lock, a script the lock covers (written from a template) changes only with a reason, as a deviation.
+
+Before a run is sent to Kaggle, the Python files in `backends.kaggle.files` are compiled; a syntax error stops it
+here instead of after the kernel has started.
+
 ## jobs
 
 ```yaml

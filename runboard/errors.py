@@ -56,6 +56,11 @@ MESSAGES = {
     "deviation_reason": "The plan is locked: say why it changes (at least 10 characters); the change is recorded as a deviation",
     "not_locked": "The plan is not locked",
     "research": "Research plan: {problem}",
+    # code in the dashboard
+    "bad_code_path": "{path}: not a code file of this project",
+    "too_big": "{path} is over {kb} KB; open it in an editor",
+    "syntax": "{file}, line {line}: {problem}",
+    "use_editor": "{file} has its own editor on the Settings page",
     # code templates
     "unknown_template": "No template called {name}",
     "not_template": "{file} was not written from this template; pick another path",

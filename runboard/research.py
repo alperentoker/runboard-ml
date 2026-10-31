@@ -212,7 +212,8 @@ def build(spec: dict, files: dict, m: dict, root: Path, train_script: str, runs_
                                                "replicates": int(pr.get("replicates") or 200)})
     if r.get("check"):
         tpl["scripts/check.py"] = ("check", {"data": first})
-    m["templates"], m["jobs"] = {}, {}
+    m["templates"] = {}
+    m.setdefault("jobs", {})
     for path, (name, params) in tpl.items():
         files[path] = templating.render(name, templating.coerce(name, params))
         m["templates"][path] = name

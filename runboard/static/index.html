@@ -349,6 +349,22 @@ pre.raw { font: 12px/1.55 var(--mono); background: var(--bg); border: 1px solid 
 .fi .chip { margin-left: auto; }
 .form .chk { flex-direction: row; align-items: center; gap: 8px; align-self: end; padding-bottom: 8px; }
 .wfull { width: 100%; }
+.codewrap { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; align-items: start; }
+.codelist .cb { padding: 12px; } .codelist input { width: 100%; }
+.cfiles { max-height: 70vh; overflow: auto; margin-top: 10px; }
+.cdir { font-size: 11px; color: var(--muted); margin: 10px 0 4px; font-family: var(--mono, monospace); word-break: break-all; }
+.cfile { padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; font-family: var(--mono, monospace); word-break: break-all; }
+.cfile:hover, .cfile:focus { background: var(--hover); } .cfile.on { background: var(--accent-soft); color: var(--accent); }
+.codeedit { position: relative; height: 62vh; border: 1px solid var(--line, var(--hover)); border-radius: 8px; overflow: hidden; }
+.codeedit pre, .codeedit textarea { position: absolute; inset: 0; margin: 0; padding: 12px; font: 13px/1.5 var(--mono, monospace);
+  white-space: pre; overflow: auto; tab-size: 4; border: 0; }
+.codeedit pre { pointer-events: none; color: var(--ink); background: transparent; }
+.codeedit textarea { color: transparent; caret-color: var(--ink); background: transparent; resize: none; outline: none; }
+.codeedit textarea::selection { background: var(--accent-soft); color: transparent; }
+.hc { color: var(--muted); font-style: italic; } .hs { color: var(--accent); } .hn { color: var(--warn); } .hk { color: var(--run); font-weight: 600; }
+.hd { color: var(--warn); } .hb { color: var(--run); } .hv { color: var(--warn); }
+@media (max-width: 860px) { .codewrap { grid-template-columns: 1fr; } .codeedit { height: 50vh; } }
+
 .qhead { margin: 24px 0 10px; font-size: 15px; font-weight: 650; }
 [data-h] code { font-size: 12.5px; }
 .wnav { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
@@ -414,6 +430,7 @@ pre.raw { font: 12px/1.55 var(--mono); background: var(--bg); border: 1px solid 
 <script src="/js/05-plan.js"></script>
 <script src="/js/05-templates.js"></script>
 <script src="/js/06-project.js"></script>
+<script src="/js/06-code.js"></script>
 <script src="/js/07-system.js"></script>
 <script src="/js/08-wizard.js"></script>
 <script src="/js/09-hypotheses.js"></script>

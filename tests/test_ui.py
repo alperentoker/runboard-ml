@@ -428,3 +428,26 @@ def test_research_wizard_plans_runs_checks_hypotheses_and_creates_the_project(pa
     assert (folder / "plan.yaml").is_file() and (folder / "scripts" / "evaluate.py").is_file()
     assert "waiting for evaluations" in page.js("document.querySelector('[data-h=H1]').innerText")
     assert page.js("__errors") == []
+
+
+
+def test_code_page_highlights_checks_and_saves_after_the_diff(page):
+    root = Path(home.config()["projects"][0])
+    (root / "scripts").mkdir(exist_ok=True)
+    (root / "scripts" / "hello.py").write_text("def hello():\n    return 'hi'  # greet\n")
+    go(page, "#/p/demo/code", "document.querySelector('[data-cf=\"scripts/hello.py\"]')")
+    page.js("document.querySelector('[data-cf=\"scripts/hello.py\"]').click()")
+    page.until("document.querySelector('#ced') && document.querySelector('#ced').value.startsWith('def hello')")
+    assert page.js("[...document.querySelectorAll('#chl .hk')].map(x => x.textContent)") == ["def", "return"]
+    assert page.js("document.querySelector('#chl .hc').textContent") == "# greet"
+    edit = "(v => { const t = document.querySelector('#ced'); t.value = v; t.dispatchEvent(new Event('input')); })"
+    page.js(f"{edit}('def hello(:\\n    pass\\n')")
+    page.until("document.querySelector('#cstate').textContent.includes('line 1')")
+    page.js(f"{edit}('def hello():\\n    return \"hello\"\\n')")
+    page.until("document.querySelector('#cstate').textContent.includes('compiles')")
+    page.js("document.querySelector('#cgo').click()")
+    page.until("document.querySelector('#cout .diff')")
+    page.js("document.querySelector('#cgo').click()")
+    page.until("document.querySelector('#cstate') && document.querySelector('#cstate').textContent === ''", 5)
+    assert (root / "scripts" / "hello.py").read_text() == 'def hello():\n    return "hello"\n'
+    assert page.js("__errors") == []

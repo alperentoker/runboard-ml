@@ -487,6 +487,28 @@ def api_deviation(key: str, request: Request, body: dict = Body(...)):
     return {"ok": True}
 
 
+@app.get("/api/p/{key}/code")
+def api_code(key: str, request: Request):
+    from . import code
+    p = proj(key)
+    return {**code.listing(p), "can_write": bool(request.state.local), "locked": p.v2 and p.locked}
+
+
+@app.get("/api/p/{key}/code/file")
+def api_code_file(key: str, path: str):
+    from . import code
+    return plan_call(lambda: code.read(proj(key), path))
+
+
+@app.put("/api/p/{key}/code/file", dependencies=LOCAL)
+def api_code_save(key: str, request: Request, body: dict = Body(...)):
+    """From this computer only: the code runs here."""
+    from . import code
+    p = proj(key)
+    return plan_call(lambda: code.save(p, str(body.get("path") or ""), str(body.get("text", "")), body.get("version"),
+                                       bool(body.get("dry")), who(request), str(body.get("reason") or "")))
+
+
 @app.get("/api/p/{key}/templates")
 def api_templates(key: str, request: Request):
     from . import templating

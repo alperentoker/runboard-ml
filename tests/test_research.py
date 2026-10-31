@@ -50,7 +50,7 @@ def test_designs_become_runs_phases_tables_and_groups(folder):
     assert [p["runs"] for p in m["phases"]][:2] == [["R1", "R2"], ["R3", "R4", "R5"]]
     assert m["tables"][2]["curve"]["x"] == {"R3": 10, "R4": 25, "R5": 50}
     assert m["templates"] == {"scripts/subsets_2.py": "subsets", "scripts/evaluate.py": "evaluate"}
-    assert set(m["jobs"]) == {"subsets", "evaluate"} and m["data"]["packages"] == [{"key": "data", "dir": "data"}]
+    assert set(m["jobs"]) == {"smoke", "subsets", "evaluate"} and m["data"]["packages"] == [{"key": "data", "dir": "data"}]
     pl = yaml.safe_load(files["plan.yaml"])
     assert pl["groups"] == {"R1_seeds": ["R1", "R1s1", "R1s2"], "R2_seeds": ["R2", "R2s1", "R2s2"]}
     assert pl["protocol"]["sets"] == ["ground", "aerial"] and [h["id"] for h in pl["hypotheses"]] == ["H1", "H1s", "H2"]

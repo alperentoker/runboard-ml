@@ -187,6 +187,9 @@ class Runtime:
             raise Invalid("unknown_backend", backend=backend)
         if backend not in (project.m.get("backends") or {}):
             raise Invalid("not_configured", backend=backend)
+        if backend == "kaggle":  # a typo found here costs nothing; found on Kaggle it costs a session of quota
+            from .code import check_files
+            check_files(project, ((project.m.get("backends") or {}).get("kaggle") or {}).get("files", {}).values())
         if resume:  # carry on from the stopped attempt's last checkpoint (backends.<name>.resume in runboard.yaml)
             info = {**info, **b.resume_info(project, run_id, project.state.get(run_id), info)}
         # The run is recorded as STARTING before anything is launched, under a lock, so a second click (or a

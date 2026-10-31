@@ -27,7 +27,15 @@ Pre-registered experiments: the groundwork (RB-0) and the core (RB-1); see [ROAD
   planned runs while it is typed. It writes a version 2 project with its runs, phases, tables, `plan.yaml` and the
   evaluation (and subsets, check) scripts, and can lock the plan at once.
 - `plan.yaml` edits check each criterion against the runs, groups and sets that exist, not only when its verdict is
-  due. The YOLO training script passes a run's `train:` settings to Ultralytics. Written from the Settings page or `runboard template`, listed in `runboard.yaml` with a job,
+  due. The YOLO training script passes a run's `train:` settings to Ultralytics.
+- Code page (RB-4): the project's scripts and configs, with syntax colours, readable from paired devices and changed
+  on this computer only. Python must compile and YAML / JSON parse before a save; every save is a diff first,
+  refused after a concurrent change, backed up and logged. A script written from a template becomes the user's once
+  changed; under a lock, a covered script changes only as a deviation. The plan, the runs file and runboard.yaml keep
+  their own editors.
+- The Python files of a Kaggle run are compiled before it is sent, so a typo does not cost quota.
+- Smoke test for wizard projects: `runboard_train.py --smoke` trains one short epoch on 2 % of the data and keeps
+  nothing; it is a per-run job (*Smoke test*). Written from the Settings page or `runboard template`, listed in `runboard.yaml` with a job,
   rewritten only while unchanged; under a lock a rewrite is a deviation and a hand edit shows until it is recorded.
 - Manifest version 2: questions, hypotheses, the evaluation protocol, seed groups, decisions and the lock live in
   `plan.yaml`, apart from how runs are started (`runboard.yaml`). Version 1 projects keep working unchanged.

@@ -58,7 +58,7 @@ async function render() {
     renderChrome();
     if (route.tab !== "runs") $("#content").innerHTML = "";
     ({overview: renderOverview, runs: renderRunsTab, run: renderRunPage, settings: renderSettings, data: renderData, results: renderResults,
-      hypotheses: renderHypotheses})[route.tab]?.();
+      hypotheses: renderHypotheses, code: renderCode})[route.tab]?.();
   } else {
     P = null; renderChrome();
     route.view === "system" ? renderSystem() : route.view === "new" ? renderWizard() : renderHome();

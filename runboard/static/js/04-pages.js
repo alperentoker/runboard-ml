@@ -3,7 +3,7 @@ function renderChrome() {
   const inP = route.view === "project" && P;
   $("#ver").textContent = PS ? `v${PS.version}` : "";
   morph($("#projbox"), inP ? `<div class="proj">${avatar(P, 30)}<div class="t"><b>${esc(P.name)}</b><small tabindex="0" role="link" data-go="#/">← ${t("all_projects")}</small></div></div>` : "");
-  const items = inP ? [["overview"], ["runs", P.busy.length], ["settings"], ...(P.has_data ? [["data"]] : []), ["results"], ...(P.v2 ? [["hypotheses"]] : [])]
+  const items = inP ? [["overview"], ["runs", P.busy.length], ["settings"], ["code"], ...(P.has_data ? [["data"]] : []), ["results"], ...(P.v2 ? [["hypotheses"]] : [])]
                     : [["projects"]];
   const busyAll = PS ? PS.projects.reduce((a, p) => a + p.active.length, 0) : 0;
   morph($("#nav"), (inP ? `<div class="sec">${t("projects")}</div><button data-go="#/"><svg viewBox="0 0 24 24">${ICONS.projects}</svg><span>${t("all_projects")}</span></button><div class="sec">${esc(P.name)}</div>` : "") +

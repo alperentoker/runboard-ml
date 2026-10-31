@@ -21,7 +21,7 @@ The design behind the first stages is in [docs/design-v2.md](docs/design-v2.md).
 | **RB-1** · pre-registration core ✓ | hypotheses with machine-checked criteria, the evaluation format with a shared resampling plan, verdicts (*supported*, *refuted*, *indistinguishable*) with confidence intervals, seed groups, the lock record, deviations, the test ledger | 0.2 |
 | **RB-2** · code templates ✓ | split and leakage check, evaluation, conversion, packaging and subsets, speed; tracked templates that never overwrite a file you changed | 0.3 |
 | **RB-3** · research wizard ✓ | questions → hypotheses → data pipeline → experiment designs (domain transfer, data-size curve, architecture, ablation, seeds) → protocol → lock | 0.3 |
-| **RB-4** · code in the dashboard | view and edit the project's code (this computer only), smoke test before a run uses cloud quota | 0.4 |
+| **RB-4** · code in the dashboard ✓ | view and edit the project's code (this computer only), smoke test before a run uses cloud quota | 0.4 |
 | **RB-5** · provenance and paper output | per-run commit, environment, data and template hashes; LaTeX/Markdown tables and figures, methods and deviations sections, a reproducibility checklist, a registered-report page, an archive for Zenodo | 0.4 |
 | **RB-6** · where research computes | SSH and SLURM backends; full Linux and macOS support | 0.5 |
 | **RB-7** · AI help (optional) | a script from a description, written only after the diff is approved, saved with its prompt | later |
