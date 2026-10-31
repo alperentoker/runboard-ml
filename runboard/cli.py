@@ -38,6 +38,9 @@ def main(argv: list[str] | None = None) -> int:
     a.add_argument("version", type=int)
     sub.add_parser("migrate", help="move decisions and the lock into plan.yaml (manifest v2)").add_argument(
         "path", type=Path, nargs="?", default=Path("."))
+    sub.add_parser("lock", help="lock the plan (plan.lock.json)").add_argument("path", type=Path, nargs="?", default=Path("."))
+    sub.add_parser("verdicts", help="the hypotheses' verdicts").add_argument("path", type=Path, nargs="?",
+                                                                          default=Path("."))
     u = sub.add_parser("upload")
     u.add_argument("path", type=Path)
     u.add_argument("keys", nargs="+")
@@ -101,6 +104,31 @@ def main(argv: list[str] | None = None) -> int:
     from .project import Project
 
     p = Project(args.path)
+    if args.cmd in ("lock", "verdicts"):
+        from . import prereg
+        from .errors import Err
+
+        try:
+            if args.cmd == "lock":
+                rec = prereg.lock(p, "command line")
+                git = rec.get("git") or {}
+                print(f"locked at {rec['locked_at']}" + (f", commit {git['commit'][:10]}" if git else "")
+                      + (" (uncommitted changes: commit the plan so the lock can be traced)" if git.get("dirty") else ""))
+                return 0
+            for h in prereg.hypotheses(p)["hypotheses"]:
+                print(f"{h['id']:<8} {h['verdict']:<18} {h.get('criterion') or ''}")
+                for part in h.get("parts") or []:
+                    ci = part["ci"]
+                    print(f"         {part['text']}: margin {part['margin']}" + (f" [{ci[0]}, {ci[1]}]" if ci else "")
+                          + f" -> {part['verdict']}")
+                if h.get("missing"):
+                    print(f"         waiting for: {', '.join(h['missing'])}")
+                if h.get("error"):
+                    print(f"         {h['error']['detail']}")
+            return 0
+        except Err as e:
+            print(e)
+            return 1
     if args.cmd == "attach":
         from .backends.kaggle import api, user
 

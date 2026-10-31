@@ -17,8 +17,8 @@ The design behind the first stages is in [docs/design-v2.md](docs/design-v2.md).
 
 | Stage | What | Release |
 |---|---|---|
-| **RB-0** · groundwork | `plan.yaml` (manifest v2) with migration, plan and manifest editable from the dashboard, page script in separate files, CI on Linux, macOS and Windows | 0.2 |
-| **RB-1** · pre-registration core | hypotheses with machine-checked criteria, the evaluation format with a shared resampling plan, verdicts (*supported*, *refuted*, *indistinguishable*) with confidence intervals, seed groups, the lock record, deviations, the test ledger | 0.2 |
+| **RB-0** · groundwork ✓ | `plan.yaml` (manifest v2) with migration, plan and manifest editable from the dashboard, page script in separate files, CI on Linux, macOS and Windows | 0.2 |
+| **RB-1** · pre-registration core ✓ | hypotheses with machine-checked criteria, the evaluation format with a shared resampling plan, verdicts (*supported*, *refuted*, *indistinguishable*) with confidence intervals, seed groups, the lock record, deviations, the test ledger | 0.2 |
 | **RB-2** · code templates | split and leakage check, evaluation, conversion, packaging and subsets, speed; tracked templates that never overwrite a file you changed | 0.3 |
 | **RB-3** · research wizard | questions → hypotheses → data pipeline → experiment designs (domain transfer, data-size curve, architecture, ablation, seeds) → protocol → lock | 0.3 |
 | **RB-4** · code in the dashboard | view and edit the project's code (this computer only), smoke test before a run uses cloud quota | 0.4 |

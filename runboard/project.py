@@ -60,7 +60,26 @@ class Project:
     @property
     def locked(self) -> bool:
         """A pre-registered plan: runs change only through decisions and extra runs."""
-        return bool(self.pl.get("locked")) if self.v2 else bool((self.m.get("runs") or {}).get("locked"))
+        if self.v2:
+            return bool(self.pl.get("locked")) or (self.plan_file.parent / "plan.lock.json").is_file()
+        return bool((self.m.get("runs") or {}).get("locked"))
+
+    def _deviation(self, reason: str) -> bool:
+        """Whether a change of a locked file goes ahead as a recorded deviation. A v2 plan may change with a reason;
+        a v1 plan only through decisions and extras."""
+        if not self.locked:
+            return False
+        if not self.v2:
+            raise Denied("locked")
+        if len((reason or "").strip()) < 10:
+            raise Invalid("deviation_reason")
+        return True
+
+    def _deviate(self, res: dict, file: Path, reason: str, dry: bool, who: str) -> dict:
+        if not dry and res.get("diff"):
+            from .prereg import add_deviation
+            add_deviation(self, file.relative_to(self.root).as_posix(), reason, res["diff"], who)
+        return {**res, "deviation": True}
 
     def decision_specs(self) -> list[dict]:
         return list((self.pl if self.v2 else self.m).get("decisions") or [])
@@ -313,12 +332,12 @@ class Project:
         if (yaml.safe_load(new) or {}) != want:
             raise Invalid("not_as_intended", file=self.runs_file.name)
 
-    def edit_raw(self, text: str, version: str | None, dry: bool = False, who: str = "") -> dict:
+    def edit_raw(self, text: str, version: str | None, dry: bool = False, who: str = "", reason: str = "") -> dict:
         """The whole runs file as text, for what the forms cannot do. It is checked like a form edit: it must parse,
-        every run must still resolve, schema fields must pass their rules and started runs must stay as they ran."""
+        every run must still resolve, schema fields must pass their rules and started runs must stay as they ran.
+        Under a v2 lock it is a deviation and needs a reason."""
         from .runsfile import RUN_ID, RunsFile
-        if self._plan_locked():
-            raise Denied("locked")
+        deviation = self._deviation(reason)
         text = text.replace("\r\n", "\n")
         try:
             doc = yaml.safe_load(text) or {}
@@ -352,7 +371,8 @@ class Project:
             except Exception as e:
                 raise Invalid("broken", rid, problem=e)
         f = RunsFile(self.runs_file, self.section)
-        return self._commit(f, text, None, version, dry, "edit file", who)
+        res = self._commit(f, text, None, version, dry, "edit file", who)
+        return self._deviate(res, f.path, reason, dry, who) if deviation else res
 
     # ------------------------------------------------------------ plan.yaml and runboard.yaml
 
@@ -368,22 +388,23 @@ class Project:
             out[kind] = {"file": f.path.relative_to(self.root).as_posix(), "text": f.text, "version": f.version}
         return {"v2": self.v2, "locked": self.locked, "files": out}
 
-    def edit_file(self, kind: str, text: str, version: str | None, dry: bool = False, who: str = "") -> dict:
-        """The whole plan.yaml or runboard.yaml, checked before anything is written. A locked plan is not edited
-        (RB-1 turns such a change into a deviation with a reason); the manifest keeps what the lock depends on."""
+    def edit_file(self, kind: str, text: str, version: str | None, dry: bool = False, who: str = "",
+                  reason: str = "") -> dict:
+        """The whole plan.yaml or runboard.yaml, checked before anything is written. A locked plan changes only with
+        a reason and the change is recorded as a deviation; the manifest keeps what the lock depends on."""
         from .runsfile import RunsFile
         f = RunsFile(self.file_of(kind))
         if kind == "plan" and not self.v2:
             raise Invalid("not_v2")
-        if kind == "plan" and self.locked:
-            raise Denied("locked")
+        deviation = kind == "plan" and self._deviation(reason)
         text = text.replace("\r\n", "\n")
         doc = parse(text, f.path.name)
         if kind == "plan":
             check_plan(doc, set(self.run_ids()))
         else:
             check_manifest(doc, self.m, self.root, self.locked)
-        return self._commit(f, text, None, version, dry, f"edit {f.path.name}", who)
+        res = self._commit(f, text, None, version, dry, f"edit {f.path.name}", who)
+        return self._deviate(res, f.path, reason, dry, who) if deviation else res
 
     def _clean(self, values: dict, doc: dict) -> dict:
         rules = self.schema()

@@ -362,3 +362,20 @@ def test_keyboard_reaches_everything_a_mouse_can(page):
     page.until("location.hash === '#/p/demo/overview'")
     assert page.js("[...document.querySelectorAll('[data-go]')].every(el => el.tabIndex >= 0)")
     assert page.js("__errors") == []
+
+
+def test_hypotheses_page_shows_verdicts_and_the_lock(page):
+    root = Path(home.config()["projects"][0])
+    (root / "plan.yaml").write_text(yaml.safe_dump({
+        "questions": [{"id": "S1", "text": "Is the copy better?"}],
+        "hypotheses": [{"id": "H1", "question": "S1", "criterion": "base.val > other.val"},
+                       {"id": "H2", "question": "S1", "criterion": "base.val >"}],
+        "protocol": {"sets": ["val"]}}), encoding="utf-8")
+    try:
+        go(page, "#/p/demo/hypotheses", "document.querySelector('[data-h=H2]')")
+        assert "waiting for evaluations" in page.js("document.querySelector('[data-h=H1]').innerText")
+        assert "Criterion: cannot read it" in page.js("document.querySelector('[data-h=H2]').innerText")
+        assert page.js("!!document.querySelector('#hlock')") and page.js("document.title") is not None
+        assert page.js("__errors") == []
+    finally:
+        (root / "plan.yaml").write_text("questions: []\n", encoding="utf-8")

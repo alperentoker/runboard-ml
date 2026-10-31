@@ -49,6 +49,11 @@ MESSAGES = {
     "keep_version": "The manifest version changes only through `runboard migrate`",
     "manifest_runs": "runboard.yaml needs runs.file naming an existing runs file",
     "migrate_by_hand": "{what} is written in a way the migration cannot move; move it by hand",
+    # hypotheses, the lock and deviations
+    "criterion": "Criterion: {problem}",
+    "evidence": "{file}: {problem}",
+    "already_locked": "The plan is already locked",
+    "deviation_reason": "The plan is locked: say why it changes (at least 10 characters); the change is recorded as a deviation",
     # decisions
     "unknown_decision": "Unknown decision",
     "finish_first": "All candidate runs must finish first",

@@ -1,6 +1,6 @@
 # Design: manifest v2 and the pre-registration core
 
-Status: agreed, being built in RB-0 and RB-1 (see [ROADMAP.md](../ROADMAP.md)). Four decisions are fixed here because
+Status: built in RB-0 and RB-1; the reference is [manifest.md](manifest.md#planyaml-version-2) (see [ROADMAP.md](../ROADMAP.md)). Four decisions are fixed here because
 changing them later would break projects and results.
 
 ## 1. Files: science apart from infrastructure
@@ -68,8 +68,8 @@ each evaluation script, owns the resampling:
  "replicates": 200, "seed": 20261031, "generator": "numpy.random.default_rng(seed).integers(0, n, n) per replicate"}
 ```
 
-`rb.replicates(set)` in `rb.py` returns the same index lists in any script. A changed image list is detected by its
-hash and refused.
+`ids_sha256` is the SHA-256 of the ids joined by newlines. `rb.replicates(set)` in `rb.py` returns the same index
+lists in any script. A changed image list is detected by its hash and refused.
 
 `eval/<run>/<set>.json`, written by the evaluation (the RB-2 template writes it; any script may):
 
@@ -87,7 +87,8 @@ A criterion is computed on the full-set values (the point) and on every replicat
 percentiles). For `a >= b` the margin `a − b` decides: *supported* if its whole interval is on the right side,
 *refuted* if its whole interval is on the wrong side, *indistinguishable* otherwise. Missing evaluations give
 *not ready*. With a seed group the replicate value is the mean over the group's runs on the same images, and the
-seed spread is reported beside the verdict; how the two are combined is settled against Ground2Air's numbers in RB-1.
+seed spread (the standard deviation of the runs' values) is reported beside the verdict for the reader to weigh;
+the interval itself covers the images, not the seeds.
 
 ## 3. Criterion language: comparisons, arithmetic and a small fixed library
 

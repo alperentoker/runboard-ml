@@ -4,10 +4,20 @@ All notable changes to runboard. Versions follow [semantic versioning](https://s
 
 ## Unreleased
 
-The groundwork (RB-0) for pre-registered experiments; see [ROADMAP.md](ROADMAP.md) and
+Pre-registered experiments: the groundwork (RB-0) and the core (RB-1); see [ROADMAP.md](ROADMAP.md) and
 [docs/design-v2.md](docs/design-v2.md).
 
 ### Added
+- Hypotheses checked by machine: a criterion in `plan.yaml` (`R7.aerial >= 0.9 * R5.aerial`,
+  `collapse(R4@person, ground, aerial) > ...`, groups of seed repeats, `log_fit(...)`) is decided from the evaluation
+  files as *supported*, *refuted* or *indistinguishable*, with the margin's 95 % interval over bootstrap replicates
+  every run shares. The language is parsed against a whitelist and never run as Python.
+- Evaluation format (`runboard-eval/1`) and a shared resampling plan, with helpers in `rb.py`; per-image samples work
+  too. Checked against Ground2Air's own analysis: the paired differences come out to the last digit.
+- `runboard lock` and *Lock the plan*: `plan.lock.json` with the commit and fingerprints. A locked plan or runs file
+  then changes only with a reason, recorded in `deviations.md`; the page shows whether the files match.
+- A ledger of sealed-set (held-out test) evaluations; the same weights twice are refused unless asked for, and marked.
+- The project's Hypotheses page, and `runboard verdicts` on the command line.
 - Manifest version 2: questions, hypotheses, the evaluation protocol, seed groups, decisions and the lock live in
   `plan.yaml`, apart from how runs are started (`runboard.yaml`). Version 1 projects keep working unchanged.
 - `runboard migrate` moves a project's decisions and lock into `plan.yaml`, comments included, and checks that the

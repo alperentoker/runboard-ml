@@ -105,12 +105,14 @@ function sharedCard() {
 }
 // A whole file in a text box: checked on the server shortly after each pause in typing, saved after its diff is seen.
 // Used for the runs file, plan.yaml and runboard.yaml; `n` prefixes the element ids.
-function editorCard(n, title, file, desc, extra = "") {
+function editorCard(n, title, file, desc, extra = "", reason = false) {
   return `<div class="card" id="${n}card"><div class="ch"><h2>${esc(title)}</h2><span class="muted mono">${esc(file)}</span>${extra}<span class="rawstate" id="${n}state"></span></div><div class="cb">
     <p class="desc">${desc}</p><div id="${n}box" data-keep></div><div id="${n}out" data-keep></div>
+    ${reason ? `<div class="form" style="margin-top:12px"><label class="wide">${t("h_reason")}<input id="${n}reason" data-keep></label></div>` : ""}
     <div class="toolbar" style="margin:12px 0 0"><span class="sp"><button class="btn" id="${n}reset">${t("restore")}</button> <button class="btn primary" id="${n}go">${t("continue_")}</button></span></div></div></div>`;
 }
-const rawCard = () => editorCard("raw", t("raw_title"), PLAN.file, t("raw_desc"));
+const rawCard = (deviation = false) => editorCard("raw", t("raw_title"), PLAN.file, t(deviation ? "raw_dev_desc" : "raw_desc"),
+  deviation ? chip("lock", t("h_locked")) : "", deviation);
 function wireEditor(n, {url, text, version, file, reload}) {
   const box = $(`#${n}box`); if (!box) return;
   if (!box.firstChild) box.innerHTML = `<textarea class="rawed" id="${n}ed" spellcheck="false"></textarea>`;
@@ -118,7 +120,8 @@ function wireEditor(n, {url, text, version, file, reload}) {
   if (ta.dataset.version !== version) { ta.value = text; ta.dataset.version = version; ta.dataset.orig = text; }
   let timer = null, reviewed = false, lastErr = null;
   const state = (cls, txt) => { st.className = "rawstate " + cls; st.textContent = txt; };
-  const send = dry => api(url, {method: "PUT", json: {text: ta.value, version, ...(dry ? {dry: true} : {})}});
+  const reason = $(`#${n}reason`);  // a locked plan: the change is a deviation and needs one
+  const send = dry => api(url, {method: "PUT", json: {text: ta.value, version, ...(dry ? {dry: true} : {}), ...(reason ? {reason: reason.value} : {})}});
   const check = async () => {
     reviewed = false; go.textContent = t("continue_"); out.innerHTML = "";
     if (ta.value === ta.dataset.orig) return state("", t("raw_same"));
@@ -126,6 +129,7 @@ function wireEditor(n, {url, text, version, file, reload}) {
     catch (e) { lastErr = e.message; state("bad", "✕ " + e.message); }
   };
   ta.oninput = () => { clearTimeout(timer); timer = setTimeout(check, 600); };
+  if (reason) reason.oninput = ta.oninput;
   ta.onkeydown = e => { if (e.key === "Tab") { e.preventDefault(); ta.setRangeText("  ", ta.selectionStart, ta.selectionEnd, "end"); ta.oninput(); } };
   st.onclick = () => {  // jump to the line the error names
     const m = /(?:line|satır) (\d+)/.exec(lastErr || ""); if (!m) return;
@@ -156,14 +160,14 @@ function filesCards() {
   const ro = (title, f, note) => `<div class="card"><div class="ch"><h2>${esc(title)}</h2><span class="muted mono">${esc(f.file)}</span>${chip("lock", t("readonly"))}</div><div class="cb">
     <p class="desc">${note}</p><details><summary>${esc(f.file)}</summary><pre class="raw">${esc(f.text)}</pre></details></div></div>`;
   const plan = !pl ? `<div class="card"><div class="ch"><h2>${t("plan_file")}</h2></div><div class="cb"><p class="desc">${t("plan_v1")}</p></div></div>`
-    : FILES.locked ? ro(t("plan_file"), pl, t("plan_locked")) : editorCard("pf", t("plan_file"), pl.file, t("plan_desc"));
+    : editorCard("pf", t("plan_file"), pl.file, t(FILES.locked ? "plan_dev_desc" : "plan_desc"), FILES.locked ? chip("lock", t("h_locked")) : "", FILES.locked);
   const man = FILES.can_edit_manifest ? editorCard("mf", t("manifest_file"), mf.file, t("manifest_desc")) : ro(t("manifest_file"), mf, t("manifest_remote"));
   return plan + man;
 }
 function wireFiles() {
   if (!FILES) return;
   const f = FILES.files;
-  if (f.plan && !FILES.locked) wireEditor("pf", {url: `/api/p/${P.key}/files/plan`, text: f.plan.text, version: f.plan.version, file: f.plan.file, reload: reloadFiles});
+  if (f.plan) wireEditor("pf", {url: `/api/p/${P.key}/files/plan`, text: f.plan.text, version: f.plan.version, file: f.plan.file, reload: reloadFiles});
   if (FILES.can_edit_manifest) wireEditor("mf", {url: `/api/p/${P.key}/files/manifest`, text: f.manifest.text, version: f.manifest.version, file: f.manifest.file, reload: reloadFiles});
 }
 const affectsHtml = a => !a ? "" : (a.drafts.length || a.started.length) ? `<div class="msg ok" style="margin-top:10px">${a.drafts.length ? `${t("affects_drafts")} <b>${a.drafts.map(esc).join(", ")}</b>` : ""}${a.started.length ? `${a.drafts.length ? "<br>" : ""}${t("affects_started")} ${a.started.map(esc).join(", ")}` : ""}</div>` : `<div class="msg warn" style="margin-top:10px">${t("affects_none")}</div>`;

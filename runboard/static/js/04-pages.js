@@ -3,7 +3,7 @@ function renderChrome() {
   const inP = route.view === "project" && P;
   $("#ver").textContent = PS ? `v${PS.version}` : "";
   morph($("#projbox"), inP ? `<div class="proj">${avatar(P, 30)}<div class="t"><b>${esc(P.name)}</b><small tabindex="0" role="link" data-go="#/">← ${t("all_projects")}</small></div></div>` : "");
-  const items = inP ? [["overview"], ["runs", P.busy.length], ["settings"], ...(P.has_data ? [["data"]] : []), ["results"]]
+  const items = inP ? [["overview"], ["runs", P.busy.length], ["settings"], ...(P.has_data ? [["data"]] : []), ["results"], ...(P.v2 ? [["hypotheses"]] : [])]
                     : [["projects"]];
   const busyAll = PS ? PS.projects.reduce((a, p) => a + p.active.length, 0) : 0;
   morph($("#nav"), (inP ? `<div class="sec">${t("projects")}</div><button data-go="#/"><svg viewBox="0 0 24 24">${ICONS.projects}</svg><span>${t("all_projects")}</span></button><div class="sec">${esc(P.name)}</div>` : "") +
@@ -269,7 +269,7 @@ async function renderSettings() {
     <div class="form">${Object.entries(ex.fields || {}).map(([k, rule]) => `<label>${esc(k)}${c.extra_choices[k] ? `<select class="xf" data-k="${esc(k)}">${c.extra_choices[k].map(v => `<option ${v === rule.default ? "selected" : ""}>${esc(v)}</option>`).join("")}</select>`
       : `<input class="xf" data-k="${esc(k)}" type="${rule.int ? "number" : "text"}" value="${esc(rule.default ?? "")}" ${rule.int ? `min="${rule.int[0]}" max="${rule.int[1]}"` : ""}>`}</label>`).join("")}
       <label class="wide">${t("note")}<input id="xnote"></label><button class="btn primary" id="xadd">${t("add")}</button></div></div></div>` : ""}
-  ${PLAN && !PLAN.locked ? sharedCard() + rawCard() : Object.keys(c.shared).length ? `<div class="card"><div class="ch"><h2>${t("shared")}</h2>${c.locked ? chip("lock", t("readonly")) : ""}</div><div class="cb"><p class="desc">${t("shared_desc")}</p>
+  ${PLAN && !PLAN.locked ? sharedCard() + rawCard() : P.v2 && PLAN?.locked ? rawCard(true) : Object.keys(c.shared).length ? `<div class="card"><div class="ch"><h2>${t("shared")}</h2>${c.locked ? chip("lock", t("readonly")) : ""}</div><div class="cb"><p class="desc">${t("shared_desc")}</p>
     ${Object.entries(c.shared).map(([s, v]) => `<div class="card tw" style="margin-bottom:12px"><table><tr><th colspan="2">${esc(s)}</th></tr>${typeof v === "object" && v ? Object.entries(v).map(([k, x]) => `<tr><td class="mono">${esc(k)}</td><td><b>${esc(JSON.stringify(x))}</b></td></tr>`).join("") : `<tr><td colspan="2"><b>${esc(JSON.stringify(v))}</b></td></tr>`}</table></div>`).join("")}
     <details><summary>${esc(c.runs_file)}</summary><pre class="raw">${esc(c.raw)}</pre></details></div></div>` : ""}
   ${c.decision_log ? `<div class="card"><div class="ch"><h2>${t("decision_log")}</h2></div><div class="cb"><pre class="raw">${esc(c.decision_log)}</pre></div></div>` : ""}

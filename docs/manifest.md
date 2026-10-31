@@ -213,19 +213,67 @@ hypotheses:
   - id: H1
     question: S1
     text: {en: The ground model loses most of its accuracy on aerial images.}
-    criterion: "collapse(R4, ground, aerial) > 50"   # checked from RB-1 on; plain text until then
-protocol: {metric: map50_95, sets: [ground, aerial], replicates: 200}
+    criterion: "collapse(R4, ground, aerial) > 50"
+protocol:
+  dir: eval                   # where the evaluation files are (the default)
+  metric: map50_95            # what R4.aerial means
+  sets: [ground, aerial]      # or {ground: {}, test: {sealed: true}}
 groups:
   ground_only: [R4, R9, R10]  # seed repeats; a group name can stand where a run does
 decisions:                    # as above
   - {id: A3, candidates: [R1, R2, R3], field: model, tie: 1.0}
-locked: true                  # pre-registered: runs change only through decisions and extra runs
 ```
 
 Both files can be edited on the project's Settings page. Every edit is checked before it is written (ids are
 unique, every run and question named exists), shown as a diff first, refused if the file changed meanwhile, and
-backed up. A locked plan is shown read-only, and the manifest cannot point the lock at another runs file.
-`runboard.yaml` holds the commands runboard runs, so it is edited only on the computer runboard runs on.
+backed up. The manifest cannot point a lock at another runs file. `runboard.yaml` holds the commands runboard runs, so
+it is edited only on the computer runboard runs on.
+
+### Criteria
+
+A criterion is one comparison, or several joined with `and`:
+
+| Written | Means |
+| :--- | :--- |
+| `R7.aerial` | R7's protocol metric on the set `aerial` |
+| `R7.aerial.map50`, `R7.aerial@person`, `R7.aerial.map50@person` | another metric, one class, both |
+| `ground_only.aerial` | the mean of a group's runs, replicate by replicate |
+| `+ - * /`, numbers, parentheses, `< <= > >=`, `and` | as usual |
+| `collapse(R4, ground, aerial)`, `collapse(R4@person, ground, aerial)` | 100 · (R4.ground − R4.aerial) / R4.ground |
+| `mean(...)`, `min(...)`, `max(...)`, `abs(x)` | replicate by replicate |
+| `log_fit({R6: 10, R7: 25, R8: 50}, aerial).r2`, `.slope` | fit of score = a + slope · ln(x), x above 0 |
+
+Nothing else is accepted: no names but runs, groups, sets, metrics and classes, no strings, no other functions.
+
+Each comparison is decided by its margin (left − right for `>`, right − left for `<`) on the whole set and on every
+bootstrap replicate: **supported** if the whole 95 % interval of the margin is above 0, **refuted** if it is below,
+**indistinguishable** otherwise; a criterion is refuted if any comparison is, supported if all are. A missing
+evaluation makes it **waiting**. The project's Hypotheses page and `runboard verdicts` show each comparison's
+values, margin, interval and the share of replicates above 0.
+
+### Evaluation files
+
+```
+eval/resample-ground.json   {"format": "runboard-resample/1", "ids": [...], "ids_sha256": ..., "seed": 0, "replicates": 200}
+eval/R7/ground.json         {"format": "runboard-eval/1", "run": "R7", "set": "ground", "resample": <ids_sha256>,
+                             "metrics": {"map50_95": {"point": 47.2, "replicates": [... 200 values]}}}
+```
+
+`ids_sha256` is the SHA-256 of the ids joined by newlines. Replicate k of every run uses the same images:
+`numpy.random.default_rng(seed).integers(0, n, n)`, drawn k times in order. `rb.py` writes both files
+(`rb.replicates`, `rb.write_eval`); a metric that is a mean over images may give `samples` (one value per id) instead
+of `replicates`, and runboard draws them. Before evaluating a sealed set, `rb.sealed(set, run, weights_sha256)` refuses
+the same weights twice and writes `eval/ledger.csv`, which the Hypotheses page lists.
+
+### Lock and deviations
+
+`runboard lock` (or *Lock the plan* on the Hypotheses page, on this computer) writes `plan.lock.json`: when, the git
+commit and whether the folder had uncommitted changes, and the fingerprints of `plan.yaml`, of the runs (without extra
+runs and without the fields decisions fill) and of each resampling plan. Commit the plan first. After the lock,
+`plan.yaml` and the runs file change only with a reason; each change is appended to `deviations.md` with its diff and
+the fingerprints after it, so the page can tell whether the files on disk are the locked ones plus recorded
+deviations. A version 1 project, or `locked: true` without a record, keeps the older rule: only decisions and extra
+runs.
 
 ## jobs
 

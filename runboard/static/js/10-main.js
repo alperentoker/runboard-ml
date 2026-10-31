@@ -57,7 +57,8 @@ async function render() {
     setTitle(onRun ? route.run : t(route.tab), `<a href="#/">${t("projects")}</a> / <a href="#/p/${P.key}/overview">${esc(P.name)}</a>${onRun ? ` / <a href="#/p/${P.key}/runs">${t("runs")}</a>` : ""}`);
     renderChrome();
     if (route.tab !== "runs") $("#content").innerHTML = "";
-    ({overview: renderOverview, runs: renderRunsTab, run: renderRunPage, settings: renderSettings, data: renderData, results: renderResults})[route.tab]?.();
+    ({overview: renderOverview, runs: renderRunsTab, run: renderRunPage, settings: renderSettings, data: renderData, results: renderResults,
+      hypotheses: renderHypotheses})[route.tab]?.();
   } else {
     P = null; renderChrome();
     route.view === "system" ? renderSystem() : route.view === "new" ? renderWizard() : renderHome();

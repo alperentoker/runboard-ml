@@ -128,13 +128,16 @@ def test_a_broken_plan_is_refused(rb, text, code):
     assert e.value.code == code
 
 
-def test_a_locked_plan_is_not_edited_and_a_v1_project_has_no_plan(rb):
+def test_a_locked_plan_changes_only_with_a_reason_and_a_v1_project_has_no_plan(rb):
     with pytest.raises(Invalid) as e:
         project(rb).edit_file("plan", GOOD, None, dry=True)
     assert e.value.code == "not_v2"
+    with pytest.raises(Denied):  # a v1 plan has no deviations: it changes through decisions and extra runs only
+        project(rb).edit_raw(RUNS, None, dry=True, reason="a reason long enough")
     p = v2(rb, "locked: true\n")
-    with pytest.raises(Denied):
+    with pytest.raises(Invalid) as e:
         p.edit_file("plan", GOOD, None, dry=True)
+    assert e.value.code == "deviation_reason"
     (rb / "other.yaml").write_text(RUNS, encoding="utf-8")
     with pytest.raises(Denied):  # nor can the manifest point the lock at another runs file
         p.edit_file("manifest", "version: 2\nname: T\nruns: {file: other.yaml}\n", None, dry=True)

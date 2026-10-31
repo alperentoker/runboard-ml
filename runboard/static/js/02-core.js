@@ -92,6 +92,8 @@ const ERR_TR = {
   plan_ref: "{item}, olmayan bir şeye başvuruyor: {ref}", plan_dup: "{id} iki kez kullanılmış", not_v2: "Bu projede henüz plan.yaml yok; önce `runboard migrate` çalıştır",
   already_v2: "Bu proje zaten plan.yaml kullanıyor", in_plan: "{key} bu projede plan.yaml içinde durur", keep_version: "Manifest sürümü yalnızca `runboard migrate` ile değişir",
   manifest_runs: "runboard.yaml'da runs.file var olan bir koşu dosyasını göstermeli", migrate_by_hand: "{what} geçişin taşıyamayacağı biçimde yazılmış; elle taşı",
+  criterion: "Ölçüt: {problem}", evidence: "{file}: {problem}", already_locked: "Plan zaten kilitli",
+  deviation_reason: "Plan kilitli: neden değiştiğini yaz (en az 10 karakter); değişiklik sapma olarak kaydedilir",
   not_as_intended: "{file} istendiği gibi çıkmadı; hiçbir şey yazılmadı", conflict: "{file} bu sayfa açıldıktan sonra değişti; yeniden yükleyip tekrar dene",
   unknown_decision: "Böyle bir karar yok", finish_first: "Önce bütün aday koşular bitmeli", from_candidates: "Değer aday koşulardan birinden gelmeli",
   reason_short: "Bir gerekçe yaz (en az 10 karakter)", decided: "Bu karar zaten verildi",
@@ -125,6 +127,7 @@ const ICONS = {
   settings: '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
   data: '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>',
   results: '<path d="M4 20h16M7 16V9M12 16V5M17 16v-4"/>',
+  hypotheses: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3"/><path d="M7.5 15h9"/>',
   system: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
 };

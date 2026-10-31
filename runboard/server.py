@@ -247,7 +247,7 @@ def api_project(key: str):
             "phases": m.get("phases") or [], "backends": [{"name": n, "label": BACKENDS[n].label, **(c or {})}
                                                           for n, c in (m.get("backends") or {}).items() if n in BACKENDS],
             "default_backend": m.get("default_backend", next(iter(m.get("backends") or {"kaggle": 0}))),
-            "labels": (m.get("results") or {}).get("labels") or {}, "has_data": bool(m.get("data")),
+            "labels": (m.get("results") or {}).get("labels") or {}, "has_data": bool(m.get("data")), "v2": p.v2,
             "jobs": {k: {"title": v.get("title", k), "per_run": bool(v.get("per_run"))} for k, v in (m.get("jobs") or {}).items()},
             "job_views": [j.view(0) for (k, _), j in rt.jobs.items() if k == p.key],
             "backend_info": rt.backend_info}
@@ -455,7 +455,7 @@ def api_plan_section(key: str, name: str, request: Request, body: dict = Body(..
 def api_plan_raw(key: str, request: Request, body: dict = Body(...)):
     p = proj(key)
     return plan_call(lambda: p.edit_raw(str(body.get("text", "")), body.get("version"), bool(body.get("dry")),
-                                        who(request)))
+                                        who(request), str(body.get("reason") or "")))
 
 
 @app.get("/api/p/{key}/files")
@@ -467,7 +467,22 @@ def api_files(key: str, request: Request):
 def api_file_plan(key: str, request: Request, body: dict = Body(...)):
     p = proj(key)
     return plan_call(lambda: p.edit_file("plan", str(body.get("text", "")), body.get("version"), bool(body.get("dry")),
-                                         who(request)))
+                                         who(request), str(body.get("reason") or "")))
+
+
+@app.get("/api/p/{key}/hypotheses")
+def api_hypotheses(key: str):
+    """Questions, hypotheses and their verdicts, the lock and its deviations (a v2 project)."""
+    from . import prereg
+    p = proj(key)
+    return plan_call(lambda: prereg.hypotheses(p)) if p.v2 else {"status": {"v2": False}}
+
+
+@app.post("/api/p/{key}/lock", dependencies=LOCAL)
+def api_lock(key: str, request: Request):
+    from . import prereg
+    p = proj(key)
+    return plan_call(lambda: prereg.lock(p, who(request)))
 
 
 @app.put("/api/p/{key}/files/manifest", dependencies=LOCAL)
