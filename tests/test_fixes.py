@@ -97,6 +97,7 @@ def test_unknown_error_code_does_not_crash():
 
 # ---------------------------------------------------------------- processes
 
+@pytest.mark.skipif(os.name != "nt", reason="259 means STILL_ACTIVE on Windows; elsewhere exit codes stop at 255")
 def test_a_process_that_exited_with_259_is_not_alive():
     from runboard.proc import pid_alive
     p = subprocess.Popen([sys.executable, "-c", "raise SystemExit(259)"])
