@@ -143,13 +143,16 @@ def page():
                              "--no-first-run", "--no-default-browser-check", "--window-size=1400,900", "--lang=en-US",
                              "--disable-gpu", "--no-sandbox", "about:blank"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
-        for _ in range(100):
+        tabs, end = [], time.time() + 60  # a cold browser on a shared CI machine can take well over 20 s
+        while not any(t.get("type") == "page" for t in tabs):
+            if time.time() > end or proc.poll() is not None:
+                raise AssertionError(f"the browser ({BROWSER}) did not open its debugging port within 60 s"
+                                     + (f"; it exited with {proc.returncode}" if proc.poll() is not None else ""))
             try:
-                tabs = json.load(urllib.request.urlopen(f"http://127.0.0.1:{dbg}/json/list", timeout=1))
-                if any(t["type"] == "page" for t in tabs):
-                    break
-            except OSError:
-                time.sleep(0.2)
+                tabs = json.load(urllib.request.urlopen(f"http://127.0.0.1:{dbg}/json/list", timeout=2))
+            except (OSError, ValueError):  # not listening yet, or answered before it was ready
+                pass
+            time.sleep(0.2)
         cdp = CDP(next(t for t in tabs if t["type"] == "page")["webSocketDebuggerUrl"])
         cdp.call("Runtime.enable")
         cdp.call("Page.enable")
