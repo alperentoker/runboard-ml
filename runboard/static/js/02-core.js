@@ -6,6 +6,7 @@ const short = v => String(v ?? "").replace(/\.(pt|pth|ckpt)$/, "");
 const en = s => `<span lang="en">${esc(s)}</span>`;  // English terms keep their letters under Turkish uppercase (size ≠ SİZE)
 const stale = tab => tab === "system" ? route.view !== "system" : tab === "new" ? route.view !== "new" : (route.view !== "project" || route.tab !== tab || P?.key !== route.key);
 const fsize = mb => mb == null || mb === "" ? "—" : +mb >= 1024 ? (mb / 1024).toFixed(2) + " GB" : (+mb).toFixed(+mb < 10 ? 1 : 0) + " MB";
+const dur = h => h == null || h === "" || Number.isNaN(+h) ? "—" : +h >= 1 ? `${+(+h).toFixed(2)} h` : +h * 60 >= 1 ? `${Math.round(+h * 60)} min` : `${Math.max(1, Math.round(+h * 3600))} s`;  // hours as people read them
 const hms = s => [s / 3600, s % 3600 / 60, s % 60].map(x => String(Math.floor(x)).padStart(2, "0")).join(":");
 const ACTIVE = ["QUEUED", "STARTING", "RUNNING", "CANCELLING"];
 const COLORS = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)", "var(--s5)"];

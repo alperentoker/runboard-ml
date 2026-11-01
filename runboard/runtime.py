@@ -18,7 +18,8 @@ from .errors import Busy, Invalid, Missing
 from .progress import Parser, redact
 from .project import MANIFEST, Project
 
-POLL_SECONDS = 20
+POLL_SECONDS = 20  # remote backends (an API call or an ssh round trip per run)
+LOCAL_SECONDS = 2  # local runs and the queue while one is going: reading a few files
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
@@ -257,8 +258,12 @@ class Runtime:
                 if project.state.get(run_id).get("status") not in ACTIVE:
                     return
 
-    def poll_once(self) -> None:
+    def poll_once(self, only: set[str] | None = None) -> None:
+        """Every backend's availability and every unfinished run's status; `only` limits it to those backends' runs
+        (without asking the backends again)."""
         for name, b in BACKENDS.items():
+            if only is not None:
+                break
             ok, why = b.available()
             info = {}
             if ok:
@@ -271,6 +276,8 @@ class Runtime:
         for project in self.projects().values():
             for run_id, st in project.state.all().items():
                 b = BACKENDS.get(st.get("backend", "kaggle"))
+                if only is not None and (not b or b.name not in only):
+                    continue
                 if st.get("status") in DONE and (st.get("collected") or st.get("status") != "COMPLETE")                         and not (b and b.may_still_run(project, run_id, st)):  # e.g. marked lost while asleep
                     continue
                 if not b or not self.backend_info.get(b.name, {}).get("ok"):
@@ -310,13 +317,25 @@ class Runtime:
             self._collecting.discard((project.key, run_id))
 
     def loop(self) -> None:
+        last = 0.0
         while True:
             try:
-                self.poll_once()
-                self.run_queue()
+                if time.time() - last >= POLL_SECONDS:
+                    self.poll_once()
+                    last = time.time()
+                    self.run_queue()
+                elif self._local_busy():  # a short local run should not wait 20 s to be seen finishing
+                    self.poll_once(only={"local"})
+                    self.run_queue()
             except Exception as e:
                 print("poll error:", e, file=sys.stderr)
-            time.sleep(POLL_SECONDS)
+            time.sleep(LOCAL_SECONDS)
+
+    def _local_busy(self) -> bool:
+        if any(e.get("backend") == "local" for e in self.queue()):
+            return True
+        return any(s.get("backend") == "local" and s.get("status") in ACTIVE
+                   for p in self.projects().values() for s in p.state.all().values())
 
     # ------------------------------------------------------------ queue
     # One list for all projects (~/.runboard/queue.json). Each backend runs one thing at a time; when it is free the

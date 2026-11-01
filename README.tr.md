@@ -4,6 +4,9 @@
 GPU'nda başlat, canlı izle (epoch, batch, it/s, metrikler, kalan süre — saniye saniye) ve bitince sonuçlarını topla;
 üzerinde çalıştığın her proje için.
 
+**Yeni misin?** Aşağıdaki gibi kur (numpy ile birlikte), ardından `runboard demo`: herhangi bir işlemcide beş dakikalık ön kayıtlı bir
+çalışma; adım adım anlatımı [docs/tutorial.md](docs/tutorial.md)'de.
+
 [English](README.md) · [![tests](https://github.com/alperentoker/runboard-ml/actions/workflows/tests.yml/badge.svg)](https://github.com/alperentoker/runboard-ml/actions/workflows/tests.yml)
 
 <picture>

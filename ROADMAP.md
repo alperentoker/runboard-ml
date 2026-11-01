@@ -25,7 +25,8 @@ The design behind the first stages is in [docs/design-v2.md](docs/design-v2.md).
 | **RB-5** · provenance and paper output ✓ | per-run commit, data and template fingerprints; LaTeX/Markdown tables (figures still to come), methods and deviations sections, a reproducibility checklist, a registered-report page, an archive for Zenodo | 0.4 |
 | **RB-6** · where research computes ✓ | SSH and SLURM backends; full Linux and macOS support | 0.5 |
 | **RB-7** · AI help (optional) | a script from a description, written only after the diff is approved, saved with its prompt | later |
-| **RB-8** · visibility | PyPI, documentation site, a five-minute CPU demo, `CITATION.cff` and a DOI, a case study, a workshop paper, then JOSS | 0.2 → 1.0 |
+| **RB-8** · first contact ✓ | `runboard demo`: a five-minute pre-registered study on any CPU; the step-by-step tutorial with screenshots | 0.2 |
+| **RB-9** · visibility | PyPI, documentation site, `CITATION.cff` and a DOI, a case study, a workshop paper, then JOSS | 0.2 → 1.0 |
 
 Not planned: competing with experiment trackers on logging and charts, a hosted service, multi-user lab features
 (unless real users ask for them).

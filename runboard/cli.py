@@ -18,6 +18,32 @@ from pathlib import Path
 from . import __version__, home
 
 
+def demo(target: Path) -> int:
+    """Copies the demo study (runboard/demo) and rb.py into an empty folder and adds it to the dashboard."""
+    import shutil
+
+    from .runtime import Runtime
+    src = Path(__file__).parent / "demo"
+    target = target.expanduser().resolve()
+    if target.exists() and any(target.iterdir()):
+        print(f"{target} is not empty; give another folder: runboard demo <folder>")
+        return 1
+    target.mkdir(parents=True, exist_ok=True)
+    for f in src.iterdir():
+        if f.is_file() and f.suffix in (".py", ".yaml", ".md"):
+            shutil.copy2(f, target / f.name)
+    shutil.copy2(Path(__file__).parent / "rb.py", target / "rb.py")
+    try:
+        import numpy  # noqa: F401
+    except ImportError:
+        print("the demo needs numpy: pip install numpy")
+    p = Runtime.add_project(target)
+    print(f"the demo is in {target} and on the dashboard as \"{p.m.get('name')}\".\n"
+          "Open http://localhost:8000 (runboard serve, if it is not running) and follow docs/tutorial.md:\n"
+          "  1. Hypotheses: lock the plan   2. Runs: queue all six   3. Overview: Evaluate the finished runs   4. Hypotheses: read the verdicts")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     if sys.stdout is not None:
         sys.stdout.reconfigure(line_buffering=True, encoding="utf-8", errors="replace")
@@ -43,6 +69,8 @@ def main(argv: list[str] | None = None) -> int:
         "path", type=Path, nargs="?", default=Path("."))
     sub.add_parser("verdicts", help="the hypotheses' verdicts").add_argument("path", type=Path, nargs="?",
                                                                           default=Path("."))
+    dm = sub.add_parser("demo", help="set up the five-minute demo study (numpy, any CPU) and add it to the dashboard")
+    dm.add_argument("path", type=Path, nargs="?", default=Path.home() / "runboard-demo")
     tp = sub.add_parser("template", help="write a script from a template (split, check, subsets, evaluate)")
     tp.add_argument("name")
     tp.add_argument("path", type=Path, nargs="?", default=Path("."), help="the project folder")
@@ -93,6 +121,8 @@ def main(argv: list[str] | None = None) -> int:
         home.unregister(args.path)
         print("removed")
         return 0
+    if args.cmd == "demo":
+        return demo(args.path)
     if args.cmd == "list":
         for p in home.project_paths():
             print(p)

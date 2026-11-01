@@ -1,0 +1,46 @@
+# runboard demo: a five-minute pre-registered study on synthetic data (numpy only, runs on any CPU).
+# The walkthrough is docs/tutorial.md in the runboard repository.
+version: 2
+name: runboard demo
+id: demo
+description: Linear or cubic? A five-minute pre-registered study on synthetic half-moons, with a shift in the data.
+color: "#5b4bb7"
+
+runs:
+  file: runs.yaml
+  section: runs
+  defaults: defaults
+  name: "{id}"
+  fields: [model, seed, epochs]
+  schema:
+    model: {choices: [linear, cubic]}
+    seed: {int: [0, 99]}
+    epochs: {int: [1, 500]}
+
+default_backend: local
+backends:
+  local:
+    command: '"{python}" -u train.py --run {id}'
+    output_dir: out
+
+results:
+  report: "{out}/summary.json"
+  metrics: {primary: acc, epochs: epochs, hours: hours}
+  labels: {primary: val accuracy (%)}
+  curves:
+    file: "{out}/history.csv"
+    columns: {epoch: e, val_acc: map, loss: loss}
+
+phases:
+  - {id: linear, title: Linear model, subtitle: three seeds, runs: [R1, R1s1, R1s2]}
+  - {id: cubic, title: Cubic model, subtitle: three seeds, runs: [R2, R2s1, R2s2]}
+
+tables:
+  - {title: Every run, runs: [R1, R1s1, R1s2, R2, R2s1, R2s2]}
+  - title: Seeds
+    groups:
+      - {label: linear, runs: [R1, R1s1, R1s2]}
+      - {label: cubic, runs: [R2, R2s1, R2s2]}
+
+jobs:
+  evaluate: {title: Evaluate the finished runs, cmd: '"{python}" -u evaluate.py'}

@@ -1,7 +1,7 @@
 /* ================= project: data ================= */
 let dataBuild = null;
 async function renderData() {
-  if (!$("#jobbox")) $("#content").innerHTML = `<div class="card"><div class="empty">…</div></div>`;
+  if (!$("#jobbox")) $("#content").innerHTML = `<div class="card"><div class="empty">${t("loading")}</div></div>`;
   let d; try { d = await api(`/api/p/${P.key}/data`); } catch (e) { if (!stale("data")) $("#content").innerHTML = `<div class="msg bad">${esc(e.message)}</div>`; return; }
   if (stale("data")) return;
   const remote = Object.fromEntries(d.remote.map(x => [x.key, x])), cols = d.columns;
@@ -49,6 +49,10 @@ function jobEvent(j) {
 function jobBox(pkey, kind) {
   if (route.view === "system") return $(`#jobbox-${pkey}`);
   if (route.view === "project" && route.tab === "data" && pkey === P?.key && (kind === "upload" || kind === dataBuild)) return $("#jobbox");
+  if (route.view === "project" && pkey === P?.key && P.jobs?.[kind]) {  // a run's own jobs on its page, the project's on the overview
+    if (["runs", "run"].includes(route.tab) && P.jobs[kind].per_run) return $("#runjob");
+    if (route.tab === "overview" && !P.jobs[kind].per_run) return $("#pjob");
+  }
 }
 function paintJob(pkey, kind, added) {
   const el = jobBox(pkey, kind), J = JOBS[`${pkey}:${kind}`]; if (!el || !J) return;
@@ -77,7 +81,7 @@ async function renderResults() {
   const col = d.column || Object.keys(Object.values(R)[0]?.fields || {})[1] || "";
   const head = `<tr><th>${t("run")}</th><th>${en(col)}</th><th class="n">${esc(lab)}</th>${lab2 ? `<th class="n">${esc(lab2)}</th>` : ""}${d.classes.map(c => `<th class="n">${en(c)}</th>`).join("")}<th class="n">${t("best_epoch")}</th><th class="n">${t("duration")}</th></tr>`;
   const row = id => { const r = R[id]; if (!r) return ""; const f2 = r.fields?.[col];
-    return `<tr class="click" tabindex="0" role="link" data-go="${runPage(id)}"><td><b>${esc(id)}</b></td><td>${f2 == null ? `<span class="muted">${t("pending")}</span>` : esc(short(f2))}</td><td class="n"><b>${fmt(v(id))}</b></td>${lab2 ? `<td class="n">${fmt(v(id, "secondary"))}</td>` : ""}${d.classes.map(c => `<td class="n">${fmt(r.classes?.[c])}</td>`).join("")}<td class="n">${v(id, "best_epoch") != null ? `${v(id, "best_epoch")}/${v(id, "epochs") ?? "?"}` : "—"}</td><td class="n">${v(id, "hours") != null ? v(id, "hours") + " h" : "—"}</td></tr>`; };
+    return `<tr class="click" tabindex="0" role="link" data-go="${runPage(id)}"><td><b>${esc(id)}</b></td><td>${f2 == null ? `<span class="muted">${t("pending")}</span>` : esc(short(f2))}</td><td class="n"><b>${fmt(v(id))}</b></td>${lab2 ? `<td class="n">${fmt(v(id, "secondary"))}</td>` : ""}${d.classes.map(c => `<td class="n">${fmt(r.classes?.[c])}</td>`).join("")}<td class="n">${v(id, "best_epoch") != null ? `${v(id, "best_epoch")}/${v(id, "epochs") ?? "?"}` : "—"}</td><td class="n">${dur(v(id, "hours"))}</td></tr>`; };
   const stat = ids => { const xs = ids.map(i => v(i)).filter(x => x != null); if (!xs.length) return "—";
     const m = xs.reduce((a, b) => a + b) / xs.length, s = xs.length > 1 ? Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / (xs.length - 1)) : null;
     return `<b>${m.toFixed(2)}</b>${s != null ? " ± " + s.toFixed(2) : ""} <span class="muted">(n=${xs.length})</span>`; };

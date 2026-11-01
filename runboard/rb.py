@@ -154,6 +154,23 @@ def write_eval(run: str, set_name: str, metrics: dict, root: str = "eval", **ext
     f.write_text(json.dumps(out, ensure_ascii=False), encoding="utf-8")
 
 
+def write_samples(run: str, set_name: str, metrics: dict, root: str = "eval", **extra) -> None:
+    """For metrics that are a mean over items (accuracy): {name: [one value per id, in the plan's order]}.
+    runboard draws the bootstrap replicates itself from the shared plan."""
+    from pathlib import Path
+    plan = resample_plan(set_name, root=root)
+    out = {}
+    for k, values in metrics.items():
+        values = [float(v) for v in values]
+        if len(values) != len(plan["ids"]):
+            raise ValueError(f"{k}: {len(values)} values for {len(plan['ids'])} items of {set_name}")
+        out[k] = {"point": sum(values) / len(values), "samples": values}
+    f = Path(root) / run / f"{set_name}.json"
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(json.dumps({"format": "runboard-eval/1", "run": run, "set": set_name, "resample": plan["ids_sha256"],
+                             "metrics": out, "n": len(plan["ids"]), **extra}, ensure_ascii=False), encoding="utf-8")
+
+
 def sealed(set_name: str, run: str, weights_sha256: str, root: str = "eval", again: bool = False) -> None:
     """Call before evaluating a sealed set (the held-out test): refuses a second use of the same weights unless
     again=True, and writes every use to the ledger runboard shows."""

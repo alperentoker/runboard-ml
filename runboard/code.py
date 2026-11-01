@@ -20,7 +20,7 @@ from .errors import Invalid
 EXT = {".py", ".yaml", ".yml", ".json", ".toml", ".cfg", ".ini", ".txt", ".md", ".sh", ".ps1", ".r", ".ipynb"}
 SKIP = {".git", "__pycache__", "node_modules", ".venv", "venv", "env", ".idea", ".vscode", "wandb", ".runboard-tmp",
         ".pytest_cache", ".mypy_cache", "site-packages"}
-DATA_DIRS = {"images", "labels"}  # YOLO datasets
+DATA_DIRS = {"images", "labels", "raw", "datasets"}  # YOLO datasets and downloaded originals
 CROWDED = 500  # a folder with more files than this is data, not code
 MAX_BYTES = 512 * 1024
 MAX_FILES = 3000

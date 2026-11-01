@@ -1,0 +1,26 @@
+# The science of the demo: what it asks, what it expects, and how that is checked. Lock it on the Hypotheses page
+# before you start the runs; after that, every change needs a reason and is recorded as a deviation.
+questions:
+  - id: S1
+    text: Does a model that can bend its boundary separate two curved classes better than a straight line?
+  - id: S2
+    text: Does that advantage survive when the data shifts (turned and noisier)?
+
+hypotheses:
+  - id: H1
+    question: S1
+    text: The cubic model is more accurate than the linear one on clean data.
+    criterion: "cubic.clean > linear.clean"
+  - id: H2
+    question: S2
+    text: On shifted data the cubic model still beats the linear one by at least 2 points.
+    criterion: "cubic.shifted > linear.shifted + 2"
+
+protocol:
+  dir: eval
+  metric: acc
+  sets: [clean, shifted]
+
+groups:                     # three seeds each; a group stands for the mean of its runs
+  linear: [R1, R1s1, R1s2]
+  cubic: [R2, R2s1, R2s2]

@@ -56,6 +56,7 @@ def _tex_table(title: str, head: list[str], rows: list[list[str]]) -> str:
 def results_tables(project) -> list[tuple[str, list[str], list[list[str]]]]:
     labels = (project.m.get("results") or {}).get("labels") or {}
     lp, ls = text(labels.get("primary")) or "primary", text(labels.get("secondary")) or "secondary"
+    second = "secondary" in ((project.m.get("results") or {}).get("metrics") or {})  # a column only when there is one
     fields = [f for f in (project.m.get("runs") or {}).get("fields", [])][:2]
     met = {i: project.metrics(i) or {} for i in project.run_ids()}
     out = []
@@ -76,8 +77,9 @@ def results_tables(project) -> list[tuple[str, list[str], list[list[str]]]]:
                 if r not in met:
                     continue
                 spec = project.spec(r)
-                rows.append([r, *[str(spec.get(f, "–")) for f in fields], _num(met[r].get("primary")), _num(met[r].get("secondary"))])
-            out.append((title, ["Run", *fields, lp, ls], rows))
+                rows.append([r, *[str(spec.get(f, "–")) for f in fields], _num(met[r].get("primary"))]
+                            + ([_num(met[r].get("secondary"))] if second else []))
+            out.append((title, ["Run", *fields, lp, *([ls] if second else [])], rows))
     return out
 
 

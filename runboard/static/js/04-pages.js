@@ -5,11 +5,12 @@ function renderChrome() {
   morph($("#projbox"), inP ? `<div class="proj">${avatar(P, 30)}<div class="t"><b>${esc(P.name)}</b><small tabindex="0" role="link" data-go="#/">← ${t("all_projects")}</small></div></div>` : "");
   const items = inP ? [["overview"], ["runs", P.busy.length], ["settings"], ["code"], ...(P.has_data ? [["data"]] : []), ["results"], ...(P.v2 ? [["hypotheses"]] : [])]
                     : [["projects"]];
+  $("#nav").classList.toggle("inproj", !!inP);
   const busyAll = PS ? PS.projects.reduce((a, p) => a + p.active.length, 0) : 0;
   morph($("#nav"), (inP ? `<div class="sec">${t("projects")}</div><button data-go="#/"><svg viewBox="0 0 24 24">${ICONS.projects}</svg><span>${t("all_projects")}</span></button><div class="sec">${esc(P.name)}</div>` : "") +
     items.map(([k, badge]) => `<button class="${(inP ? (route.tab === k || (k === "runs" && route.tab === "run")) : route.view === "home" && k === "projects") ? "on" : ""}" data-go="${inP ? `#/p/${P.key}/${k}` : "#/"}" aria-label="${t(k)}"><svg viewBox="0 0 24 24">${ICONS[k]}</svg><span>${t(k)}</span>${badge ? `<em class="badge">${badge}</em>` : !inP && busyAll ? `<em class="badge">${busyAll}</em>` : ""}</button>`).join("") +
-    `<button class="${route.view === "new" ? "on" : ""}" data-go="#/new" aria-label="${t("new_project")}"><svg viewBox="0 0 24 24">${ICONS.plus}</svg><span>${t("new_project")}</span></button>` +
-    `<button class="${route.view === "system" ? "on" : ""}" data-go="#/system" aria-label="${t("system")}"><svg viewBox="0 0 24 24">${ICONS.system}</svg><span>${t("system")}</span></button>`);
+    `<button class="glob ${route.view === "new" ? "on" : ""}" data-go="#/new" aria-label="${t("new_project")}"><svg viewBox="0 0 24 24">${ICONS.plus}</svg><span>${t("new_project")}</span></button>` +
+    `<button class="glob ${route.view === "system" ? "on" : ""}" data-go="#/system" aria-label="${t("system")}"><svg viewBox="0 0 24 24">${ICONS.system}</svg><span>${t("system")}</span></button>`);
   const q = PS?.backends?.kaggle?.quota;
   morph($("#foot"), `${q ? `<div>Kaggle · ${q.used_h} / ${q.total_h} h<div class="bar"><i style="width:${Math.min(100, q.used_h / q.total_h * 100)}%"></i></div></div>` : ""}
     <div class="lang"><button class="${LANG === "en" ? "on" : ""}" data-lang="en">EN</button><button class="${LANG === "tr" ? "on" : ""}" data-lang="tr">TR</button></div>
@@ -18,6 +19,8 @@ function renderChrome() {
   $("#live").classList.toggle("hide", !act);
   if (act) { morph($("#live"), `<span class="dot RUNNING"></span><b>${esc(act.id)}</b> <span ${L_("pill", act.pkey, act.id)}></span>`); $("#live").onclick = () => go(`#/p/${act.pkey}/run/${encodeURIComponent(act.id)}`); }
   tick();
+  const onTab = $("#nav .on")?.dataset.go;  // the phone bar scrolls sideways: show the open page, once per page
+  if (onTab && onTab !== renderChrome.shown) { renderChrome.shown = onTab; $("#nav .on").scrollIntoView({block: "nearest", inline: "nearest"}); }
 }
 function setLang(l) { LANG = l; store("rb-lang", l); document.documentElement.lang = l; render(); if (ES) setConn(ES.readyState === 1); }
 function setTitle(title, crumb) { $("#title").textContent = title; $("#crumb").innerHTML = crumb || ""; document.title = `${title} · runboard`; }
@@ -82,8 +85,15 @@ function renderOverview() {
         <div class="pills">${ph.runs.map(id => { const r = run(id); return r ? `<span class="pill" tabindex="0" role="link" data-go="${runPage(id)}"><span class="dot ${r.status || ""}"></span>${esc(id)}${valOf(r) != null ? ` <small>${fmt(valOf(r), 1)}</small>` : ""}</span>` : ""; }).join("")}</div></div>`).join("")}</div></div>
   </div>
   <div class="card" style="margin-top:16px"><div class="ch"><h2>${t("finished")}</h2>${best ? `<span class="muted" style="font-size:12px">${esc(lab)} ${t("highest")}: <b style="color:var(--ink)">${esc(best.id)} · ${fmt(valOf(best))}</b></span>` : ""}</div>
-    <div class="cb flush tw">${finished.length ? `<table><tr><th>${t("run")}</th>${Object.keys(finished[0].fields).map(f => `<th>${en(f)}</th>`).join("")}<th class="n">${esc(lab)}</th><th class="n">${esc(tx(P.labels.secondary) || "")}</th><th class="n">${t("best_epoch")}</th><th class="n">${t("duration")}</th></tr>
-      ${finished.map(r => `<tr class="click" tabindex="0" role="link" data-go="${runPage(r.id)}"><td><b>${esc(r.id)}</b></td>${Object.values(r.fields).map(v => `<td>${esc(short(v))}</td>`).join("")}<td class="n"><b>${fmt(r.metrics?.primary)}</b></td><td class="n">${fmt(r.metrics?.secondary)}</td><td class="n">${r.metrics?.best_epoch != null ? `${r.metrics.best_epoch}/${r.metrics.epochs ?? "?"}` : "—"}</td><td class="n">${r.metrics?.hours != null ? r.metrics.hours + " h" : "—"}</td></tr>`).join("")}</table>` : `<div class="empty">${t("none_finished")}</div>`}</div></div>`);
+    <div class="cb flush tw">${finished.length ? `<table><tr><th>${t("run")}</th>${Object.keys(finished[0].fields).map(f => `<th>${en(f)}</th>`).join("")}<th class="n">${esc(lab)}</th>${P.labels.secondary ? `<th class="n">${esc(tx(P.labels.secondary))}</th>` : ""}<th class="n">${t("best_epoch")}</th><th class="n">${t("duration")}</th></tr>
+      ${finished.map(r => `<tr class="click" tabindex="0" role="link" data-go="${runPage(r.id)}"><td><b>${esc(r.id)}</b></td>${Object.values(r.fields).map(v => `<td>${esc(short(v))}</td>`).join("")}<td class="n"><b>${fmt(r.metrics?.primary)}</b></td>${P.labels.secondary ? `<td class="n">${fmt(r.metrics?.secondary)}</td>` : ""}<td class="n">${r.metrics?.best_epoch != null ? `${r.metrics.best_epoch}/${r.metrics.epochs ?? "?"}` : "—"}</td><td class="n">${dur(r.metrics?.hours)}</td></tr>`).join("")}</table>` : `<div class="empty">${t("none_finished")}</div>`}</div></div>
+  ${Object.entries(P.jobs || {}).some(([, j]) => !j.per_run) ? `<div class="card" style="margin-top:16px"><div class="ch"><h2>${t("jobs")}</h2><div class="sp">${Object.entries(P.jobs).filter(([, j]) => !j.per_run).map(([k, j]) => `<button class="btn" data-pj="${esc(k)}">${esc(tx(j.title))}</button>`).join(" ")}</div></div>
+    <div class="cb"><div id="pjob" data-keep></div></div></div>` : ""}`);
+  document.querySelectorAll("[data-pj]").forEach(b => b.onclick = async () => {
+    if (!await ask(t("sure_job", {j: b.textContent}))) return;
+    try { await api(`/api/p/${P.key}/job/${encodeURIComponent(b.dataset.pj)}`, {json: {}}); } catch (e) { say(e.message); }
+  });
+  showJobs(P.key);
   tick();
 }
 
@@ -95,12 +105,19 @@ function renderRunsTab() {
                   [t("extra"), P.runs.filter(r => r.extra).map(r => r.id)]];
   const listed = new Set(groups.flatMap(g => g[1]));
   const rest = P.runs.filter(r => !listed.has(r.id)).map(r => r.id); if (rest.length) groups.push(["—", rest]);
-  morph($("#runlist"), groups.filter(g => g[1].length).map(([title, ids]) => `<div class="grp">${esc(title)}</div>` + ids.map(id => {
+  const queued = new Set((PS?.queue || []).filter(e => e.project === P.key).map(e => e.run));
+  const fresh = P.runs.filter(r => !r.status && r.ready && !r.extra && !queued.has(r.id)).map(r => r.id);  // never started
+  morph($("#runlist"), (fresh.length > 1 ? `<div class="toolbar" style="margin:10px 12px 4px"><button class="btn" id="enqall">${t("enq_all", {n: fresh.length})}</button></div>` : "") +
+    groups.filter(g => g[1].length).map(([title, ids]) => `<div class="grp">${esc(title)}</div>` + ids.map(id => {
     const r = run(id); if (!r) return ""; const p = r.progress || {}, on = ACTIVE.includes(r.status);
     const val = valOf(r) != null ? fmt(valOf(r), 1) : "";
     const m = r.ready ? Object.values(r.fields).map(short).join(" · ") : `${t("waits")} ${r.missing.join(", ")}`;
     return `<div class="ri ${id === route.run ? "sel" : ""}" tabindex="0" role="link" data-go="${runHref(id)}"><span class="dot ${r.status || ""}"></span><b>${esc(id)}</b><span class="val">${on ? `e${p.epoch || 0}/${p.epochs || r.epochs || "?"}` : val}</span><span class="m">${esc(m)}</span></div>`;
   }).join("")).join(""));
+  if ($("#enqall")) $("#enqall").onclick = async () => {
+    try { await api("/api/queue", {json: {project: P.key, runs: fresh, backend: P.default_backend}}); toast(t("queued_ok")); } catch (e) { say(e.message); }
+    refresh();
+  };
   loadDetail();
 }
 function renderRunPage() {
@@ -146,7 +163,7 @@ function renderDetail() {
     body = f || r.metrics ? `${f ? `<div class="tw"><table><tr><th>${t("class")}</th><th class="n">${esc(lab)}</th><th class="n">${esc(lab2)}</th></tr>
       <tr><td><b>${t("all")}</b></td><td class="n"><b>${fmt(met.primary ?? (f.map50_95 != null ? 100 * f.map50_95 : null))}</b></td><td class="n">${fmt(met.secondary ?? (f.map50 != null ? 100 * f.map50 : null))}</td></tr>
       ${pcNode ? Object.entries(pcNode).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="n">${fmt(100 * (v.map50_95 ?? v.map ?? 0))}</td><td class="n">${fmt(100 * (v.ap50 ?? v.map50 ?? 0))}</td></tr>`).join("") : ""}</table></div>` : ""}
-      <div class="kpis" style="margin:16px 0 0">${f?.precision != null ? kv(t("precision"), fmt(100 * f.precision)) : ""}${f?.recall != null ? kv(t("recall"), fmt(100 * f.recall)) : ""}${kv(t("best_epoch"), met.best_epoch != null ? `${met.best_epoch}/${met.epochs ?? "?"}` : "—")}${kv(t("duration"), met.hours != null ? met.hours + " h" : "—")}</div>
+      <div class="kpis" style="margin:16px 0 0">${f?.precision != null ? kv(t("precision"), fmt(100 * f.precision)) : ""}${f?.recall != null ? kv(t("recall"), fmt(100 * f.recall)) : ""}${kv(t("best_epoch"), met.best_epoch != null ? `${met.best_epoch}/${met.epochs ?? "?"}` : "—")}${kv(t("duration"), dur(met.hours))}</div>
       <p class="desc" style="margin-top:14px">${t("output")}: <span class="mono">${esc(d.output)}</span></p>` : r.check?.error ? `<div class="msg bad">${esc(r.check.error)}</div>` : `<div class="empty">${t("no_data")}</div>`;
   } else if (sub === "table") {
     const keys = [...new Set(H.flatMap(x => Object.keys(x)))].filter(k => !["e", "t", "secs", "lr"].includes(k));
@@ -164,7 +181,7 @@ function renderDetail() {
         ${r.url ? `<a class="btn" href="${esc(r.url)}" target="_blank" rel="noopener">${t("open_kaggle")} ↗</a>` : ""}
         ${active && P.backend_info?.[bnow]?.can_cancel ? `<button class="btn danger" id="cancel">${t("cancel")}</button>` : ""}
         ${r.status === "COMPLETE" && r.backend ? `<button class="btn" id="collect">${t("recollect")}</button>` : ""}
-        ${r.status === "COMPLETE" && P.jobs.revalidate ? `<button class="btn" id="reval">${esc(tx(P.jobs.revalidate.title))}</button>` : ""}
+        ${Object.entries(P.jobs || {}).filter(([k, j]) => j.per_run && (k !== "revalidate" || r.status === "COMPLETE")).map(([k, j]) => `<button class="btn" data-rj="${esc(k)}">${esc(tx(j.title))}</button>`).join("")}
         ${r.status && !active && r.own_remote ? `<button class="btn danger" id="del">${t("delete_remote")}</button>` : ""}
         ${bk.length > 1 && startable ? `<select id="bsel" aria-label="${t("backend")}">${bk.map(b => `<option value="${b.name}" ${b.name === P.default_backend ? "selected" : ""}>${esc(b.label)}</option>`).join("")}</select>` : ""}
         ${d.ready && !active && !(PS?.queue || []).some(e => e.project === P.key && e.run === d.id) ? `<button class="btn" id="enq">${t("enqueue")}</button>` : ""}
@@ -179,19 +196,21 @@ function renderDetail() {
       ${active && p.stage ? `<div class="stage">${esc(p.stage)} <span class="est" ${L_("epleft", P.key, d.id)}></span></div>` : ""}` : ""}
   </div></div>
   ${!r.status ? "" : active ? `<div class="kpis k6" style="margin-top:16px">
-    ${kv(`${t("last")} ${esc(lab)}`, fmt(p.map), `${t("epoch")} ${p.epoch || 0}`)}${kv(t("best"), fmt(p.best))}${kv(`${t("last")} ${esc(lab2)}`, fmt(p.map50))}
+    ${kv(`${t("last")} ${esc(lab)}`, fmt(p.map), `${t("epoch")} ${p.epoch || 0}`)}${kv(t("best"), fmt(p.best))}${lab2 || p.map50 != null ? kv(`${t("last")} ${esc(lab2 || "mAP50")}`, fmt(p.map50)) : ""}
     ${kv(t("epoch_time"), p.epoch_secs ? hms(p.epoch_secs) : "—")}${kv(t("speed"), p.its ? p.its.toFixed(1) + " it/s" : "—")}
     ${kv(t("left"), `<span ${L_("left", P.key, d.id)}>—</span>`, p.eta_at ? `${t("eta")} ${new Date(p.eta_at * 1000).toLocaleTimeString(LANG, {hour: "2-digit", minute: "2-digit"})}` : "")}
   </div>` : `<div class="kpis k6" style="margin-top:16px">
-    ${kv(esc(lab), fmt(met.primary ?? p.best))}${kv(esc(lab2), fmt(met.secondary ?? p.map50))}
+    ${kv(esc(lab), fmt(met.primary ?? p.best))}${lab2 || met.secondary != null || p.map50 != null ? kv(esc(lab2 || "mAP50"), fmt(met.secondary ?? p.map50)) : ""}
     ${f?.per_class ? Object.entries(f.per_class).slice(0, 3).map(([k, v]) => kv(esc(k), fmt(100 * (v.map50_95 ?? v.map ?? 0)))).join("") : ""}
     ${kv(t("best_epoch"), met.best_epoch != null ? `${met.best_epoch}/${met.epochs ?? "?"}` : "—")}
-    ${kv(t("duration"), met.hours != null ? met.hours + " h" : "—", H.at(-1)?.t ? `${t("per_epoch")} ${hms(H.at(-1).t / H.length)}` : p.epoch_secs ? `${t("per_epoch")} ${hms(p.epoch_secs)}` : "")}
+    ${kv(t("duration"), dur(met.hours), H.at(-1)?.t ? `${t("per_epoch")} ${hms(H.at(-1).t / H.length)}` : p.epoch_secs ? `${t("per_epoch")} ${hms(p.epoch_secs)}` : "")}
   </div>`}
   <div class="card" style="margin-top:16px">
     <div class="tabs">${[["charts", t("charts")], ["result", t("result")], ["table", t("epoch_table")], ["log", t("log")]].map(([k, l]) => `<button data-sub="${k}" class="${k === sub ? "on" : ""}">${l}</button>`).join("")}</div>
-    <div class="cb">${body}</div></div>`);
+    <div class="cb">${body}</div></div>
+  <div id="runjob" data-keep style="margin-top:16px"></div>`);
   if (sub === "log") paintLog();
+  showJobs(P.key);
   document.querySelectorAll("[data-sub]").forEach(b => b.onclick = () => { sub = b.dataset.sub; store("rb-sub", sub); renderDetail(); subscribe(); });
   if ($("#start")) $("#start").onclick = async () => {
     const b = $("#bsel")?.value || P.default_backend, lab_ = P.backends.find(x => x.name === b)?.label || b;
@@ -213,7 +232,10 @@ function renderDetail() {
   });
   on("#cancel", async e => await ask(t("sure_cancel", {run: d.id}), true) && act(e, `/api/p/${P.key}/cancel/${encodeURIComponent(d.id)}`));
   on("#collect", e => act(e, `/api/p/${P.key}/collect/${encodeURIComponent(d.id)}`));
-  on("#reval", e => act(e, `/api/p/${P.key}/job/revalidate`, {run: d.id}, () => go(`#/system`)));
+  document.querySelectorAll("[data-rj]").forEach(b => b.onclick = async () => {
+    if (!await ask(t("sure_job", {j: `${b.textContent} · ${d.id}`}))) return;
+    try { await api(`/api/p/${P.key}/job/${encodeURIComponent(b.dataset.rj)}`, {json: {run: d.id}}); } catch (e) { say(e.message); }
+  });
   on("#del", async e => await ask(t("sure_delete", {run: d.id}), true) && act(e, `/api/p/${P.key}/delete/${encodeURIComponent(d.id)}`));
   if ($("#all")) $("#all").onchange = e => { allLog = e.target.checked; subscribe(); paintLog(); };
   document.querySelectorAll(".cmp").forEach(cb => cb.onchange = () => { cb.checked ? compare.add(cb.value) : compare.delete(cb.value); loadDetail(); });
@@ -256,8 +278,8 @@ async function renderSettings() {
     const gap = d.ready && vals.length ? Math.max(...vals) - Math.min(...vals) : null;
     return `<div class="card"><div class="ch"><h2>${esc(d.id)} · ${esc(tx(d.title))}</h2>${d.done ? chip("COMPLETE", t("decided")) : chip("", d.ready ? t("waiting_dec") : t("running_dec"))}</div><div class="cb">
       ${d.rule ? `<p class="desc">${esc(tx(d.rule))}</p>` : ""}
-      <div class="card tw"><table><tr><th>${t("run")}</th><th>${en(d.field)}</th><th>${t("status")}</th><th class="n">${esc(lab)}</th><th class="n">${esc(tx(P.labels.secondary) || "")}</th><th class="n">${t("best_epoch")}</th><th class="n">${t("duration")}</th></tr>
-      ${d.candidates.map(x => `<tr class="click" tabindex="0" role="link" data-go="${runPage(x.id)}"><td><b>${esc(x.id)}</b></td><td>${esc(short(x[d.field]))}</td><td>${chip(run(x.id)?.status)}</td><td class="n"><b>${fmt(x.metrics?.primary)}</b></td><td class="n">${fmt(x.metrics?.secondary)}</td><td class="n">${x.metrics?.best_epoch != null ? `${x.metrics.best_epoch}/${x.metrics.epochs ?? "?"}` : "—"}</td><td class="n">${x.metrics?.hours != null ? x.metrics.hours + " h" : "—"}</td></tr>`).join("")}</table></div>
+      <div class="card tw"><table><tr><th>${t("run")}</th><th>${en(d.field)}</th><th>${t("status")}</th><th class="n">${esc(lab)}</th>${P.labels.secondary ? `<th class="n">${esc(tx(P.labels.secondary))}</th>` : ""}<th class="n">${t("best_epoch")}</th><th class="n">${t("duration")}</th></tr>
+      ${d.candidates.map(x => `<tr class="click" tabindex="0" role="link" data-go="${runPage(x.id)}"><td><b>${esc(x.id)}</b></td><td>${esc(short(x[d.field]))}</td><td>${chip(run(x.id)?.status)}</td><td class="n"><b>${fmt(x.metrics?.primary)}</b></td>${P.labels.secondary ? `<td class="n">${fmt(x.metrics?.secondary)}</td>` : ""}<td class="n">${x.metrics?.best_epoch != null ? `${x.metrics.best_epoch}/${x.metrics.epochs ?? "?"}` : "—"}</td><td class="n">${dur(x.metrics?.hours)}</td></tr>`).join("")}</table></div>
       <div style="margin-top:14px">${d.done ? `<div class="msg ok">${t("dec_done")}</div>` : !d.ready ? `<div class="msg warn">${t("dec_wait")}</div>` : `
         <div class="msg ${d.tie != null && gap < d.tie ? "warn" : "ok"}">${d.tie != null && gap < d.tie ? t("dec_tie") : `${t("dec_ready")}: ${esc(short(best[d.field]))} (${fmt(best.metrics.primary)}) · ${t("dec_gap")} ${fmt(gap)}`}</div>
         <div class="form"><label>${t("winner")}<select class="dv" data-d="${esc(d.id)}">${[...new Set(d.candidates.map(x => x[d.field]))].map(v => `<option ${best && v === best[d.field] ? "selected" : ""}>${esc(v)}</option>`).join("")}</select></label>
@@ -275,7 +297,13 @@ async function renderSettings() {
     <details><summary>${esc(c.runs_file)}</summary><pre class="raw">${esc(c.raw)}</pre></details></div></div>` : ""}
   ${c.decision_log ? `<div class="card"><div class="ch"><h2>${t("decision_log")}</h2></div><div class="cb"><pre class="raw">${esc(c.decision_log)}</pre></div></div>` : ""}
   ${filesCards()}
-  ${templatesCard()}`);
+  ${templatesCard()}
+  ${ME?.local ? `<div class="card"><div class="ch"><h2>${t("remove_proj")}</h2></div><div class="cb"><p class="desc">${t("remove_desc", {path: P.path})}</p>
+    <button class="btn danger" id="prm">${t("remove_proj")}</button></div></div>` : ""}`);
+  if ($("#prm")) $("#prm").onclick = async () => {  // out of the dashboard only: the folder and its files stay
+    if (!await ask(t("sure_remove_proj", {name: P.name}), true)) return;
+    try { await api(`/api/projects/${encodeURIComponent(P.key)}`, {method: "DELETE"}); await loadProjects(); go("#/"); } catch (e) { say(e.message); }
+  };
   document.querySelectorAll(".dsave").forEach(b => b.onclick = async () => {
     const id = b.dataset.d, v = document.querySelector(`.dv[data-d="${id}"]`).value, reason = document.querySelector(`.dr[data-d="${id}"]`).value;
     if (!await ask(t("sure_decide", {d: id, v}))) return;

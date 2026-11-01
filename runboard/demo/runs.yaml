@@ -1,0 +1,13 @@
+# The demo's runs: two models, three seeds each. Edit them on the Settings page before the plan is locked.
+defaults:
+  epochs: 40
+  lr: 0.5
+  seed: 0
+
+runs:
+  R1: {model: linear, seed: 0}
+  R1s1: {model: linear, seed: 1}
+  R1s2: {model: linear, seed: 2}
+  R2: {model: cubic, seed: 0}
+  R2s1: {model: cubic, seed: 1}
+  R2s2: {model: cubic, seed: 2}

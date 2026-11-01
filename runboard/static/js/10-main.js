@@ -21,7 +21,7 @@ function subscribe(force) {
     const rid = ["runs", "run"].includes(route.tab) ? route.run : route.tab === "overview" ? P?.runs.find(r => ACTIVE.includes(r.status))?.id : null;
     if (rid) q.set("run", rid);
     if (rid && rid === route.run && sub === "log") { q.set("log", "1"); if (allLog) q.set("all", "1"); }
-    if (route.tab === "data") q.set("jobs", route.key);
+    if (["data", "overview", "runs", "run"].includes(route.tab)) q.set("jobs", route.key);
   } else if (route.view === "system") q.set("jobs", "*");
   const url = "/api/events?" + q;
   if (!force && url === esUrl && ES && ES.readyState !== 2) return;

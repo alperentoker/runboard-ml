@@ -39,6 +39,13 @@ Pre-registered experiments: the groundwork (RB-0) and the core (RB-1); see [ROAD
 - Provenance (RB-5): every run records what it started from: the commit and whether the folder had uncommitted
   changes, the fingerprints of the plan, the runs, the tracked scripts and the files sent with it, and a fingerprint
   of its data package. The run page shows it.
+- `runboard demo` (RB-8): a five-minute pre-registered study on synthetic data (numpy only, any CPU): six runs, two
+  hypotheses (one comes out supported, one refuted), an evaluation job, the paper export. docs/tutorial.md walks
+  through it with screenshots.
+- Every per-run job has a button on the run page (the smoke test, an evaluation) and the project's own jobs one on
+  the Overview, each with its live output; the run list queues every run not started yet in one click.
+- Local runs show as running the moment they start, and while one is going local runs and the queue are checked
+  every 2 s instead of 20 (remote backends keep 20 s).
 - SSH and SLURM backends (RB-6): a rented GPU or a lab server over SSH, and a cluster through `sbatch` on its login
   node. The system's ssh with your keys (never a password); the code is sent as a tar at each start, runs are detached
   with their own log, exit code and id on the remote side, logs stream live, outputs come home as a tar (nothing may
@@ -59,6 +66,14 @@ Pre-registered experiments: the groundwork (RB-0) and the core (RB-1); see [ROAD
 - CI on macOS as well as Linux and Windows.
 
 ### Fixed
+- A project can be removed from the dashboard (Settings, on this computer; its folder stays); before, only
+  `runboard remove` could.
+- Phones: inside a project the bottom bar holds the project's pages (New project and System stay on the home bar),
+  scrolls sideways when they do not fit, and shows the open page.
+- A project without a secondary metric no longer shows an empty column or figure; short runs show their duration in
+  minutes or seconds instead of "0 h"; the six figures of a run fit the run pane (two rows of three).
+- The Code page leaves out raw and downloaded datasets (raw/, datasets/); the Data page says it is loading while it
+  asks Kaggle; unused interface texts are gone.
 - `runboard[kaggle]` also installs `six`: newer Kaggle clients import it without depending on it, so connecting
   to Kaggle failed on a fresh install.
 

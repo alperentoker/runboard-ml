@@ -5,6 +5,9 @@ SSH or a SLURM cluster, watch it live
 (epoch, batch, it/s, metrics, ETA — updated every second), and collect the results when it finishes, for every
 project you work on.
 
+**New here?** Install it (below) with numpy, then `runboard demo`: a five-minute pre-registered study on any CPU, walked
+through in [docs/tutorial.md](docs/tutorial.md).
+
 [Türkçe](README.tr.md) · [![tests](https://github.com/alperentoker/runboard-ml/actions/workflows/tests.yml/badge.svg)](https://github.com/alperentoker/runboard-ml/actions/workflows/tests.yml)
 
 <picture>

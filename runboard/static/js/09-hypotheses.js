@@ -8,7 +8,7 @@ function hypothesisCard(h) {
   const parts = (h.parts || []).map(p => `<tr><td class="mono">${esc(p.text)}</td><td class="n">${num(p.left)}</td><td class="n">${num(p.right)}</td>
     <td class="n"><b>${p.margin > 0 ? "+" : ""}${num(p.margin)}</b></td><td class="n">${p.ci ? `[${num(p.ci[0])}, ${num(p.ci[1])}]` : "—"}</td>
     <td class="n">${p.share == null ? "—" : p.share + " %"}</td><td>${verdictChip(p.verdict)}</td></tr>`).join("");
-  const groups = Object.entries(h.groups || {}).map(([k, g]) => `<div class="desc">${esc(k)}: ${g.runs.map((r, i) => `${esc(r)} ${num(g.points[i])}`).join(" · ")} · ${t("h_seed_sd")} ${num(g.sd)}</div>`).join("");
+  const groups = !(h.parts || []).length ? "" : Object.entries(h.groups || {}).map(([k, g]) => `<div class="desc">${esc(k)}: ${g.runs.map((r, i) => `${esc(r)} ${num(g.points[i])}`).join(" · ")} · ${t("h_seed_sd")} ${num(g.sd)}</div>`).join("");
   const fns = Object.values(h.functions || {}).map(f => `<div class="desc mono">${esc(f)}</div>`).join("");
   return `<div class="card" data-h="${esc(h.id)}"><div class="ch"><h2>${esc(h.id)}</h2>${verdictChip(h.verdict)}</div><div class="cb">
     ${h.text ? `<p class="desc">${esc(tx(h.text))}</p>` : ""}

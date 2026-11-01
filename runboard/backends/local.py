@@ -49,7 +49,7 @@ class LocalBackend(Backend):
         cmd = project.render(cfg["resume"] if info.get("resume") else cfg["command"], {**info, "python": python})
         proc = popen_detached([sys.executable, "-m", "runboard.localrun", str(log), str(code), str(alive), python, cmd],
                               cwd=project.root)
-        return {"pid": proc.pid, "command": cmd, "url": None}
+        return {"pid": proc.pid, "command": cmd, "url": None, "status": "RUNNING"}  # it has started: no queue in between
 
     def status(self, project, run_id, st):
         log, code, alive = self._files(project, run_id)

@@ -464,3 +464,33 @@ def test_paper_export_from_the_hypotheses_page(page):
     page.until("document.querySelector('#hxout a[href$=\"report.html\"]')")
     assert (root / "paper" / "report.html").is_file() and (root / "paper" / "archive.zip").is_file()
     assert page.js("__errors") == []
+
+
+
+def test_run_list_queues_every_run_not_started(page):
+    import json as _json
+    import urllib.request as ur
+    go(page, "#/p/demo/runs/other", "document.querySelector('#runlist .ri')")
+    page.until("document.querySelector('#enqall') || true")
+    has = page.js("!!document.querySelector('#enqall')")
+    queue = lambda: _json.load(ur.urlopen(page.base + "api/queue", timeout=5))["entries"]
+    if has:  # "other" has not started in the demo fixture; base has
+        page.js("document.querySelector('#enqall').click()", 1)
+        assert "other" in [e["run"] for e in queue()]
+        for e in queue():
+            ur.urlopen(ur.Request(page.base + f"api/queue/{e['id']}", method="DELETE", headers={"Origin": page.base.rstrip('/')}), timeout=5)
+    assert page.js("__errors") == []
+
+
+def test_a_project_is_removed_from_the_dashboard_but_its_folder_stays(page):
+    extra = Path(tempfile.mkdtemp(prefix="rb-gone-")) / "gone"
+    extra.mkdir()
+    (extra / "runs.yaml").write_text("runs:\n  a: {x: 1}\n")
+    (extra / "runboard.yaml").write_text("name: Gone\nid: gone\nruns: {file: runs.yaml}\n")
+    home.register(extra)
+    go(page, "#/p/gone/settings", "document.querySelector('#prm')")
+    page.js("document.querySelector('#prm').click()", 0.5)
+    page.js("document.querySelector('dialog[open] .btn.danger, dialog[open] .btn.primary')?.click()", 1)
+    page.until("location.hash === '#/'")
+    assert str(extra) not in [str(Path(p)) for p in home.config()["projects"]] and (extra / "runboard.yaml").is_file()
+    assert page.js("__errors") == []
