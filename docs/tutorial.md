@@ -16,7 +16,7 @@ a *cubic* one can bend. Each is trained with three seeds (R1, R1s1, R1s2 and R2,
 ## 1. Install and set up the demo
 
 ```bash
-pip install "runboard @ git+https://github.com/alperentoker/runboard-ml" numpy
+pip install runboard-ml numpy
 runboard demo
 runboard
 ```

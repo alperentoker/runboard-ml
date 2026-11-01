@@ -1,10 +1,11 @@
 # runboard
 
-**Bütün eğitim koşuların için tek, kendi bilgisayarında çalışan bir panel.** Bir koşuyu Kaggle'da ya da kendi
-GPU'nda başlat, canlı izle (epoch, batch, it/s, metrikler, kalan süre — saniye saniye) ve bitince sonuçlarını topla;
-üzerinde çalıştığın her proje için.
+**Plandan makaleye, ön kayıtlı makine öğrenmesi deneyleri.** Sorularını ve hipotezlerini yaz, planı kilitle,
+deneyleri kendi GPU'nda, Kaggle'da, SSH ile bağlandığın bir makinede ya da SLURM kümesinde çalıştır, canlı izle; her
+hipotez bootstrap güven aralığıyla karara bağlansın, makale için tablolar, yöntem ve sapma bölümleri hazır olsun.
+Bütün projelerin için kendi bilgisayarında çalışan tek bir panel; her şey reponda okunabilir dosyalar olarak durur.
 
-**Yeni misin?** Aşağıdaki gibi kur (numpy ile birlikte), ardından `runboard demo`: herhangi bir işlemcide beş dakikalık ön kayıtlı bir
+**Yeni misin?** `pip install runboard-ml numpy`, ardından `runboard demo`: herhangi bir işlemcide beş dakikalık ön kayıtlı bir
 çalışma; adım adım anlatımı [docs/tutorial.md](docs/tutorial.md)'de.
 
 [English](README.md) · [![tests](https://github.com/alperentoker/runboard-ml/actions/workflows/tests.yml/badge.svg)](https://github.com/alperentoker/runboard-ml/actions/workflows/tests.yml)
@@ -51,20 +52,21 @@ Gizli bilgiler bilgisayarından çıkmaz: Kaggle token'ı `~/.kaggle` altında, 
 ## Kurulum
 
 ```bash
-git clone https://github.com/alperentoker/runboard-ml
-cd runboard-ml
-pip install -e .[kaggle]
-runboard serve        # http://localhost:8000 — yalnızca bu bilgisayar, şifre yok
+pip install runboard-ml            # Kaggle için: pip install "runboard-ml[kaggle]"
+runboard                           # http://localhost:8000 — yalnızca bu bilgisayar, şifre yok
 ```
+
+PyPI'daki paketin adı `runboard-ml` (`runboard` adı başka bir projeye ait); komut ve Python modülü `runboard`. İkisini
+aynı ortama kurma: aynı modül adını paylaşırlar. Python 3.11 ya da daha yenisi gerekir.
 
 Sonra panelde:
 
 1. **Sistem → Bağlantılar → Kaggle** (yalnızca bulut GPU istiyorsan): panel, kaggle.com'da token oluşturmayı adım adım
    anlatır; token bir kez yapıştırılır. Bu bilgisayarda `~/.kaggle/access_token` dosyasına kaydedilir, test edilir ve
    bir daha gösterilmez.
-2. **Yeni proje**: klasörü seç, *YOLO eğitimi (kod gerekmez)* ya da *Kendi eğitim betiğim* türünü seç, nerede
-   çalışacağını seç (bu bilgisayar, Kaggle; Colab planlanıyor), gözden geçir, oluştur. runboard klasöre `runboard.yaml`,
-   `runboard_runs.yaml` ve YOLO için hazır bir eğitim betiği yazar; senin dosyalarını değiştirmez.
+2. **Yeni proje**: klasörü seç; *Ön kayıtlı çalışma (YOLO)*, *YOLO eğitimi (kod gerekmez)* ya da *Kendi eğitim betiğim*
+   türünü, sonra nerede çalışacağını seç (bu bilgisayar, Kaggle, SSH, SLURM). runboard klasöre `runboard.yaml`, koşu
+   dosyasını ve YOLO için eğitim ve değerlendirme scriptlerini yazar; senin dosyalarını değiştirmez.
 
 İçinde zaten `runboard.yaml` olan bir klasör aynı sihirbazdan ya da `runboard add KLASÖR` ile eklenir.
 

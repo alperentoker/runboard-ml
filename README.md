@@ -1,50 +1,54 @@
 # runboard
 
-**One self-hosted dashboard for all your ML training runs.** Launch a run on Kaggle, your own GPU, a machine over
-SSH or a SLURM cluster, watch it live
-(epoch, batch, it/s, metrics, ETA — updated every second), and collect the results when it finishes, for every
-project you work on.
+**Pre-registered machine-learning experiments, from the plan to the paper.** Write your questions and hypotheses,
+lock the plan, run the experiments on your own GPU, Kaggle, a machine over SSH or a SLURM cluster, watch them live, and
+get every hypothesis decided with a bootstrap confidence interval, plus the tables, methods and deviations sections
+for the paper. One self-hosted dashboard for all your projects; everything stays in readable files in your repository.
 
-**New here?** Install it (below) with numpy, then `runboard demo`: a five-minute pre-registered study on any CPU, walked
-through in [docs/tutorial.md](docs/tutorial.md).
+**New here?** `pip install runboard-ml numpy`, then `runboard demo`: a five-minute pre-registered study on any CPU,
+walked through in the [tutorial](https://github.com/alperentoker/runboard-ml/blob/main/docs/tutorial.md).
 
-[Türkçe](README.tr.md) · [![tests](https://github.com/alperentoker/runboard-ml/actions/workflows/tests.yml/badge.svg)](https://github.com/alperentoker/runboard-ml/actions/workflows/tests.yml)
+[Türkçe](https://github.com/alperentoker/runboard-ml/blob/main/README.tr.md) · [![tests](https://github.com/alperentoker/runboard-ml/actions/workflows/tests.yml/badge.svg)](https://github.com/alperentoker/runboard-ml/actions/workflows/tests.yml)
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/run-dark.png">
-  <img alt="A run's page: live progress, results and training curves" src="docs/images/run-light.png">
-</picture>
+![Hypotheses decided with confidence intervals](https://raw.githubusercontent.com/alperentoker/runboard-ml/main/docs/images/tutorial-7-verdicts.png)
 
 <table><tr>
 <td width="50%">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/home-dark.png">
-  <img alt="Projects home" src="docs/images/home-light.png">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/alperentoker/runboard-ml/main/docs/images/run-dark.png">
+  <img alt="A run's page: live progress, results and training curves" src="https://raw.githubusercontent.com/alperentoker/runboard-ml/main/docs/images/run-light.png">
 </picture>
 
-<sub>Projects home</sub>
+<sub>A run, live</sub>
 </td>
 <td width="50%">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/plan-dark.png">
-  <img alt="Editing the run plan: every change is previewed as the lines it changes" src="docs/images/plan-light.png">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/alperentoker/runboard-ml/main/docs/images/plan-dark.png">
+  <img alt="Editing the run plan: every change is previewed as the lines it changes" src="https://raw.githubusercontent.com/alperentoker/runboard-ml/main/docs/images/plan-light.png">
 </picture>
 
 <sub>Editing the plan: a preview of the exact lines that change</sub>
 </td>
 </tr></table>
 
-- **Projects home** — every project is a card: live progress of its active run, plan completion, best score.
-- **Live runs** — log streaming, second-by-second progress between log lines, metric and loss charts, run-to-run comparison.
-- **Compute backends** — Kaggle Notebooks (private kernels, live logs, weekly GPU quota, dataset upload; a Kaggle run cannot be cancelled from the dashboard, stop it on Kaggle with *Open on Kaggle*) the local GPU (detached, survives dashboard restarts, can be cancelled), a machine over SSH (a rented GPU, a lab server) and a SLURM cluster (through sbatch; with your own SSH keys, runboard never sees a password). The backend interface is small; Colab is planned.
-- **Pre-registration friendly** — lock the planned runs and shared settings, add clearly-marked extra runs, and record decisions (e.g. "winning architecture") with the numbers they were based on.
-- **Plan editing** — edit, copy and add runs, shared settings or the whole runs file from the dashboard; only the changed lines are touched, every change is previewed as a diff, started runs keep their settings.
-- **Sweeps and a queue** — one draft run per combination of values; a queue per backend that starts the next run when the backend is free and waits when the Kaggle quota would not cover it.
-- **Results** — tables, curves and seed-variance summaries defined in the project manifest.
-- **Tablet view** — `/mini` with picture-in-picture, installable on the home screen; a tablet pairs once with a QR code.
-- **English / Türkçe** interface.
+- **Hypotheses a machine can check** — `R7.aerial >= 0.9 * R5.aerial`, `collapse(R4, ground, aerial) > ...`, seed groups,
+  `log_fit(...)`: each comparison is decided on paired bootstrap replicates as *supported*, *refuted* or
+  *indistinguishable*, with its 95 % interval.
+- **A lock that means something** — `plan.lock.json` records when, at which commit and the fingerprints of the plan,
+  the runs and the scripts; every later change needs a reason and is listed as a deviation. A sealed test set is
+  evaluated once per model, on the record.
+- **Research wizard** — questions, experiment designs (specialists, data-size curves, architectures, ablations,
+  seeds), the evaluation protocol and hypotheses checked as you type become a ready project.
+- **Code templates** — split, leakage check, conversion, data-size subsets, evaluation and speed scripts, written into
+  your project as ordinary files that runboard never overwrites once you change them.
+- **Paper output** — Markdown and LaTeX tables, the hypotheses, a methods draft, the deviations section, a
+  reproducibility checklist, a registered-report page and an archive for Zenodo.
+- **Live runs anywhere** — your GPU, Kaggle (private kernels, weekly quota, private datasets), a machine over SSH and a
+  SLURM cluster (your own SSH keys; runboard never sees a password); logs, second-by-second progress, charts, a queue.
+- **Provenance** — every run records the commit, uncommitted changes and the fingerprints of what it started from.
+- **Tablet view**, a Code page, English and Türkçe.
 
 Secrets never leave your machine: the Kaggle token stays in `~/.kaggle`, paired devices and all state live in
 `~/.runboard`, never inside a project repository.
@@ -52,19 +56,20 @@ Secrets never leave your machine: the Kaggle token stays in `~/.kaggle`, paired 
 ## Install
 
 ```bash
-git clone https://github.com/alperentoker/runboard-ml
-cd runboard-ml
-pip install -e .[kaggle]
-runboard serve        # http://localhost:8000 — this computer only, no password
+pip install runboard-ml            # or: pip install "runboard-ml[kaggle]" for Kaggle
+runboard                           # http://localhost:8000 — this computer only, no password
 ```
+
+The package is called `runboard-ml` on PyPI (`runboard` belongs to another project); the command and the Python module
+are `runboard`. Do not install both in one environment: they would share the module name. Python 3.11 or newer.
 
 Then, in the dashboard:
 
 1. **System → Connections → Kaggle** (only if you want cloud GPUs): the panel walks you through creating a token on
    kaggle.com and pasting it once. It is saved to `~/.kaggle/access_token` on this machine, tested, and never shown again.
-2. **New project**: pick a folder, choose *YOLO training (no code)* or *My own training script*, choose where to run
-   (this computer, Kaggle; Colab is planned), review, create. runboard writes `runboard.yaml`, `runboard_runs.yaml` and,
-   for YOLO, a ready training script into the folder — it never changes your files.
+2. **New project**: pick a folder and choose *Pre-registered study (YOLO)*, *YOLO training (no code)* or *My own training
+   script*, then where to run (this computer, Kaggle, SSH, SLURM). runboard writes `runboard.yaml`, the runs file and,
+   for YOLO, the training and evaluation scripts into the folder; it never changes your own files.
 
 A folder that already has a `runboard.yaml` can be added from the same wizard or with `runboard add PATH`.
 
@@ -75,16 +80,19 @@ the same Wi-Fi, turn on **System → Tablet access** (the dashboard restarts on 
 **Pair a device** and scan the QR code with the tablet, or open the address shown and type the 6-digit code. The code
 works once and for two minutes. Paired devices are listed there and can be removed at any time.
 
-A paired device can follow, start and stop runs. Entering the Kaggle token, adding projects, the folder browser and
-startup settings stay on this computer. Outside your home network, use a VPN such as Tailscale and add its machine
-name to `allowed_hosts` in `~/.runboard/config.yaml`. See [SECURITY.md](SECURITY.md).
+A paired device can follow, start and stop runs. Entering the Kaggle token, adding projects, changing code and the
+project file, the folder browser and startup settings stay on this computer. Outside your home network, use a VPN such
+as Tailscale and add its machine name to `allowed_hosts` in `~/.runboard/config.yaml`. See
+[SECURITY.md](https://github.com/alperentoker/runboard-ml/blob/main/SECURITY.md).
 
 ## A project by hand
 
-The wizard covers the common cases. Under the hood a project is any folder with a `runboard.yaml`. runboard does not own your code or configs; the manifest just tells it
-where things are:
+The wizard covers the common cases. Under the hood a project is any folder with a `runboard.yaml` (and, for a
+pre-registered study, a `plan.yaml`). runboard does not own your code or configs; the manifest just tells it where
+things are:
 
 ```yaml
+version: 2
 name: My detector
 runs:
   file: configs/runs.yaml          # your runs, in your own format: a mapping of run id -> fields
@@ -99,12 +107,15 @@ results:
   metrics: {primary: map50_95}
 ```
 
-See [docs/manifest.md](docs/manifest.md) for every option and [examples/yolo-quickstart](examples/yolo-quickstart) for a
-runnable project (YOLO11n on coco8, a couple of minutes on a laptop GPU).
+See [the manifest reference](https://github.com/alperentoker/runboard-ml/blob/main/docs/manifest.md) for every option,
+including `plan.yaml`, criteria, evaluation files, the lock and the backends, and
+[the design notes](https://github.com/alperentoker/runboard-ml/blob/main/docs/design-v2.md) for how verdicts are
+computed.
 
 ## Reporting progress
 
-Print one line per event from your training script — or copy [`runboard/rb.py`](runboard/rb.py) (stdlib only) next to it:
+Print one line per event from your training script, or use `rb.py` (stdlib only; `runboard demo` and the wizard put a
+copy next to your scripts):
 
 ```python
 import rb
@@ -128,8 +139,11 @@ To reach it from outside your home network, put it behind a private network such
 ## Development
 
 ```bash
+git clone https://github.com/alperentoker/runboard-ml
+cd runboard-ml
 pip install -e .[dev]
 pytest
 ```
 
-MIT licensed.
+MIT licensed. Changes: [CHANGELOG.md](https://github.com/alperentoker/runboard-ml/blob/main/CHANGELOG.md) ·
+plans: [ROADMAP.md](https://github.com/alperentoker/runboard-ml/blob/main/ROADMAP.md).

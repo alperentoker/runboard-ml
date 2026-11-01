@@ -2,7 +2,10 @@
 
 All notable changes to runboard. Versions follow [semantic versioning](https://semver.org/).
 
-## Unreleased
+## 0.2.0 — 2026-11-01
+
+First release on PyPI, as `runboard-ml` (`pip install runboard-ml`; the command is still `runboard`).
+A version tag tests, builds and publishes it (RELEASING.md); the README is written for the PyPI page too.
 
 Pre-registered experiments: the groundwork (RB-0) and the core (RB-1); see [ROADMAP.md](ROADMAP.md) and
 [docs/design-v2.md](docs/design-v2.md).
