@@ -127,7 +127,32 @@ backends:
                                          # comes first on PATH (default: the one runboard runs on)
 ```
 
-Only one run per backend at a time. Kaggle runs cannot be cancelled through the API (use *Open on Kaggle*); local runs can.
+A machine over SSH (a rented GPU, a lab server) and a SLURM cluster use the system's own `ssh`, with your keys and
+agent; runboard never sees a password (it runs ssh with `BatchMode=yes`). The remote side needs a POSIX shell and tar,
+and SLURM its `sbatch`, `sacct` and `scancel`.
+
+```yaml
+  ssh:
+    host: gpu-box                        # an alias from ~/.ssh/config, or user@host (port: 2222 if needed)
+    workdir: ~/runboard/{project}        # where the code is copied at each start (default as shown)
+    python: python3                      # {python} in the commands
+    setup: ["pip install -q ultralytics"]
+    command: '"{python}" -u train.py --run {id}'
+    output: runs/{name}                  # the run's outputs, relative to workdir
+    output_dir: runs/ssh                 # where they are brought home
+    upload: [train.py, configs]          # optional; default: the files of the Code page (no data, no outputs)
+  slurm:
+    host: login.cluster.edu
+    sbatch: {partition: gpu, gres: "gpu:1", time: "12:00:00", mem: 32G, cpus-per-task: 8, account: mylab}
+    command: '"{python}" -u train.py --run {id}'   # the rest as for ssh
+```
+
+Data is not copied: put it on the remote machine once, at the same path relative to `workdir` as in the project. Each
+run keeps its log, exit code and process (or job) id in `<workdir>/.runboard/`, so it survives a dashboard restart.
+
+One run at a time per backend; for SSH, one per host; a SLURM cluster takes as many jobs as you queue and runs them
+in its own order. Kaggle runs cannot be cancelled through the API (use *Open on Kaggle*); local, SSH and SLURM runs
+can.
 
 ### Resuming
 

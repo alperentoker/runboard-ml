@@ -200,8 +200,10 @@ class Runtime:
         # The run is recorded as STARTING before anything is launched, under a lock, so a second click (or a
         # second tab) sees the backend as busy; a failed launch restores the previous record.
         with self.start_lock:
+            slot = b.slot(project)  # one run per slot: per backend, per SSH host; a SLURM cluster queues its own
             busy = [f"{k}:{r}" for k, p in self.projects().items() for r, s in p.state.all().items()
-                    if s.get("status") in ACTIVE and s.get("backend") == backend]
+                    if slot and s.get("status") in ACTIVE and s.get("backend") in BACKENDS
+                    and BACKENDS[s["backend"]].slot(p) == slot]
             if busy:
                 raise Busy("busy", backend=b.label, runs=busy)
             previous = project.state.get(run_id)
@@ -426,17 +428,20 @@ class Runtime:
             if not q:
                 return started
             ps = self.projects()
-            busy = {s.get("backend") for p in ps.values() for s in p.state.all().values() if s.get("status") in ACTIVE}
+            busy = {BACKENDS[s["backend"]].slot(p) for p in ps.values() for s in p.state.all().values()
+                    if s.get("status") in ACTIVE and s.get("backend") in BACKENDS} - {None}
             for e in list(q):
                 b = e["backend"]
                 p = ps.get(e["project"])
                 if not p or e["run"] not in p.run_ids():  # gone from the plan: it must not hold up the others
                     e["waiting"] = "missing"
                     continue
-                if b in busy:
+                slot = BACKENDS[b].slot(p) if b in BACKENDS else b
+                if slot and slot in busy:
                     e["waiting"] = "busy"
                     continue
-                busy.add(b)  # the first entry of a backend blocks the ones behind it, even when it cannot start
+                if slot:
+                    busy.add(slot)  # the first entry of a slot blocks the ones behind it, even when it cannot start
                 if not self.backend_info.get(b, {}).get("ok"):
                     e["waiting"] = "backend"
                     continue

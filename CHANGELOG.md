@@ -39,6 +39,11 @@ Pre-registered experiments: the groundwork (RB-0) and the core (RB-1); see [ROAD
 - Provenance (RB-5): every run records what it started from: the commit and whether the folder had uncommitted
   changes, the fingerprints of the plan, the runs, the tracked scripts and the files sent with it, and a fingerprint
   of its data package. The run page shows it.
+- SSH and SLURM backends (RB-6): a rented GPU or a lab server over SSH, and a cluster through `sbatch` on its login
+  node. The system's ssh with your keys (never a password); the code is sent as a tar at each start, runs are detached
+  with their own log, exit code and id on the remote side, logs stream live, outputs come home as a tar (nothing may
+  land outside the output folder), runs can be stopped. One run per SSH host; a cluster takes as many jobs as queued.
+  Both can be chosen in the new-project wizard.
 - Paper output: `runboard export` (or *Export for the paper* on the Hypotheses page) writes paper/ with Markdown and
   LaTeX (booktabs) tables, the hypotheses with margins, intervals and verdicts, a methods draft, the deviations
   section, a reproducibility checklist filled from the files, a self-contained registered-report page, the runs'
@@ -52,6 +57,10 @@ Pre-registered experiments: the groundwork (RB-0) and the core (RB-1); see [ROAD
   a diff, refused after a concurrent change, backed up. The project file only on this computer, since it holds
   commands; a locked plan read-only.
 - CI on macOS as well as Linux and Windows.
+
+### Fixed
+- `runboard[kaggle]` also installs `six`: newer Kaggle clients import it without depending on it, so connecting
+  to Kaggle failed on a fresh install.
 
 ### Changed
 - GPU memory reads "3.2 GB free of 4 GB" instead of "3.2 / 4 GB", which looked like memory in use.

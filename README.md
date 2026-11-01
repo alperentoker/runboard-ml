@@ -1,6 +1,7 @@
 # runboard
 
-**One self-hosted dashboard for all your ML training runs.** Launch a run on Kaggle or on your own GPU, watch it live
+**One self-hosted dashboard for all your ML training runs.** Launch a run on Kaggle, your own GPU, a machine over
+SSH or a SLURM cluster, watch it live
 (epoch, batch, it/s, metrics, ETA — updated every second), and collect the results when it finishes, for every
 project you work on.
 
@@ -34,7 +35,7 @@ project you work on.
 
 - **Projects home** — every project is a card: live progress of its active run, plan completion, best score.
 - **Live runs** — log streaming, second-by-second progress between log lines, metric and loss charts, run-to-run comparison.
-- **Compute backends** — Kaggle Notebooks (private kernels, live logs, weekly GPU quota, dataset upload; a Kaggle run cannot be cancelled from the dashboard, stop it on Kaggle with *Open on Kaggle*) and the local GPU (detached, survives dashboard restarts, can be cancelled). The backend interface is small; Colab is planned.
+- **Compute backends** — Kaggle Notebooks (private kernels, live logs, weekly GPU quota, dataset upload; a Kaggle run cannot be cancelled from the dashboard, stop it on Kaggle with *Open on Kaggle*) the local GPU (detached, survives dashboard restarts, can be cancelled), a machine over SSH (a rented GPU, a lab server) and a SLURM cluster (through sbatch; with your own SSH keys, runboard never sees a password). The backend interface is small; Colab is planned.
 - **Pre-registration friendly** — lock the planned runs and shared settings, add clearly-marked extra runs, and record decisions (e.g. "winning architecture") with the numbers they were based on.
 - **Plan editing** — edit, copy and add runs, shared settings or the whole runs file from the dashboard; only the changed lines are touched, every change is previewed as a diff, started runs keep their settings.
 - **Sweeps and a queue** — one draft run per combination of values; a queue per backend that starts the next run when the backend is free and waits when the Kaggle quota would not cover it.

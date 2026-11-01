@@ -34,7 +34,7 @@ GPU'nda başlat, canlı izle (epoch, batch, it/s, metrikler, kalan süre — san
 
 - **Projeler ana sayfası** — her proje bir kart: aktif koşunun canlı ilerlemesi, planın tamamlanma oranı, en iyi skor.
 - **Canlı koşular** — log akışı, log satırları arasında saniyelik tahmin, metrik ve kayıp grafikleri, koşu karşılaştırma.
-- **Hesaplama ortamları** — Kaggle Notebooks (özel kernel, canlı log, haftalık GPU kotası, veri yükleme; Kaggle koşusu panelden iptal edilemez, *Kaggle'da aç* ile Kaggle'da durdurulur) ve yerel GPU (panelden bağımsız çalışır, panel yeniden başlasa da sürer, durdurulabilir). Arayüz küçük; Colab planlanıyor.
+- **Hesaplama ortamları** — Kaggle Notebooks (özel kernel, canlı log, haftalık GPU kotası, veri yükleme; Kaggle koşusu panelden iptal edilemez, *Kaggle'da aç* ile Kaggle'da durdurulur) yerel GPU (panelden bağımsız çalışır, panel yeniden başlasa da sürer, durdurulabilir), SSH ile bağlanılan bir makine (kiralık GPU, laboratuvar sunucusu) ve SLURM kümesi (sbatch ile; kendi SSH anahtarlarınla, runboard parola görmez). Arayüz küçük; Colab planlanıyor.
 - **Ön kayda uygun** — planlanan koşuları ve ortak ayarları kilitle, açıkça işaretli ek deneyler ekle, kararları ("kazanan mimari" gibi) dayandıkları sayılarla kaydet.
 - **Plan düzenleme** — koşuları, ortak ayarları ya da koşu dosyasının tamamını panelden düzenle, kopyala, ekle; yalnızca değişen satırlar değişir, her değişiklik önce fark olarak gösterilir, başlamış koşular ayarlarını korur.
 - **Tarama ve kuyruk** — değerlerin her kombinasyonu için bir taslak koşu; ortam boşalınca sıradaki koşuyu başlatan, Kaggle kotası yetmeyecekse bekleyen ortam başına bir kuyruk.

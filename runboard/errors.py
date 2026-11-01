@@ -61,6 +61,10 @@ MESSAGES = {
     "too_big": "{path} is over {kb} KB; open it in an editor",
     "syntax": "{file}, line {line}: {problem}",
     "use_editor": "{file} has its own editor on the Settings page",
+    # SSH and SLURM
+    "no_ssh": "ssh was not found on this computer (install OpenSSH)",
+    "ssh_error": "{host}: {problem}",
+    "remote_config": "{backend}: {problem}",
     # code templates
     "unknown_template": "No template called {name}",
     "not_template": "{file} was not written from this template; pick another path",

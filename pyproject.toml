@@ -28,8 +28,8 @@ Issues = "https://github.com/alperentoker/runboard-ml/issues"
 Security = "https://github.com/alperentoker/runboard-ml/security/policy"
 
 [project.optional-dependencies]
-kaggle = ["kaggle>=2.2"]
-dev = ["pytest", "httpx", "kaggle>=2.2"]
+kaggle = ["kaggle>=2.2", "six"]  # newer Kaggle clients import six without depending on it
+dev = ["pytest", "httpx", "kaggle>=2.2", "six"]
 
 [project.scripts]
 runboard = "runboard.cli:main"

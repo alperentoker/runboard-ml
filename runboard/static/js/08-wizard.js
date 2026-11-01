@@ -3,7 +3,7 @@
 const W = {step: 1, path: "", fs: null, scan: null, kind: "yolo", name: "", description: "", color: "#2c6b5a",
            yolo: {data: "", models: ["yolo11n.pt", "yolo11s.pt"], epochs: 50, imgsz: 640, batch: 16, seeds: "0", exclude_test: true},
            script: {file: "", runs: [{id: "run1", args: ""}], files: [], pip: "", data_dir: "", report: "", metric: "score"},
-           research: null, rmeta: null,
+           research: null, rmeta: null, remote: {host: "", workdir: "~/runboard/{project}", python: "python3", partition: "", gres: "gpu:1", time: "12:00:00"},
            backends: ["local"], default_backend: "local", conn: null, preview: null, error: null};
 const MODELS = {yolo11: "YOLO11", yolo26: "YOLO26", yolov8: "YOLOv8"};
 const DESIGN_TYPES = ["transfer", "curve", "architecture", "ablation"];
@@ -23,7 +23,7 @@ function wSpec() {
   return {path: W.path, name: W.name, description: W.description, color: W.color, kind: W.kind, backends: W.backends,
           default_backend: W.default_backend,
           yolo: {...W.yolo, seeds: String(W.yolo.seeds).split(/[,\s]+/).filter(Boolean).map(Number)},
-          script: {...W.script, pip: W.script.pip.split(/[,\s]+/).filter(Boolean)}, research: r};
+          script: {...W.script, pip: W.script.pip.split(/[,\s]+/).filter(Boolean)}, research: r, remote: W.remote};
 }
 // research inputs carry their place in W.research (data-r="designs.0.fractions"), so one reader serves every step
 function readR() {
@@ -148,10 +148,19 @@ async function renderWizard() {
       <div class="choices three">
         <label class="choice ${W.backends.includes("local") ? "on" : ""}"><input type="checkbox" class="wb" value="local" ${W.backends.includes("local") ? "checked" : ""}><b>${t("local_gpu")}</b><span>${l.gpu ? esc(l.gpu) + ` · ${l.total_gb} GB` : t("w_no_gpu")}</span><span>${t("w_local_desc")}</span></label>
         <label class="choice ${W.backends.includes("kaggle") ? "on" : ""}"><input type="checkbox" class="wb" value="kaggle" ${W.backends.includes("kaggle") ? "checked" : ""}><b>Kaggle</b><span>${t("w_kaggle_desc")}</span>${k?.ok ? chip("COMPLETE", t("connected")) : chip("", t("not_connected"))}</label>
+        <label class="choice ${W.backends.includes("ssh") ? "on" : ""}"><input type="checkbox" class="wb" value="ssh" ${W.backends.includes("ssh") ? "checked" : ""}><b>SSH</b><span>${t("w_ssh_desc")}</span></label>
+        <label class="choice ${W.backends.includes("slurm") ? "on" : ""}"><input type="checkbox" class="wb" value="slurm" ${W.backends.includes("slurm") ? "checked" : ""}><b>SLURM</b><span>${t("w_slurm_desc")}</span></label>
         <div class="choice off"><b>Colab</b><span>${t("w_colab_desc")}</span>${chip("", t("planned"))}</div>
       </div>
+      ${W.backends.some(b => b === "ssh" || b === "slurm") ? `<div class="form" style="margin-top:16px">
+        <label>${t("w_host")}<input data-rm="host" value="${esc(W.remote.host)}" placeholder="gpu-box / user@host" spellcheck="false"></label>
+        <label>${t("w_workdir")}<input data-rm="workdir" value="${esc(W.remote.workdir)}" spellcheck="false"></label>
+        <label>Python<input data-rm="python" value="${esc(W.remote.python)}" spellcheck="false"></label>
+        ${W.backends.includes("slurm") ? `<label>partition<input data-rm="partition" value="${esc(W.remote.partition)}" spellcheck="false"></label>
+          <label>gres<input data-rm="gres" value="${esc(W.remote.gres)}" spellcheck="false"></label><label>time<input data-rm="time" value="${esc(W.remote.time)}" spellcheck="false"></label>` : ""}</div>
+        <p class="desc" style="margin-top:8px">${t("w_remote_desc")}</p>` : ""}
       ${W.backends.includes("kaggle") && !k?.ok ? `<div class="card" style="margin-top:16px"><div class="cb" id="kbox">${kb.html}</div></div>` : ""}
-      ${W.backends.length > 1 ? `<div class="form" style="margin-top:16px;max-width:360px"><label>${t("w_default")}<select id="wdef">${W.backends.map(b => `<option value="${b}" ${b === W.default_backend ? "selected" : ""}>${b === "local" ? t("local_gpu") : "Kaggle"}</option>`).join("")}</select></label></div>` : ""}
+      ${W.backends.length > 1 ? `<div class="form" style="margin-top:16px;max-width:360px"><label>${t("w_default")}<select id="wdef">${W.backends.map(b => `<option value="${b}" ${b === W.default_backend ? "selected" : ""}>${{local: t("local_gpu"), kaggle: "Kaggle", ssh: "SSH", slurm: "SLURM"}[b]}</option>`).join("")}</select></label></div>` : ""}
       ${nav(`<button class="btn primary" id="wnext" ${W.backends.length ? "" : "disabled"}>${t("next")} →</button>`)}`;
     setTimeout(() => { const b = $("#kbox"); if (b) kb.bind(b); });
   } else {
@@ -162,7 +171,7 @@ async function renderWizard() {
       <div class="summary">
         <div><span>${t("w_folder")}</span><b class="mono">${esc(W.path)}</b></div>
         <div><span>${t("w_kind")}</span><b>${t({yolo: "w_yolo", research: "w_research", script: "w_script"}[W.kind])}</b></div>
-        <div><span>${t("w_where")}</span><b>${W.backends.map(b => b === "local" ? t("local_gpu") : "Kaggle").join(" + ")}</b></div>
+        <div><span>${t("w_where")}</span><b>${W.backends.map(b => ({local: t("local_gpu"), kaggle: "Kaggle", ssh: "SSH", slurm: "SLURM"}[b])).join(" + ")}</b></div>
         <div><span>${t("runs")}</span><b>${pv ? pv.nruns : "—"}</b></div>
       </div>
       ${W.kind === "research" ? `<label class="tog"><input type="checkbox" id="wlock" ${W.research.lock ? "checked" : ""}> ${t("w_lock")}</label><p class="desc">${t("w_lock_desc")}</p>` : ""}
@@ -233,6 +242,7 @@ function wireWizard() {
     if (!W.backends.includes(W.default_backend)) W.default_backend = W.backends[0] || "local"; renderWizard();
   });
   on("#wdef", "change", e => W.default_backend = e.target.value);
+  document.querySelectorAll("[data-rm]").forEach(i => i.oninput = () => { W.remote[i.dataset.rm] = i.value; });
   on("#wlock", "change", e => W.research.lock = e.target.checked);
   on("#wback", "click", () => { readStep(); W.step--; W.error = null; renderWizard(); });
   on("#wnext", "click", async () => {

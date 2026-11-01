@@ -23,7 +23,7 @@ The design behind the first stages is in [docs/design-v2.md](docs/design-v2.md).
 | **RB-3** · research wizard ✓ | questions → hypotheses → data pipeline → experiment designs (domain transfer, data-size curve, architecture, ablation, seeds) → protocol → lock | 0.3 |
 | **RB-4** · code in the dashboard ✓ | view and edit the project's code (this computer only), smoke test before a run uses cloud quota | 0.4 |
 | **RB-5** · provenance and paper output ✓ | per-run commit, data and template fingerprints; LaTeX/Markdown tables (figures still to come), methods and deviations sections, a reproducibility checklist, a registered-report page, an archive for Zenodo | 0.4 |
-| **RB-6** · where research computes | SSH and SLURM backends; full Linux and macOS support | 0.5 |
+| **RB-6** · where research computes ✓ | SSH and SLURM backends; full Linux and macOS support | 0.5 |
 | **RB-7** · AI help (optional) | a script from a description, written only after the diff is approved, saved with its prompt | later |
 | **RB-8** · visibility | PyPI, documentation site, a five-minute CPU demo, `CITATION.cff` and a DOI, a case study, a workshop paper, then JOSS | 0.2 → 1.0 |
 

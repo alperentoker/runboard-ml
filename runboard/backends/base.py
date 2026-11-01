@@ -14,6 +14,10 @@ class Backend:
     has_data = False      # can upload training data packages
     has_quota = False
 
+    def slot(self, project) -> str | None:
+        """What a run occupies while active: one run per slot (None: no limit, the backend queues its own)."""
+        return self.name
+
     def available(self) -> tuple[bool, str | None]:
         """(usable, reason if not)."""
         return True, None

@@ -334,6 +334,7 @@ pre.raw { font: 12px/1.55 var(--mono); background: var(--bg); border: 1px solid 
 .stp.done span { background: var(--accent-soft); color: var(--accent); }
 .choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .choices.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.choices.three:has(> :nth-child(4)) { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
 .choice { position: relative; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; padding: 16px; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; background: var(--card); color: var(--muted); font-size: 13px; }
 .choice b { color: var(--ink); font-size: 15px; }
 .choice:hover { border-color: var(--muted); }

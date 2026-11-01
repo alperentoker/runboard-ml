@@ -148,7 +148,7 @@ def build_all(spec: dict) -> tuple[dict[str, str], dict | None]:
     name = (spec.get("name") or root.name).strip()
     key = slugify(spec.get("id") or name)
     kind = spec.get("kind", "yolo")
-    backends = [b for b in spec.get("backends", ["local"]) if b in ("local", "kaggle")] or ["local"]
+    backends = [b for b in spec.get("backends", ["local"]) if b in ("local", "kaggle", "ssh", "slurm")] or ["local"]
     m: dict = {"name": name, "id": key}
     if spec.get("description"):
         m["description"] = spec["description"]
@@ -230,6 +230,26 @@ def build_all(spec: dict) -> tuple[dict[str, str], dict | None]:
         if s.get("report"):
             m["results"] = {"report": s["report"], "metrics": {"primary": s.get("metric", "score")},
                             "labels": {"primary": s.get("metric", "score")}}
+    r = spec.get("remote") or {}
+    for name in ("ssh", "slurm"):  # a machine over SSH, a SLURM cluster's login node (backends/remote.py)
+        if name not in backends:
+            continue
+        if not str(r.get("host") or "").strip():
+            raise Invalid("remote_config", backend=name, problem="give the host: an alias from ~/.ssh/config or user@host")
+        if kind in ("yolo", "research"):
+            cmd, out, setup = '"{python}" -u runboard_train.py --run {id} --out runs/remote', "runs/remote/{name}", \
+                ["pip install -q ultralytics"]
+        else:
+            s = spec.get("script") or {}
+            cmd, out, setup = f'"{{python}}" -u {s.get("file")} {{args}}', f'{s.get("output_dir") or "runs/local"}/{{name}}', \
+                [f"pip install -q {p}" for p in s.get("pip", []) if re.fullmatch(r"[\w.\-\[\],=<>~ ]+", p)]
+        cfg = {"host": str(r["host"]).strip(), "workdir": r.get("workdir") or "~/runboard/{project}",
+               "python": r.get("python") or "python3", **({"setup": setup} if setup else {}), "command": cmd,
+               "output": out, "output_dir": f"runs/{name}"}
+        if name == "slurm":
+            cfg["sbatch"] = {k: r.get(k) or d for k, d in (("partition", None), ("gres", "gpu:1"), ("time", "12:00:00"))
+                             if r.get(k) or d}
+        m["backends"][name] = cfg
     if kind == "research":
         from . import research
         research_meta = research.build(spec, files, m, root, "runboard_train.py", RUNS_FILE)
