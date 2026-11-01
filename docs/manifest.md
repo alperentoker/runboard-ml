@@ -332,6 +332,26 @@ lock, a script the lock covers (written from a template) changes only with a rea
 Before a run is sent to Kaggle, the Python files in `backends.kaggle.files` are compiled; a syntax error stops it
 here instead of after the kernel has started.
 
+## Provenance and the paper
+
+Each run records, when it starts, what it started from (`provenance` in its record, shown on the run page): the git
+commit and whether the folder had uncommitted changes, the runboard version, the SHA-256 of the plan, of the runs
+(as the lock counts them) and of every tracked script and every file sent to Kaggle, and its data package (key, file
+count, size and a fingerprint of the file names and sizes).
+
+`runboard export [folder]`, or *Export for the paper* on the Hypotheses page (this computer), writes `paper/`:
+
+| File | Holds |
+| :--- | :--- |
+| `tables.md`, `tables.tex` | the tables of `runboard.yaml`; groups as mean ± sd (LaTeX needs `booktabs`) |
+| `hypotheses.md`, `hypotheses.tex` | each hypothesis: criterion, margin, 95 % interval, verdict |
+| `methods.md` | a draft: pre-registration, questions and hypotheses, experiments and settings, evaluation and decision rule |
+| `deviations.md` | the deviations section |
+| `checklist.md` | a reproducibility checklist filled from the files: ✓, ✗ or – with the evidence |
+| `report.html` | one self-contained page with all of it, for a reviewer or a supervisor (no scripts) |
+| `provenance.json` | every run's provenance |
+| `archive.zip` | the plan, the lock, deviations, runs, manifest, tracked scripts, decision logs, evaluation files and the above; never data or weights |
+
 ## jobs
 
 ```yaml

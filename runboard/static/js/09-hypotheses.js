@@ -50,13 +50,20 @@ async function renderHypotheses() {
   const qs = d.questions.map(q => `<h3 class="qhead">${esc(q.id)} · ${esc(tx(q.text))}</h3>${(byQ[q.id] || []).map(hypothesisCard).join("") || `<p class="desc">${t("h_none")}</p>`}`).join("");
   const loose = (byQ[""] || []).concat(Object.entries(byQ).filter(([k]) => k && !d.questions.some(q => q.id === k)).flatMap(([, v]) => v));
   const pr = d.protocol;
-  morph($("#content"), `${lockCard(d.status)}
+  const exp = ME?.local ? `<div class="toolbar" style="margin:0 0 12px"><span class="desc" style="margin:0">${t("x_desc")}</span><span class="sp"><button class="btn" id="hexport">${t("x_export")}</button></span></div><div id="hxout" data-keep></div>` : "";
+  morph($("#content"), `${exp}${lockCard(d.status)}
     <p class="desc">${t("h_protocol", {metric: pr.metric, sets: Object.keys(pr.sets).join(", ") || "—", dir: pr.dir})}</p>
     ${qs}${loose.length ? `<h3 class="qhead">${t("h_other")}</h3>${loose.map(hypothesisCard).join("")}` : ""}
     ${!d.hypotheses.length ? `<div class="msg warn">${t("h_empty")}</div>` : ""}
     ${ledgerCard(d.status)}`);
   if ($("#hdev")) $("#hdev").onclick = async () => {
     try { await api(`/api/p/${P.key}/deviation`, {json: {reason: $("#hdevr").value}}); toast(t("saved")); renderHypotheses(); } catch (e) { say(e.message); }
+  };
+  if ($("#hexport")) $("#hexport").onclick = async () => {
+    try {
+      const j = await api(`/api/p/${P.key}/export`, {method: "POST"});
+      $("#hxout").innerHTML = `<div class="msg ok" style="margin-bottom:12px">${t("x_done", {dir: j.dir})} ${j.files.map(f => `<a href="/api/p/${P.key}/paper/${f}" ${f.endsWith(".html") ? 'target="_blank" rel="noopener"' : ""}>${esc(f)}</a>`).join(" · ")}</div>`;
+    } catch (e) { say(e.message); }
   };
   if ($("#hlock")) $("#hlock").onclick = async () => {
     if (!await ask(t("h_lock_sure"))) return;

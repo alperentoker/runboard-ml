@@ -192,6 +192,11 @@ class Runtime:
             check_files(project, ((project.m.get("backends") or {}).get("kaggle") or {}).get("files", {}).values())
         if resume:  # carry on from the stopped attempt's last checkpoint (backends.<name>.resume in runboard.yaml)
             info = {**info, **b.resume_info(project, run_id, project.state.get(run_id), info)}
+        try:  # what the run starts from; never a reason not to start it
+            from .prereg import provenance
+            prov = provenance(project, run_id, backend)
+        except Exception as e:  # noqa: BLE001
+            prov = {"error": str(e)[:200]}
         # The run is recorded as STARTING before anything is launched, under a lock, so a second click (or a
         # second tab) sees the backend as busy; a failed launch restores the previous record.
         with self.start_lock:
@@ -204,6 +209,7 @@ class Runtime:
             project.state.set(run_id, {"backend": backend, "status": "STARTING", "collected": False,
                                        "pushed_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
                                        "spec": previous.get("spec") if resume else project.spec(run_id),
+                                       "provenance": prov,
                                        **({"resumed_from": info["resume"], "attempt": previous.get("attempt", 1) + 1}
                                           if resume else {})})
         try:

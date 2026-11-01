@@ -527,6 +527,29 @@ def api_template_write(key: str, name: str, request: Request, body: dict = Body(
                                               bool(body.get("dry")), who(request), str(body.get("reason") or "")))
 
 
+@app.post("/api/p/{key}/export", dependencies=LOCAL)
+def api_export(key: str):
+    """Writes the paper files into the project (paper/): tables, hypotheses, methods, deviations, checklist, report."""
+    from .export import export
+    p = proj(key)
+    return plan_call(lambda: export(p))
+
+
+@app.get("/api/p/{key}/paper/{name}")
+def api_paper(key: str, name: str):
+    """A file export wrote: the report page opens in the browser, the rest download."""
+    from .export import OUT
+    p = proj(key)
+    f = p.root / OUT / name
+    if not re.fullmatch(r"[a-z]+\.(html|md|tex|json|zip)", name) or not f.is_file():
+        raise HTTPException(404)
+    kind = {"html": "text/html", "md": "text/markdown", "tex": "text/x-tex", "json": "application/json",
+            "zip": "application/zip"}[name.rsplit(".", 1)[1]]
+    headers = {**NO_CACHE, "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'"} if name.endswith(".html") \
+        else {**NO_CACHE, "Content-Disposition": f'attachment; filename="{p.key}-{name}"'}
+    return FileResponse(f, media_type=kind, headers=headers)
+
+
 @app.post("/api/p/{key}/lock", dependencies=LOCAL)
 def api_lock(key: str, request: Request):
     from . import prereg

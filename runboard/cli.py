@@ -39,6 +39,8 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("migrate", help="move decisions and the lock into plan.yaml (manifest v2)").add_argument(
         "path", type=Path, nargs="?", default=Path("."))
     sub.add_parser("lock", help="lock the plan (plan.lock.json)").add_argument("path", type=Path, nargs="?", default=Path("."))
+    sub.add_parser("export", help="paper files into paper/: tables, methods, deviations, checklist, report, archive").add_argument(
+        "path", type=Path, nargs="?", default=Path("."))
     sub.add_parser("verdicts", help="the hypotheses' verdicts").add_argument("path", type=Path, nargs="?",
                                                                           default=Path("."))
     tp = sub.add_parser("template", help="write a script from a template (split, check, subsets, evaluate)")
@@ -121,6 +123,12 @@ def main(argv: list[str] | None = None) -> int:
             print(e)
             return 1
         print(f"wrote {out['path']}" if out["diff"] else f"{out['path']} is up to date")
+        return 0
+    if args.cmd == "export":
+        from .export import export
+
+        out = export(p)
+        print(f"wrote {out['dir']}/: {', '.join(out['files'])} ({out['archived']} files in the archive)")
         return 0
     if args.cmd in ("lock", "verdicts"):
         from . import prereg

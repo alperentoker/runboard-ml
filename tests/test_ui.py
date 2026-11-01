@@ -454,3 +454,13 @@ def test_code_page_highlights_checks_and_saves_after_the_diff(page):
     page.until("document.querySelector('#cstate') && document.querySelector('#cstate').textContent === ''", 5)
     assert (root / "scripts" / "hello.py").read_text() == 'def hello():\n    return "hello"\n'
     assert page.js("__errors") == []
+
+
+
+def test_paper_export_from_the_hypotheses_page(page):
+    root = Path(home.config()["projects"][0])
+    go(page, "#/p/demo/hypotheses", "document.querySelector('#hexport')")
+    page.js("document.querySelector('#hexport').click()")
+    page.until("document.querySelector('#hxout a[href$=\"report.html\"]')")
+    assert (root / "paper" / "report.html").is_file() and (root / "paper" / "archive.zip").is_file()
+    assert page.js("__errors") == []

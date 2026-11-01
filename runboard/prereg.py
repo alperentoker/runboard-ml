@@ -61,6 +61,47 @@ def git_info(root: Path) -> dict | None:
     return {"commit": head.stdout.strip(), "dirty": bool(dirty)}
 
 
+def data_fingerprint(project, run_id: str) -> dict | None:
+    """The data package a run reads: its key and a fingerprint of its file names and sizes (cheap, and it changes
+    when files are added, removed or rewritten with another size). Contents are not read: packages can be large."""
+    data = project.m.get("data") or {}
+    field = data.get("field")
+    key = project.spec(run_id).get(field) if field else None
+    if not key:
+        return None
+    for row in project.catalog():
+        if row["_key"] != key:
+            continue
+        if row.get("_dir") and Path(row["_dir"]).is_dir():
+            h, n, size = hashlib.sha256(), 0, 0
+            base = Path(row["_dir"])
+            for f in sorted(base.rglob("*")):
+                if f.is_file():
+                    st = f.stat()
+                    h.update(f"{f.relative_to(base).as_posix()}\t{st.st_size}\n".encode())
+                    n, size = n + 1, size + st.st_size
+            return {"key": key, "files": n, "bytes": size, "listing_sha256": h.hexdigest()}
+        z = Path(row.get("_zip") or "")
+        if z.is_file():
+            return {"key": key, "zip": z.name, "bytes": z.stat().st_size}
+        return {"key": key}
+    return {"key": key}
+
+
+def provenance(project, run_id: str, backend: str) -> dict:
+    """What a run started from: the commit (and whether the folder had uncommitted changes), the fingerprints of
+    the plan, the runs, the tracked scripts and the files sent with it, and its data package."""
+    cfg = (project.m.get("backends") or {}).get(backend) or {}
+    sent = [str(s) for s in (cfg.get("files") or {}).values()] if isinstance(cfg.get("files"), dict) else []
+    from . import __version__
+    out = {"time": datetime.now().astimezone().isoformat(timespec="seconds"), "runboard": __version__,
+           "git": git_info(project.root), "runs_sha256": runs_hash(project), "code": code_hashes(project),
+           "files": {s: text_hash(project.root / s) for s in sent}, "data": data_fingerprint(project, run_id)}
+    if project.v2:
+        out |= {"plan_sha256": text_hash(project.plan_file), "locked": project.locked}
+    return out
+
+
 def lock_file(project) -> Path:
     return project.plan_file.parent / LOCK
 

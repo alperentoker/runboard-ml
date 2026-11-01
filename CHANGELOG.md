@@ -35,7 +35,14 @@ Pre-registered experiments: the groundwork (RB-0) and the core (RB-1); see [ROAD
   their own editors.
 - The Python files of a Kaggle run are compiled before it is sent, so a typo does not cost quota.
 - Smoke test for wizard projects: `runboard_train.py --smoke` trains one short epoch on 2 % of the data and keeps
-  nothing; it is a per-run job (*Smoke test*). Written from the Settings page or `runboard template`, listed in `runboard.yaml` with a job,
+  nothing; it is a per-run job (*Smoke test*).
+- Provenance (RB-5): every run records what it started from: the commit and whether the folder had uncommitted
+  changes, the fingerprints of the plan, the runs, the tracked scripts and the files sent with it, and a fingerprint
+  of its data package. The run page shows it.
+- Paper output: `runboard export` (or *Export for the paper* on the Hypotheses page) writes paper/ with Markdown and
+  LaTeX (booktabs) tables, the hypotheses with margins, intervals and verdicts, a methods draft, the deviations
+  section, a reproducibility checklist filled from the files, a self-contained registered-report page, the runs'
+  provenance and an archive (plan, lock, deviations, runs, scripts, evaluation files; no data, no weights) for Zenodo. Written from the Settings page or `runboard template`, listed in `runboard.yaml` with a job,
   rewritten only while unchanged; under a lock a rewrite is a deviation and a hand edit shows until it is recorded.
 - Manifest version 2: questions, hypotheses, the evaluation protocol, seed groups, decisions and the lock live in
   `plan.yaml`, apart from how runs are started (`runboard.yaml`). Version 1 projects keep working unchanged.
