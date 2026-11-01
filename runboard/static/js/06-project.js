@@ -80,8 +80,10 @@ async function renderResults() {
   // the column after the run: results.column in runboard.yaml, else the second field of the plan
   const col = d.column || Object.keys(Object.values(R)[0]?.fields || {})[1] || "";
   const head = `<tr><th>${t("run")}</th><th>${en(col)}</th><th class="n">${esc(lab)}</th>${lab2 ? `<th class="n">${esc(lab2)}</th>` : ""}${d.classes.map(c => `<th class="n">${en(c)}</th>`).join("")}<th class="n">${t("best_epoch")}</th><th class="n">${t("duration")}</th></tr>`;
-  const row = id => { const r = R[id]; if (!r) return ""; const f2 = r.fields?.[col];
-    return `<tr class="click" tabindex="0" role="link" data-go="${runPage(id)}"><td><b>${esc(id)}</b></td><td>${f2 == null ? `<span class="muted">${t("pending")}</span>` : esc(short(f2))}</td><td class="n"><b>${fmt(v(id))}</b></td>${lab2 ? `<td class="n">${fmt(v(id, "secondary"))}</td>` : ""}${d.classes.map(c => `<td class="n">${fmt(r.classes?.[c])}</td>`).join("")}<td class="n">${v(id, "best_epoch") != null ? `${v(id, "best_epoch")}/${v(id, "epochs") ?? "?"}` : "—"}</td><td class="n">${dur(v(id, "hours"))}</td></tr>`; };
+  // the main score carries a bar sized against the highest score of its table, so the order reads at a glance
+  const row = (id, top) => { const r = R[id]; if (!r) return ""; const f2 = r.fields?.[col], x = v(id), bar = top > 0 && x != null && x >= 0;
+    return `<tr class="click" tabindex="0" role="link" data-go="${runPage(id)}"><td><b>${esc(id)}</b></td><td>${f2 == null ? `<span class="muted">${t("pending")}</span>` : esc(short(f2))}</td><td class="n">${bar ? `<span class="dbar" aria-hidden="true"><i style="width:${(x / top * 100).toFixed(1)}%"></i></span>` : ""}<b>${fmt(x)}</b></td>${lab2 ? `<td class="n">${fmt(v(id, "secondary"))}</td>` : ""}${d.classes.map(c => `<td class="n">${fmt(r.classes?.[c])}</td>`).join("")}<td class="n">${v(id, "best_epoch") != null ? `${v(id, "best_epoch")}/${v(id, "epochs") ?? "?"}` : "—"}</td><td class="n">${dur(v(id, "hours"))}</td></tr>`; };
+  const rows = ids => { const xs = ids.map(i => v(i)).filter(x => x != null); const top = xs.length && Math.min(...xs) >= 0 ? Math.max(...xs) : 0; return ids.map(i => row(i, top)).join(""); };
   const stat = ids => { const xs = ids.map(i => v(i)).filter(x => x != null); if (!xs.length) return "—";
     const m = xs.reduce((a, b) => a + b) / xs.length, s = xs.length > 1 ? Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / (xs.length - 1)) : null;
     return `<b>${m.toFixed(2)}</b>${s != null ? " ± " + s.toFixed(2) : ""} <span class="muted">(n=${xs.length})</span>`; };
@@ -90,11 +92,37 @@ async function renderResults() {
   morph($("#content"), `<div class="msg warn">${esc(tx(d.note) || t("results_note"))}</div>` + tables.map(tb => {
     if (tb.groups) return `<div class="card"><div class="ch"><h2>${esc(tx(tb.title))}</h2>${tb.subtitle ? `<span class="muted" style="font-size:12px">${esc(tx(tb.subtitle))}</span>` : ""}</div><div class="cb flush tw"><table>
       <tr><th></th><th>${t("runs")}</th><th class="n">${esc(lab)}</th></tr>${tb.groups.map(g => `<tr><td>${esc(tx(g.label))}</td><td>${esc(g.runs.join(", "))}</td><td class="n">${stat(g.runs)}</td></tr>`).join("")}</table></div>
+      ${groupPlot(tb.groups, v)}
       ${tb.note ? `<div class="cb muted" style="font-size:12px;border-top:1px solid var(--line)">${esc(tx(tb.note))}</div>` : ""}</div>`;
-    const cpts = tb.curve ? Object.entries(tb.curve.x).filter(([i]) => v(i) != null).map(([i, x]) => [x, v(i)]) : [];
-    const curve = !tb.curve ? "" : cpts.length >= 2 ? `<div class="cb" style="border-top:1px solid var(--line)">${chart(`${lab} · ${tx(tb.curve.label) || ""}`, [{name: lab, color: COLORS[0], pts: cpts}], {xlabel: tx(tb.curve.label) || "x"})}</div>`
+    const cpts = tb.curve ? Object.entries(tb.curve.x).filter(([i]) => v(i) != null).map(([i, x]) => [x, v(i)]).sort((a, b) => a[0] - b[0]) : [];
+    const wide = cpts.length >= 3 && cpts[0][0] > 0 && cpts.at(-1)[0] / cpts[0][0] >= 20;  // sizes of data spread over decades read better on a log axis
+    const curve = !tb.curve ? "" : cpts.length >= 2 ? `<div class="cb" style="border-top:1px solid var(--line)">${chart(`${lab} · ${tx(tb.curve.label) || ""}`, [{name: lab, color: COLORS[0], pts: cpts}], {xlabel: tx(tb.curve.label) || "x", dots: true, logx: wide})}</div>`
       : `<div class="cb muted" style="border-top:1px solid var(--line);font-size:12px">${esc(tx(tb.curve.label) || "")} · ${t("curve_wait")}</div>`;
-    return `<div class="card"><div class="ch"><h2>${esc(tx(tb.title))}</h2>${tb.subtitle ? `<span class="muted" style="font-size:12px">${esc(tx(tb.subtitle))}</span>` : ""}</div><div class="cb flush tw"><table>${head}${tb.runs.map(row).join("")}</table></div>${curve}</div>`;
-  }).join("") + (extras.length ? `<div class="card"><div class="ch"><h2>${t("extra")}</h2></div><div class="cb flush tw"><table>${head}${extras.map(row).join("")}</table></div></div>` : ""));
+    return `<div class="card"><div class="ch"><h2>${esc(tx(tb.title))}</h2>${tb.subtitle ? `<span class="muted" style="font-size:12px">${esc(tx(tb.subtitle))}</span>` : ""}</div><div class="cb flush tw"><table>${head}${rows(tb.runs)}</table></div>${curve}</div>`;
+  }).join("") + (extras.length ? `<div class="card"><div class="ch"><h2>${t("extra")}</h2></div><div class="cb flush tw"><table>${head}${rows(extras)}</table></div></div>` : ""));
+}
+// A group's runs (seeds, usually) as rings over their mean, with ± one standard deviation. The axis starts at zero
+// when the values are near it; when they all sit far above it, it starts near them and the mean is a mark, not a bar
+// (a bar that starts anywhere but zero would overstate the differences).
+function groupPlot(groups, v) {
+  const rows = groups.map(g => {
+    const xs = g.runs.map(i => [i, v(i)]).filter(x => x[1] != null), m = xs.length ? xs.reduce((a, x) => a + x[1], 0) / xs.length : null;
+    return {g, xs, m, sd: xs.length > 1 ? Math.sqrt(xs.reduce((a, x) => a + (x[1] - m) ** 2, 0) / (xs.length - 1)) : null};
+  }).filter(r => r.xs.length);
+  if (!rows.length) return "";
+  const vals = rows.flatMap(r => r.xs.map(x => x[1]).concat(r.sd != null ? [r.m - r.sd, r.m + r.sd] : []));
+  const dmin = Math.min(...vals), dmax = Math.max(...vals), fromZero = dmin <= 0 || dmin < dmax * .5;
+  let lo = fromZero ? Math.min(0, dmin) : dmin - (dmax - dmin) * .25, hi = dmax + (dmax - dmin) * .05 || 1;
+  const tk = niceTicks(lo, hi, 6), st = tk.length > 1 ? tk[1] - tk[0] : 1;
+  lo = Math.floor(lo / st + 1e-9) * st; hi = Math.ceil(hi / st - 1e-9) * st;
+  const pos = x => (x - lo) / (hi - lo || 1) * 100, ticks = [];
+  for (let x = lo; x <= hi + st * 1e-6; x += st) ticks.push(+x.toFixed(8));
+  return `<div class="gplot">${rows.map(({g, xs, m, sd}) => `<div class="grow"><span class="gl" title="${esc(tx(g.label))}">${esc(tx(g.label))}</span><div class="gtrack">
+      ${fromZero ? `<span class="gb" style="left:${pos(Math.min(0, m))}%;width:${Math.abs(pos(m) - pos(0))}%"></span>` : `<span class="gm" style="left:${pos(m)}%"></span>`}
+      ${sd != null ? `<span class="ge" style="left:${pos(m - sd)}%;width:${pos(m + sd) - pos(m - sd)}%"></span>` : ""}
+      ${xs.map(([id, x]) => `<span class="gs" style="left:${pos(x)}%" title="${esc(id)}: ${fmt(x)}"></span>`).join("")}</div>
+      <span class="gv">${m.toFixed(2)}${sd != null ? ` ± ${sd.toFixed(2)}` : ""} <span class="muted">n=${xs.length}</span></span></div>`).join("")}
+    <div class="grow"><span></span><div class="faxis">${ticks.map((x, i) => `<span class="${i === 0 ? "l" : i === ticks.length - 1 ? "r" : ""}" style="left:${pos(x)}%">${+x.toFixed(4)}</span>`).join("")}</div><span></span></div>
+    <div class="muted" style="font-size:12px;margin-top:2px">${t("r_mean_sd")} · ${t("r_seeds")}</div></div>`;
 }
 

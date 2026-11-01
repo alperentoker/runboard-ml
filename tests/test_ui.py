@@ -367,6 +367,33 @@ def test_keyboard_reaches_everything_a_mouse_can(page):
     assert page.js("__errors") == []
 
 
+def test_the_theme_is_dark_unless_another_is_picked(page):
+    go(page, "#/", "document.querySelector('[data-theme-set=light]')")
+    assert page.js("document.documentElement.dataset.theme") == "dark"
+    page.js("document.querySelector('[data-theme-set=light]').click()")
+    assert page.js("document.documentElement.dataset.theme") == "light"
+    page.call("Page.reload")
+    page.until("document.querySelector('[data-theme-set=light].on')")
+    assert page.js("getComputedStyle(document.body).backgroundColor") == "rgb(243, 244, 246)"
+    page.js("document.querySelector('[data-theme-set=dark]').click()")
+    assert page.js("document.documentElement.dataset.theme") == "dark"
+    assert page.js("__errors") == []
+
+
+def test_forest_plot_histogram_and_seed_plot_draw(page):
+    go(page, "#/", "typeof forestCard === 'function'")
+    html = page.js("""forestCard([
+        {id: 'H1', verdict: 'supported', parts: [{text: 'a.x > b.x', margin: 1.5, ci: [0.5, 2.5], share: 99, verdict: 'supported'}]},
+        {id: 'H2', verdict: 'refuted', parts: [{text: 'a.y > b.y', margin: -1, ci: [-2, -0.2], share: 1, verdict: 'refuted'}]},
+        {id: 'H3', verdict: 'not_ready', missing: ['R9.x'], parts: []}])""")
+    assert 'data-hgo="H1"' in html and "v-refuted" in html and "R9.x" in html and "+1.50" in html
+    hist = page.js("histCard({text: 'a.x > b.x', margin: 1.5, ci: [0.5, 2.5], verdict: 'supported', hist: {lo: 0.2, hi: 3, n: [1, 4, 2]}})")
+    assert "0 is further left" in hist and hist.count('class="in"') == 2
+    seeds = page.js("groupPlot([{label: 'a', runs: ['x', 'y']}], id => ({x: 80, y: 82})[id])")
+    assert seeds.count('class="gs"') == 2 and "81.00 ± 1.41" in seeds
+    assert page.js("__errors") == []
+
+
 def test_hypotheses_page_shows_verdicts_and_the_lock(page):
     root = Path(home.config()["projects"][0])
     (root / "plan.yaml").write_text(yaml.safe_dump({

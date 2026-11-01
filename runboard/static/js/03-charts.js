@@ -20,7 +20,9 @@ function bestPoint(pts, how) {
 }
 const PW = 640, PL = 44, PR = 12;  // plot box in viewBox units: width, left margin (y labels), right margin
 let clipN = 0;
-function plot(id, series, {h = 180, range = null, smooth = 0, log = false, best = null, xticks = 0, endDot = true} = {}) {
+// logx: x on a log scale (sizes of data); dots: a ring on every point (few points); area: a light fill under a lone
+// series; bestLabel: the best point's value written next to its ring (the small charts show it in their title instead)
+function plot(id, series, {h = 180, range = null, smooth = 0, log = false, best = null, xticks = 0, endDot = true, logx = false, dots = false, area = false, bestLabel = true} = {}) {
   const W = PW, H = h, Lm = PL, R = PR, Tm = 10, B = 24;
   // smoothing runs over the whole series, so zooming never changes a value; a zoomed view keeps one point past each
   // edge so the lines run to the border (clipped there) and the axis is exactly the chosen range: moving is smooth
@@ -44,26 +46,32 @@ function plot(id, series, {h = 180, range = null, smooth = 0, log = false, best 
   const pad = (t1 - t0) * .08 || (log ? .1 : Math.abs(t0) * .05 || 1);
   t0 -= pad; t1 += pad;
   if (!log && t0 < 0 && lo >= 0) t0 = 0;  // a value that cannot be negative gets no negative axis
-  const X = x => Lm + (x - x0) / (x1 - x0) * (W - Lm - R), Y = y => Tm + (1 - (T(y) - t0) / (t1 - t0)) * (H - Tm - B);
-  CHARTS[id].geom = {W, H, Lm, R, Tm, B, x0, x1, t0, t1, log, series: shown};
+  logx = logx && x0 > 0 && !range;
+  const LX = v => logx ? Math.log10(v) : v;
+  const X = x => Lm + (LX(x) - LX(x0)) / (LX(x1) - LX(x0)) * (W - Lm - R), Y = y => Tm + (1 - (T(y) - t0) / (t1 - t0)) * (H - Tm - B);
+  CHARTS[id].geom = {W, H, Lm, R, Tm, B, x0, x1, t0, t1, log, logx, series: shown};
   const clip = range ? `cl${++clipN}` : "";
   const pc = (v, of) => (v / of * 100).toFixed(2) + "%", line = (pts, color, extra = "") => `<polyline points="${pts.map(p => X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1)).join(" ")}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke" ${clip ? `clip-path="url(#${clip})"` : ""} ${extra}/>`;
-  const yticks = [0, .25, .5, .75, 1].map(f => U(t0 + f * (t1 - t0)));
-  const xt = xticks ? niceTicks(x0, x1, xticks).filter(v => v >= x0 && v <= x1) : [x0, x1];
-  const marks = best ? shown.map(s => { const b = bestPoint(s.raw, best); return b ? `<i class="bm" style="left:${pc(X(b[0]), W)};top:${pc(Y(b[1]), H)};border-color:${s.color}"></i><span class="bml" style="left:${pc(X(b[0]), W)};top:${pc(Y(b[1]), H)};color:${s.color}">${fmtv(b[1])} · ${b[0]}</span>` : ""; }).join("") : "";
+  const nice = log ? [] : niceTicks(t0, t1, 4).filter(v => v >= t0 && v <= t1);  // round values, as people read an axis
+  const yticks = nice.length >= 3 ? nice : [0, .25, .5, .75, 1].map(f => U(t0 + f * (t1 - t0)));
+  const allx = [...new Set(xs)].sort((a, b) => a - b);
+  const xt = logx ? allx.filter((_, i) => i % Math.ceil(allx.length / 8) === 0) : xticks ? niceTicks(x0, x1, xticks).filter(v => v >= x0 && v <= x1) : [x0, x1];
+  const marks = best ? shown.map(s => { const b = bestPoint(s.raw, best); return b ? `<i class="bm" style="left:${pc(X(b[0]), W)};top:${pc(Y(b[1]), H)};border-color:${s.color}"></i>${bestLabel ? `<span class="bml" style="left:${pc(X(b[0]), W)};top:${pc(Y(b[1]), H)};color:${s.color}">${fmtv(b[1])} · ${b[0]}</span>` : ""}` : ""; }).join("") : "";
+  const rings = dots && shown.reduce((a, s) => a + s.pts.length, 0) <= 60 ? shown.map(s => s.pts.map(p => `<i class="pd" style="left:${pc(X(p[0]), W)};top:${pc(Y(p[1]), H)};border-color:${s.color}"></i>`).join("")).join("") : "";
+  const fill = area && shown.length === 1 && shown[0].line.length > 1 ? (s => `<polygon points="${s.line.map(p => X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1)).join(" ")} ${X(s.line.at(-1)[0]).toFixed(1)},${H - B} ${X(s.line[0][0]).toFixed(1)},${H - B}" fill="${s.color}" fill-opacity=".09" stroke="none" ${clip ? `clip-path="url(#${clip})"` : ""}/>`)(shown[0]) : "";
   const last = shown[0].pts.at(-1);
   // the plot stretches to the card; labels and markers sit on top as text so they never get squeezed
   return `<div class="cw"><svg class="c" style="height:${h}px" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img">
     ${clip ? `<clipPath id="${clip}"><rect x="${Lm}" y="0" width="${W - Lm - R}" height="${H}"/></clipPath>` : ""}
     ${yticks.map(v => `<line x1="${Lm}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" vector-effect="non-scaling-stroke"/>`).join("")}
-    ${xticks ? xt.map(v => `<line x1="${X(v)}" x2="${X(v)}" y1="${Tm}" y2="${H - B}" stroke="var(--line)" stroke-dasharray="2 4" vector-effect="non-scaling-stroke"/>`).join("") : ""}
-    ${smooth ? shown.map(s => line(s.rawLine, s.color, 'opacity=".22"')).join("") : ""}
+    ${xticks || logx ? xt.map(v => `<line x1="${X(v)}" x2="${X(v)}" y1="${Tm}" y2="${H - B}" stroke="var(--line)" stroke-dasharray="2 4" vector-effect="non-scaling-stroke"/>`).join("") : ""}
+    ${fill}${smooth ? shown.map(s => line(s.rawLine, s.color, 'opacity=".22"')).join("") : ""}
     ${shown.map(s => line(s.line, s.color, s.dash ? 'stroke-dasharray="5 4"' : "")).join("")}</svg>
     ${yticks.map(v => `<span class="yl" style="top:${pc(Y(v), H)};width:${pc(Lm - 6, W)}">${fmtv(v)}</span>`).join("")}
     ${xt.map((v, i) => `<span class="xl" style="left:${pc(X(v), W)};transform:translateX(${i === 0 && !xticks ? "0" : i === xt.length - 1 && !xticks ? "-100%" : "-50%"})">${+v.toFixed(2)}</span>`).join("")}
-    ${marks}${endDot && last ? `<i class="dot" style="left:${pc(X(last[0]), W)};top:${pc(Y(last[1]), H)};background:${shown[0].color}"></i>` : ""}</div>`;
+    ${rings}${marks}${endDot && last && !rings ? `<i class="dot" style="left:${pc(X(last[0]), W)};top:${pc(Y(last[1]), H)};background:${shown[0].color}"></i>` : ""}</div>`;
 }
-function chart(title, series, {h = 180, empty = true, xlabel = null, better: how} = {}) {
+function chart(title, series, {h = 180, empty = true, xlabel = null, better: how, logx = false, dots = false} = {}) {
   const id = title;
   series = series.filter(s => s.pts.length);
   const prev = CHARTS[id];
@@ -71,10 +79,12 @@ function chart(title, series, {h = 180, empty = true, xlabel = null, better: how
   if (BIG?.key === id && !BIG.dragging && series.reduce((a, x) => a + x.pts.length, 0) !== BIG.n) setTimeout(drawBig);  // live run: the large view follows
   if (!series.length) return empty ? `<div class="chart"><div class="t"><b>${esc(title)}</b></div><div class="empty" style="padding:50px 0">${t("no_data")}</div></div>` : "";
   const off = HIDDEN[id] || new Set(), vis = series.filter(x => !off.has(x.name));
+  const bw = CHARTS[id].better, bp = bw && vis.length ? bestPoint(vis[0].pts, bw) : null;  // the best of the first series, in the title
   return `<div class="chart" data-chart="${esc(id)}"><div class="t"><b class="ct" data-open="${esc(id)}" tabindex="0" role="button">${esc(title)}</b>
-    ${series.map(x => `<span class="lg ${off.has(x.name) ? "off" : ""}" data-lg="${esc(x.name)}" tabindex="0" role="switch" aria-checked="${!off.has(x.name)}" title="${esc(t("chart_toggle"))}"><i style="background:${x.color}"></i>${esc(x.name)}</span>`).join("")}
+    ${series.map(x => `<span class="lg ${off.has(x.name) ? "off" : ""}" data-lg="${esc(x.name)}" tabindex="0" role="switch" aria-checked="${!off.has(x.name)}" title="${esc(t("chart_toggle"))}"><i style="background:${x.color}${x.dash ? ";opacity:.6" : ""}"></i>${esc(x.name)}</span>`).join("")}
+    ${bp && !dots ? `<span class="bst">${t("best_at")} <b>${fmtv(bp[1])}</b> · ${bp[0]}</span>` : ""}
     <button type="button" class="cx" data-open="${esc(id)}" title="${esc(t("chart_open"))}" aria-label="${esc(t("chart_open"))}">⤢</button></div>
-    ${vis.length ? plot(id, vis, {h}) : `<div class="empty" style="padding:${h / 2 - 10}px 0">—</div>`}</div>`;
+    ${vis.length ? plot(id, vis, {h, logx, dots, area: !dots, best: dots ? null : bw, bestLabel: false}) : `<div class="empty" style="padding:${h / 2 - 10}px 0">—</div>`}</div>`;
 }
 function rerenderCharts() {
   if (route.view !== "project") return;
@@ -84,11 +94,11 @@ function rerenderCharts() {
 }
 function chartAt(cw, clientX) {  // the chart under the pointer and the nearest x it has data for
   const c = CHARTS[cw.closest("[data-chart]")?.dataset.chart], g = c?.geom; if (!g) return null;
-  const r = cw.getBoundingClientRect(), fx = (clientX - r.left) / r.width * g.W;
-  const xv = g.x0 + (fx - g.Lm) / (g.W - g.Lm - g.R) * (g.x1 - g.x0);
+  const r = cw.getBoundingClientRect(), fx = (clientX - r.left) / r.width * g.W, lx = v => g.logx ? Math.log10(v) : v;
+  const xv = lx(g.x0) + (fx - g.Lm) / (g.W - g.Lm - g.R) * (lx(g.x1) - lx(g.x0));  // on the axis' own scale
   let at = null;
-  for (const x of g.series) for (const p of x.pts) if (at === null || Math.abs(p[0] - xv) < Math.abs(at - xv)) at = p[0];
-  const sx = x => r.left + ((g.Lm + (x - g.x0) / (g.x1 - g.x0) * (g.W - g.Lm - g.R)) / g.W) * r.width;
+  for (const x of g.series) for (const p of x.pts) if (at === null || Math.abs(lx(p[0]) - xv) < Math.abs(lx(at) - xv)) at = p[0];
+  const sx = x => r.left + ((g.Lm + (lx(x) - lx(g.x0)) / (lx(g.x1) - lx(g.x0)) * (g.W - g.Lm - g.R)) / g.W) * r.width;
   const sy = y => r.top + ((g.Tm + (1 - ((g.log ? Math.log10(y) : y) - g.t0) / (g.t1 - g.t0)) * (g.H - g.Tm - g.B)) / g.H) * r.height;
   return {c, g, r, xv, at, sx, sy};
 }
@@ -373,5 +383,7 @@ function bindOverview(ov) {
   ov.addEventListener("pointercancel", end);
 }
 const pts = (rows, k) => (rows || []).filter(x => x[k] != null).map(x => [x.e, x[k]]);
+// the whole loss of an epoch: its parts (box, cls, dfl, ...) added up, where every part is known
+const lossSum = (rows, keys) => (rows || []).filter(x => keys.every(k => x[k] != null)).map(x => [x.e, keys.reduce((a, k) => a + x[k], 0)]);
 const seriesOf = d => d?.curves?.length ? d.curves : (d?.progress?.history || []);
 

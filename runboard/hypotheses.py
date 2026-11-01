@@ -345,7 +345,8 @@ def decide(criterion: str, ev: Evidence, groups: dict) -> dict:
             round(100 * sum(1 for x in margin.reps if not math.isnan(x) and x > 0) / len(margin.reps), 1)
         parts.append({"text": ast.get_source_segment(src, cmp), "op": op,
                       "left": _r(left.point), "right": _r(right.point), "margin": _r(margin.point),
-                      "ci": [_r(x) for x in ci] if ci else None, "share": share, "verdict": verdict_of(margin)})
+                      "ci": [_r(x) for x in ci] if ci else None, "share": share, "verdict": verdict_of(margin),
+                      "hist": _hist(margin.reps)})
     missing = sorted(set(ev.missing))
     if missing:
         verdict = "not_ready"
@@ -363,6 +364,19 @@ def decide(criterion: str, ev: Evidence, groups: dict) -> dict:
 
 def _r(x: float | None, d: int = 3):
     return None if x is None or math.isnan(x) else round(x, d)
+
+
+def _hist(reps: list[float] | None, bins: int = 30) -> dict | None:
+    """The margin over the replicates as counts in equal bins from the lowest to the highest: what the page draws."""
+    xs = [x for x in reps or [] if not math.isnan(x)]
+    if len(xs) < 2:
+        return None
+    lo, hi = min(xs), max(xs)
+    width = (hi - lo) / bins or 1.0
+    n = [0] * bins
+    for x in xs:
+        n[min(bins - 1, int((x - lo) / width))] += 1
+    return {"lo": _r(lo, 4), "hi": _r(lo + width * bins, 4), "n": n}
 
 
 def _sd(xs: list[float]) -> float:

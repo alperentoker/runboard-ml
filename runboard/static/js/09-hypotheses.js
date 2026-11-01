@@ -1,12 +1,55 @@
 /* ================= project: hypotheses (plan.yaml, docs/design-v2.md) ================= */
 // Questions and their hypotheses, each with the verdict runboard computes from the evaluation files: the margin of
 // every comparison on the whole set and its 95 % interval over the shared bootstrap replicates.
-const VERDICT_CHIP = {supported: "COMPLETE", refuted: "ERROR", invalid: "ERROR", not_ready: "QUEUED", indistinguishable: "", no_criterion: ""};
-const verdictChip = v => chip(VERDICT_CHIP[v] ?? "", t("v_" + v));
+// Each verdict has its own colour and its own mark, so the two never depend on colour alone.
+const VERDICT_MARK = {supported: "✓", refuted: "✕", indistinguishable: "≈", not_ready: "◷", invalid: "!", no_criterion: "–"};
+const verdictChip = v => `<span class="vchip ${esc(v)}"><b aria-hidden="true">${VERDICT_MARK[v] || ""}</b>${t("v_" + v)}</span>`;
 const num = v => v == null ? "—" : (+v).toFixed(2);
+const sgn = v => v == null ? "—" : (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(2);
+const extent = p => Math.max(Math.abs(p.margin ?? 0), ...(p.ci || []).map(Math.abs)) || 0;
+function niceExtent(e) { const tk = niceTicks(0, e || 1, 2), st = tk[1] - tk[0] || 1; return {e: Math.ceil((e || 1) / st - 1e-9) * st, st}; }
+// The margin on an axis centred on zero: right of zero favours the hypothesis.
+const fpos = (v, e) => 50 + v / e * 45;
+function forestBar(p, e) {
+  if (!p) return `<div class="fp"><span class="z" style="left:50%"></span></div>`;
+  const [a, b] = p.ci || [p.margin, p.margin];
+  return `<div class="fp v-${esc(p.verdict)}"><span class="z" style="left:50%"></span>${p.ci ? `<span class="ci" style="left:${fpos(a, e)}%;width:${fpos(b, e) - fpos(a, e)}%"></span>` : ""}<span class="pt" style="left:${fpos(p.margin, e)}%"></span></div>`;
+}
+function forestCard(hs) {
+  const rows = hs.flatMap(h => (h.parts || []).length ? h.parts.map((p, i) => ({h, p, first: i === 0})) : [{h, p: null, first: true}]);
+  if (!rows.some(r => r.p)) return "";
+  const ex = rows.filter(r => r.p).map(r => extent(r.p)).filter(x => x > 0);
+  const own = ex.length > 1 && Math.max(...ex) / Math.min(...ex) > 25;  // one axis would squash the small ones to dots
+  const {e: E, st} = niceExtent(Math.max(...ex, 0) * 1.05);
+  let ticks = []; for (let v = -E; v <= E + st * 1e-6; v += st) ticks.push(+v.toFixed(8));
+  if (ticks.length > 7) ticks = ticks.filter(v => Math.round(v / st) % 2 === 0);
+  const row = ({h, p, first}) => {
+    const e = own ? niceExtent(extent(p || {}) * 1.05).e : E;
+    return `<div class="frow" tabindex="0" role="link" data-hgo="${esc(h.id)}"><span class="fid">${first ? esc(h.id) : ""}</span>
+      <span class="ftx" title="${esc(p?.text || h.criterion || "")}">${esc(p?.text || h.criterion || "—")}</span><span>${verdictChip(p?.verdict || h.verdict)}</span>
+      ${p ? forestBar(p, e) : `<div class="fp"><span class="wait">${h.missing?.length ? `${t("h_waiting")} ${h.missing.map(esc).join(", ")}` : ""}</span></div>`}
+      <span class="fnum">${p ? `${sgn(p.margin)} <span>${p.ci ? `[${sgn(p.ci[0])}, ${sgn(p.ci[1])}]` : ""}</span>` : ""}</span>
+      <span class="fnum">${p?.share == null ? "" : `<span>${p.share}%</span>`}</span></div>`;
+  };
+  return `<div class="card"><div class="ch"><h2>${t("h_glance")}</h2><span class="muted" style="font-size:12px">${t("h_glance_desc")}</span></div>
+    <div class="frow head"><span></span><span>${t("h_comparison")}</span><span></span><span class="faxis" style="height:auto"><span class="l" style="left:0">← ${t("h_against")}</span><span class="r" style="left:100%">${t("h_for")} →</span>&nbsp;</span><span style="text-align:right">${t("h_margin")} [95 %]</span><span style="text-align:right">&gt; 0</span></div>
+    ${rows.map(row).join("")}
+    <div class="frow head" style="padding-top:2px;padding-bottom:10px"><span></span><span></span><span></span>${own ? `<span class="muted" style="text-transform:none;letter-spacing:0;font-weight:500">${t("h_own_scale")}</span>`
+      : `<div class="faxis">${ticks.map(v => `<span style="left:${fpos(v, E)}%">${v > 0 ? "+" : v < 0 ? "−" : ""}${+Math.abs(v).toFixed(4)}</span>`).join("")}</div>`}<span></span><span></span></div></div>`;
+}
+function histCard(p) {
+  const hs = p.hist; if (!hs) return "";
+  const n = hs.n, top = Math.max(...n) || 1, w = (hs.hi - hs.lo) / n.length || 1, reps = n.reduce((a, b) => a + b, 0);
+  const [a, b] = p.ci || [-Infinity, Infinity], zero = (0 - hs.lo) / (hs.hi - hs.lo) * 100;
+  const z = zero >= 0 && zero <= 100 ? `<span class="z" style="left:${zero}%"><span>0</span></span>`
+    : zero < 0 ? `<span class="off l">← ${t("h_zero_left")}</span>` : `<span class="off r">${t("h_zero_right")} →</span>`;
+  return `<div class="hist v-${esc(p.verdict)}"><div class="t"><b title="${esc(p.text)}">${esc(p.text)}</b><span>${reps} ${t("h_reps")}</span></div>
+    <div class="hbars" role="img" aria-label="${esc(t("h_dist"))}: ${esc(p.text)}">${n.map((k, i) => { const c = hs.lo + (i + .5) * w; return `<i class="${c >= a && c <= b ? "in" : ""}" style="height:${k / top * 100}%" title="${num(hs.lo + i * w)} … ${num(hs.lo + (i + 1) * w)}: ${k}"></i>`; }).join("")}${z}</div>
+    <div class="hx"><span>${sgn(hs.lo)}</span><span>${p.ci ? `${t("h_inside")}: ${sgn(a)} … ${sgn(b)}` : ""}</span><span>${sgn(hs.hi)}</span></div></div>`;
+}
 function hypothesisCard(h) {
   const parts = (h.parts || []).map(p => `<tr><td class="mono">${esc(p.text)}</td><td class="n">${num(p.left)}</td><td class="n">${num(p.right)}</td>
-    <td class="n"><b>${p.margin > 0 ? "+" : ""}${num(p.margin)}</b></td><td class="n">${p.ci ? `[${num(p.ci[0])}, ${num(p.ci[1])}]` : "—"}</td>
+    <td class="n"><b>${sgn(p.margin)}</b></td><td class="n">${p.ci ? `[${sgn(p.ci[0])}, ${sgn(p.ci[1])}]` : "—"}</td>
     <td class="n">${p.share == null ? "—" : p.share + " %"}</td><td>${verdictChip(p.verdict)}</td></tr>`).join("");
   const groups = !(h.parts || []).length ? "" : Object.entries(h.groups || {}).map(([k, g]) => `<div class="desc">${esc(k)}: ${g.runs.map((r, i) => `${esc(r)} ${num(g.points[i])}`).join(" · ")} · ${t("h_seed_sd")} ${num(g.sd)}</div>`).join("");
   const fns = Object.values(h.functions || {}).map(f => `<div class="desc mono">${esc(f)}</div>`).join("");
@@ -16,6 +59,7 @@ function hypothesisCard(h) {
     ${h.error ? `<div class="msg bad">${esc(errText(h.error))}</div>` : ""}
     ${h.missing?.length ? `<div class="msg warn">${t("h_waiting")} ${h.missing.map(esc).join(", ")}</div>` : ""}
     ${parts ? `<div class="card tw"><table><tr><th>${t("h_comparison")}</th><th class="n">${t("h_left")}</th><th class="n">${t("h_right")}</th><th class="n">${t("h_margin")}</th><th class="n">${t("h_ci")}</th><th class="n">${t("h_share")}</th><th></th></tr>${parts}</table></div>` : ""}
+    ${(h.parts || []).some(p => p.hist) ? `<div class="hists">${h.parts.map(histCard).join("")}</div>` : ""}
     ${groups}${fns}</div></div>`;
 }
 function lockCard(s) {
@@ -51,11 +95,13 @@ async function renderHypotheses() {
   const loose = (byQ[""] || []).concat(Object.entries(byQ).filter(([k]) => k && !d.questions.some(q => q.id === k)).flatMap(([, v]) => v));
   const pr = d.protocol;
   const exp = ME?.local ? `<div class="toolbar" style="margin:0 0 12px"><span class="desc" style="margin:0">${t("x_desc")}</span><span class="sp"><button class="btn" id="hexport">${t("x_export")}</button></span></div><div id="hxout" data-keep></div>` : "";
-  morph($("#content"), `${exp}${lockCard(d.status)}
+  const order = d.questions.flatMap(q => byQ[q.id] || []).concat(loose);
+  morph($("#content"), `${exp}${forestCard(order)}${lockCard(d.status)}
     <p class="desc">${t("h_protocol", {metric: pr.metric, sets: Object.keys(pr.sets).join(", ") || "—", dir: pr.dir})}</p>
     ${qs}${loose.length ? `<h3 class="qhead">${t("h_other")}</h3>${loose.map(hypothesisCard).join("")}` : ""}
     ${!d.hypotheses.length ? `<div class="msg warn">${t("h_empty")}</div>` : ""}
     ${ledgerCard(d.status)}`);
+  document.querySelectorAll("[data-hgo]").forEach(r => r.onclick = () => document.querySelector(`.card[data-h="${CSS.escape(r.dataset.hgo)}"]`)?.scrollIntoView({behavior: "smooth", block: "start"}));
   if ($("#hdev")) $("#hdev").onclick = async () => {
     try { await api(`/api/p/${P.key}/deviation`, {json: {reason: $("#hdevr").value}}); toast(t("saved")); renderHypotheses(); } catch (e) { say(e.message); }
   };

@@ -78,6 +78,14 @@ def test_ground2air_s1_verdicts_match_its_own_analysis(g2a):
     assert v["open"]["verdict"] == "no_criterion"
 
 
+def test_each_comparison_carries_the_histogram_of_its_replicates(g2a):
+    ground = verdicts(g2a)["pair"]["parts"][0]
+    h = ground["hist"]
+    assert len(h["n"]) == 30 and sum(h["n"]) > 100
+    assert h["lo"] <= ground["ci"][0] < ground["ci"][1] <= h["hi"]
+    assert verdicts(g2a)["open"].get("parts") is None  # no criterion, nothing to draw
+
+
 def test_one_runs_interval_is_its_bootstrap_interval(g2a):
     from runboard.hypotheses import Evidence, decide
     ev = Evidence(g2a, {"sets": ["ground", "aerial"]})

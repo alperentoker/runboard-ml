@@ -152,17 +152,18 @@ function parseRoute() {
 function go(h) { if (location.hash === h) render(); else location.hash = h; }
 // The keyboard: Enter or Space on a focused link, chart title or legend item does what a click does.
 document.addEventListener("keydown", e => {
-  if ((e.key === "Enter" || e.key === " ") && e.target.matches?.('[tabindex="0"][data-go], [tabindex="0"][data-open], .chart .lg')) {
+  if ((e.key === "Enter" || e.key === " ") && e.target.matches?.('[tabindex="0"][data-go], [tabindex="0"][data-open], [tabindex="0"][data-hgo], .chart .lg')) {
     e.preventDefault(); e.target.click();
   }
 });
-// Links of the page: data-go (a dashboard route), data-lang, data-href. No inline handlers, so the content security
-// policy can refuse every script that is not the page's own.
+// Links of the page: data-go (a dashboard route), data-lang, data-theme-set, data-href. No inline handlers, so the
+// content security policy can refuse every script that is not the page's own.
 document.addEventListener("click", e => {
-  const el = e.target.closest?.("[data-go], [data-lang], [data-href]");
+  const el = e.target.closest?.("[data-go], [data-lang], [data-href], [data-theme-set]");
   if (!el || e.defaultPrevented) return;
   if (el.dataset.go != null) go(el.dataset.go);
   else if (el.dataset.lang) setLang(el.dataset.lang);
+  else if (el.dataset.themeSet) { store("rb-theme", el.dataset.themeSet); document.documentElement.dataset.theme = el.dataset.themeSet; renderChrome(); }
   else if (el.dataset.href) location.href = el.dataset.href;
 });
 window.addEventListener("hashchange", () => { route = parseRoute(); detail = null; render(); window.scrollTo(0, 0); });

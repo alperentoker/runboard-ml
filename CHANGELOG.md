@@ -2,6 +2,26 @@
 
 All notable changes to runboard. Versions follow [semantic versioning](https://semver.org/).
 
+## Unreleased
+
+### Added
+- *Verdicts at a glance* on the Hypotheses page: a forest plot of every comparison, its margin and 95 % interval on
+  one axis centred on zero (each row on its own scale when the margins differ too much), coloured and marked by
+  verdict; a row opens its hypothesis.
+- The bootstrap distribution of every comparison under its table, with its 95 % interval and where zero lies. The
+  verdicts carry it as `hist` (30 bins over the replicates).
+- Results: a group of runs (seeds) is drawn as rings over its mean with ± one standard deviation; the main score of a
+  run table has a bar against the table's highest; a data-size curve marks every point and goes to a log axis when
+  its sizes spread over decades.
+- Run charts: the best point is ringed and written in the chart's title, a lone series has a light fill under it,
+  and *Loss: train and validation* puts the two totals side by side.
+- A theme switch (dark, light, or the system's own) in the sidebar; dark is the default.
+
+### Changed
+- One colour system: each colour has one job (verdicts, run states, series), verdicts carry a mark as well as a
+  colour, series follow an order colour-blind readers can still tell apart, numbers in tables are monospaced, and
+  chart axes are labelled with round values.
+
 ## 0.2.0 — 2026-11-01
 
 First release on PyPI, as `runboard-ml` (`pip install runboard-ml`; the command is still `runboard`).

@@ -14,6 +14,7 @@ function renderChrome() {
   const q = PS?.backends?.kaggle?.quota;
   morph($("#foot"), `${q ? `<div>Kaggle · ${q.used_h} / ${q.total_h} h<div class="bar"><i style="width:${Math.min(100, q.used_h / q.total_h * 100)}%"></i></div></div>` : ""}
     <div class="lang"><button class="${LANG === "en" ? "on" : ""}" data-lang="en">EN</button><button class="${LANG === "tr" ? "on" : ""}" data-lang="tr">TR</button></div>
+    <div class="lang" role="group" aria-label="${t("theme")}">${["dark", "light", "auto"].map(k => `<button class="${document.documentElement.dataset.theme === k ? "on" : ""}" data-theme-set="${k}">${t("th_" + k)}</button>`).join("")}</div>
     <a href="/mini" target="_blank" rel="noopener">${t("compact")} ↗</a>`);
   const act = PS?.projects.flatMap(p => p.active.map(r => ({...r, pkey: p.key, pname: p.name})))[0];
   $("#live").classList.toggle("hide", !act);
@@ -154,6 +155,7 @@ function renderDetail() {
       ${chart(lab, [{name: d.id, color: COLORS[0], pts: pts(H, "map")}, ...comp.map(s => ({...s, pts: pts(s.rows, "map")}))])}
       ${has("map50") ? chart(lab2 || "map50", [{name: d.id, color: COLORS[0], pts: pts(H, "map50")}, ...comp.map(s => ({...s, pts: pts(s.rows, "map50")}))]) : ""}
       ${has("p") || has("r") ? chart(t("ch_pr"), [{name: t("precision"), color: COLORS[1], pts: pts(H, "p")}, {name: t("recall"), color: COLORS[2], pts: pts(H, "r")}], {better: "max"}) : ""}
+      ${lossKeys.length && vlossKeys.length ? chart(t("ch_loss_tv"), [{name: t("s_train"), color: COLORS[0], pts: lossSum(H, lossKeys)}, {name: t("s_val"), color: COLORS[1], dash: true, pts: lossSum(H, vlossKeys)}], {better: "min"}) : ""}
       ${lossKeys.length ? chart(t("ch_tloss"), lossKeys.map((k, i) => ({name: k.replace("_loss", ""), color: COLORS[i % 5], pts: pts(H, k)})), {better: "min"}) : ""}
       ${vlossKeys.length ? chart(t("ch_vloss"), vlossKeys.map((k, i) => ({name: k.replace("val_", "").replace("_loss", ""), color: COLORS[i % 5], pts: pts(H, k)})), {better: "min"}) : ""}
       ${has("lr") ? chart(t("ch_lr"), [{name: "lr", color: COLORS[3], pts: pts(H, "lr")}], {better: null}) : ""}
