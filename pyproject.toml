@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "runboard-ml"  # "runboard" on PyPI belongs to another project; the command and the module are still runboard
-version = "0.2.0"
+version = "0.3.0"
 description = "Pre-registered ML experiments: lock the plan, run on your GPU, Kaggle, SSH or SLURM, watch live, and get hypotheses decided with bootstrap intervals and paper-ready output."
 readme = "README.md"
 license = "MIT"

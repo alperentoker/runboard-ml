@@ -22,8 +22,8 @@ GitHub secrets.
 2. Commit and push, then tag and push the tag:
 
    ```bash
-   git tag v0.2.0
-   git push origin v0.2.0
+   git tag v0.3.0
+   git push origin v0.3.0
    ```
 
 3. Follow *Actions → publish*. When it is green, <https://pypi.org/project/runboard-ml/> has the release and

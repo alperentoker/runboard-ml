@@ -19,14 +19,16 @@ The design behind the first stages is in [docs/design-v2.md](docs/design-v2.md).
 |---|---|---|
 | **RB-0** · groundwork ✓ | `plan.yaml` (manifest v2) with migration, plan and manifest editable from the dashboard, page script in separate files, CI on Linux, macOS and Windows | 0.2 |
 | **RB-1** · pre-registration core ✓ | hypotheses with machine-checked criteria, the evaluation format with a shared resampling plan, verdicts (*supported*, *refuted*, *indistinguishable*) with confidence intervals, seed groups, the lock record, deviations, the test ledger | 0.2 |
-| **RB-2** · code templates ✓ | split and leakage check, evaluation, conversion, packaging and subsets, speed; tracked templates that never overwrite a file you changed | 0.3 |
-| **RB-3** · research wizard ✓ | questions → hypotheses → data pipeline → experiment designs (domain transfer, data-size curve, architecture, ablation, seeds) → protocol → lock | 0.3 |
-| **RB-4** · code in the dashboard ✓ | view and edit the project's code (this computer only), smoke test before a run uses cloud quota | 0.4 |
-| **RB-5** · provenance and paper output ✓ | per-run commit, data and template fingerprints; LaTeX/Markdown tables (figures still to come), methods and deviations sections, a reproducibility checklist, a registered-report page, an archive for Zenodo | 0.4 |
-| **RB-6** · where research computes ✓ | SSH and SLURM backends; full Linux and macOS support | 0.5 |
+| **RB-2** · code templates ✓ | split and leakage check, evaluation, conversion, packaging and subsets, speed; tracked templates that never overwrite a file you changed | 0.2 |
+| **RB-3** · research wizard ✓ | questions → hypotheses → data pipeline → experiment designs (domain transfer, data-size curve, architecture, ablation, seeds) → protocol → lock | 0.2 |
+| **RB-4** · code in the dashboard ✓ | view and edit the project's code (this computer only), smoke test before a run uses cloud quota | 0.2 |
+| **RB-5** · provenance and paper output ✓ | per-run commit, data and template fingerprints; LaTeX/Markdown tables (figures still to come), methods and deviations sections, a reproducibility checklist, a registered-report page, an archive for Zenodo | 0.2 |
+| **RB-6** · where research computes ✓ | SSH and SLURM backends; full Linux and macOS support | 0.2 |
 | **RB-7** · AI help (optional) | a script from a description, written only after the diff is approved, saved with its prompt | later |
 | **RB-8** · first contact ✓ | `runboard demo`: a five-minute pre-registered study on any CPU; the step-by-step tutorial with screenshots | 0.2 |
 | **RB-9** · PyPI ✓ | published as `runboard-ml` (the name `runboard` is taken); a version tag tests, builds and publishes it through trusted publishing (RELEASING.md) | 0.2 |
+| **RB-10** · the dashboard ✓ | dark by default with a theme switch, one colour system, a forest plot and bootstrap histograms of the verdicts, seed plots, per-class panels, a run timeline and the Kaggle week, the study's steps, quick search, comparing runs; a review of the whole project and its security fix | 0.3 |
+| **RB-11** · what a reviewer asks | training seeds inside the interval (a two-level bootstrap over seeds and images), an optional correction for several hypotheses, equivalence margins so *no difference* can be claimed, the lock time stamped outside the computer (a public commit, OSF or Zenodo) | 0.4 |
 | later | a documentation site, `CITATION.cff` and a DOI, a case study, a workshop paper, JOSS | 1.0 |
 
 Not planned: competing with experiment trackers on logging and charts, a hosted service, multi-user lab features

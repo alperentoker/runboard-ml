@@ -1,6 +1,6 @@
 name: publish
 
-# A version tag (v0.2.0) builds runboard-ml, runs the tests and publishes it to PyPI through trusted publishing:
+# A version tag (v0.3.0) builds runboard-ml, runs the tests and publishes it to PyPI through trusted publishing:
 # no token is stored anywhere. PyPI knows this repository and workflow as the project's publisher (see RELEASING.md).
 on:
   push:

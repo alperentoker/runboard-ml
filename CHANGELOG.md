@@ -2,7 +2,17 @@
 
 All notable changes to runboard. Versions follow [semantic versioning](https://semver.org/).
 
-## Unreleased
+## 0.3.0 — 2026-11-02
+
+A redesigned dashboard (dark by default, charts that show the verdicts and their uncertainty) and a security fix:
+upgrade from 0.2.0, where a paired device could run a command on the dashboard's computer.
+
+### Security
+- A paired device could run a command on the dashboard's computer: a run's field value went into the run's
+  command line as it was, so `a.pt & other-command` in a field ran `other-command` when the run started. Every
+  value is now checked before it goes into a command (training on every backend, setup lines, jobs, the post-run
+  check); one that could end the command or start another is refused with `unsafe_value`. A run's name can no
+  longer lead its outputs out of the output folder (`..` parts are dropped).
 
 ### Added
 - *Verdicts at a glance* on the Hypotheses page: a forest plot of every comparison, its margin and 95 % interval on
@@ -30,6 +40,8 @@ All notable changes to runboard. Versions follow [semantic versioning](https://s
 - One colour system: each colour has one job (verdicts, run states, series), verdicts carry a mark as well as a
   colour, series follow an order colour-blind readers can still tell apart, numbers in tables are monospaced, and
   chart axes are labelled with round values.
+- New project: the three kinds say what each is for, when to pick it and what it gives (*Train and compare models*,
+  *Pre-registered experiment*, *My own training code*); the tutorial's screenshots show the new look.
 
 ## 0.2.0 — 2026-11-01
 
