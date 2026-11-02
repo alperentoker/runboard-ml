@@ -68,8 +68,19 @@ def test_ssh_submit_sends_the_code_and_starts_a_detached_run(rb, monkeypatch):
     assert 'mkdir -p "$HOME"/runboard/p/.runboard && tar xzf - -C "$HOME"/runboard/p' == push
     names = tarfile.open(fileobj=io.BytesIO(tar)).getnames()
     assert "train.py" in names and "runs.yaml" in names and not any(n.startswith("data") for n in names)
-    assert "; set -m; nohup sh -c" in start and "pip install x && ( \"python3\" -u train.py A ); echo $?" in start
+    assert "; set -m; nohup sh -c" in start and "pip install x && ( \"python3\" -u train.py A ); c=$?" in start
     assert "< /dev/null &" in start
+
+
+def test_ssh_status_looks_for_the_exit_code_again_before_calling_a_run_lost(rb, monkeypatch):
+    # a run that ends between the first look for its exit code and the process check is finished, not lost
+    from runboard.backends.remote import Remote, SSHBackend
+    p = make(rb / "p", {"ssh": {"host": "gpu-box", "command": "python train.py {id}"}})
+    fake = Scripted([("kill -0", "0\n", 0)])
+    monkeypatch.setattr(Remote, "run", fake)
+    assert SSHBackend().status(p, "A", {}) == ("COMPLETE", None)
+    cmd = fake.calls[0][0]
+    assert cmd.count("[ -f ") == 2 and cmd.index("kill -0") < cmd.rindex("[ -f ") < cmd.index("LOST")
 
 
 @pytest.mark.parametrize("out, state", [("0", ("COMPLETE", None)), ("3", ("ERROR", "exit code 3")), ("RUNNING", ("RUNNING", None)),
@@ -100,7 +111,7 @@ def test_slurm_submits_a_batch_script(rb, monkeypatch):
     tar = tarfile.open(fileobj=io.BytesIO(fake.calls[0][1]))
     script = tar.extractfile(".runboard/A.sbatch").read().decode()
     assert "#SBATCH --partition=gpu" in script and "#SBATCH --gres=gpu:1" in script and "#SBATCH --job-name=rb-p-A" in script
-    assert script.strip().endswith('echo $? > "$HOME"/runboard/p/.runboard/A.code')
+    assert script.strip().endswith('mv -f "$HOME"/runboard/p/.runboard/A.code.tmp "$HOME"/runboard/p/.runboard/A.code; }')
     assert "sbatch --parsable --output=" in fake.calls[1][0]
     fake = Scripted([("sbatch", "nope", 0)])
     monkeypatch.setattr(Remote, "run", fake)
@@ -187,6 +198,18 @@ def test_ssh_run_end_to_end(rb, monkeypatch):
     assert wait(lambda: b.status(p, "B", st), {"RUNNING"})[0] == "RUNNING"
     b.cancel(p, "B", st)
     assert wait(lambda: b.status(p, "B", st), {"CANCELLED"})[0] == "CANCELLED"
+
+
+@needs_sh
+def test_the_exit_code_is_written_whole_and_never_over_cancelled(tmp_path):
+    import subprocess
+    from runboard.backends.remote import write_code
+    code = (tmp_path / "A.code").as_posix()
+    subprocess.run(["sh", "-c", f"(exit 3); {write_code(code)}"], check=True)
+    assert Path(code).read_text().strip() == "3" and not Path(code + ".tmp").exists()
+    Path(code).write_text("cancelled\n")
+    subprocess.run(["sh", "-c", f"true; {write_code(code)}"], check=True)
+    assert Path(code).read_text().strip() == "cancelled"
 
 
 @needs_sh

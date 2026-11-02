@@ -87,6 +87,12 @@ def rpath(p: str) -> str:
     return shlex.quote(p)
 
 
+def write_code(path: str) -> str:
+    """Shell that stores the exit status of the command before it in `path`, whole (written aside, then moved in, so
+    a reader never sees it half written) and not over "cancelled" (cancel writes that first)."""
+    return f"c=$?; [ -f {rpath(path)} ] || {{ echo $c > {rpath(path + '.tmp')} && mv -f {rpath(path + '.tmp')} {rpath(path)}; }}"
+
+
 class SSHBackend(Backend):
     name = "ssh"
     label = "SSH"
@@ -159,7 +165,7 @@ class SSHBackend(Backend):
         f, d = self.files(project, run_id), self.workdir(project)
         cmd, setup = self.command(project, run_id, info), self.setup(project)
         rm = self.push(project, run_id)
-        body = (f"{setup} && " if setup else "") + f"( {cmd} ); echo $? > {rpath(f['code'])}"
+        body = (f"{setup} && " if setup else "") + f"( {cmd} ); {write_code(f['code'])}"
         # its own process group (set -m), all output to the log and no terminal: ssh returns at once and the run
         # outlives the connection; cancel ends the whole group
         # only the run goes to the background (a backgrounded `a && b &` list would keep ssh's output open, and
@@ -172,9 +178,13 @@ class SSHBackend(Backend):
 
     def status(self, project, run_id, st):
         f = self.files(project, run_id)
+        # the exit code is looked for again once the process is gone: a run that ends between the first look and
+        # the process check has written it by then, and is not a lost run
+        code = rpath(f["code"])
         out = self.remote(project).check(
-            f"if [ -f {rpath(f['code'])} ]; then cat {rpath(f['code'])}; "
-            f"elif kill -0 $(cat {rpath(f['pid'])} 2>/dev/null) 2>/dev/null; then echo RUNNING; else echo LOST; fi").strip()
+            f"if [ -f {code} ]; then cat {code}; "
+            f"elif kill -0 $(cat {rpath(f['pid'])} 2>/dev/null) 2>/dev/null; then echo RUNNING; "
+            f"elif [ -f {code} ]; then cat {code}; else echo LOST; fi").strip()
         return self.read_code(out)
 
     @staticmethod
@@ -268,7 +278,7 @@ class SlurmBackend(SSHBackend):
         lines = ["#!/bin/bash"] + [f"#SBATCH --{k}={v}" for k, v in opts.items() if v not in (None, "", False)]
         setup = self.setup(project)
         lines += ["set -o pipefail", f"cd {rpath(d)}"] + ([setup] if setup else []) + [self.command(project, run_id, info),
-                                                                                    f"echo $? > {rpath(f['code'])}"]
+                                                                                    write_code(f["code"])]
         return "\n".join(lines) + "\n"
 
     def submit(self, project, run_id, info):

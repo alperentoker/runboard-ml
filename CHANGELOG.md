@@ -2,6 +2,14 @@
 
 All notable changes to runboard. Versions follow [semantic versioning](https://semver.org/).
 
+## Unreleased
+
+### Fixed
+- SSH: a run that finished exactly while the dashboard looked at it could be marked failed ("the process ended
+  without an exit code"): its exit code was looked for, then the process, and the run could end in between. The
+  code is now looked for again once the process is gone. On every backend the exit code is written aside and moved
+  into place, so it is never read half written.
+
 ## 0.3.0 — 2026-11-02
 
 A redesigned dashboard (dark by default, charts that show the verdicts and their uncertainty) and a security fix:

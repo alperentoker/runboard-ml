@@ -28,7 +28,9 @@ def main() -> int:
         rc = proc.wait()
     stop.set()
     if not Path(code).exists():  # "cancelled" is written by the dashboard
-        Path(code).write_text(str(rc))
+        tmp = Path(code + ".tmp")  # written aside and moved in: the dashboard never reads it half written
+        tmp.write_text(str(rc))
+        tmp.replace(code)
     return rc
 
 
