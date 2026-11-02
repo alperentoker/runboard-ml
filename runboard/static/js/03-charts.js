@@ -22,7 +22,7 @@ const PW = 640, PL = 44, PR = 12;  // plot box in viewBox units: width, left mar
 let clipN = 0;
 // logx: x on a log scale (sizes of data); dots: a ring on every point (few points); area: a light fill under a lone
 // series; bestLabel: the best point's value written next to its ring (the small charts show it in their title instead)
-function plot(id, series, {h = 180, range = null, smooth = 0, log = false, best = null, xticks = 0, endDot = true, logx = false, dots = false, area = false, bestLabel = true} = {}) {
+function plot(id, series, {h = 180, range = null, smooth = 0, log = false, best = null, xticks = 0, endDot = true, logx = false, dots = false, area = false, bestLabel = true, strip = null} = {}) {
   const W = PW, H = h, Lm = PL, R = PR, Tm = 10, B = 24;
   // smoothing runs over the whole series, so zooming never changes a value; a zoomed view keeps one point past each
   // edge so the lines run to the border (clipped there) and the axis is exactly the chosen range: moving is smooth
@@ -52,7 +52,8 @@ function plot(id, series, {h = 180, range = null, smooth = 0, log = false, best 
   CHARTS[id].geom = {W, H, Lm, R, Tm, B, x0, x1, t0, t1, log, logx, series: shown};
   const clip = range ? `cl${++clipN}` : "";
   const pc = (v, of) => (v / of * 100).toFixed(2) + "%", line = (pts, color, extra = "") => `<polyline points="${pts.map(p => X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1)).join(" ")}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke" ${clip ? `clip-path="url(#${clip})"` : ""} ${extra}/>`;
-  const nice = log ? [] : niceTicks(t0, t1, 4).filter(v => v >= t0 && v <= t1);  // round values, as people read an axis
+  const inside = n => niceTicks(t0, t1, n).filter(v => v >= t0 && v <= t1);
+  const nice = log ? [] : inside(4).length >= 3 ? inside(4) : inside(7);  // round values, as people read an axis
   const yticks = nice.length >= 3 ? nice : [0, .25, .5, .75, 1].map(f => U(t0 + f * (t1 - t0)));
   const allx = [...new Set(xs)].sort((a, b) => a - b);
   const xt = logx ? allx.filter((_, i) => i % Math.ceil(allx.length / 8) === 0) : xticks ? niceTicks(x0, x1, xticks).filter(v => v >= x0 && v <= x1) : [x0, x1];
@@ -69,9 +70,14 @@ function plot(id, series, {h = 180, range = null, smooth = 0, log = false, best 
     ${shown.map(s => line(s.line, s.color, s.dash ? 'stroke-dasharray="5 4"' : "")).join("")}</svg>
     ${yticks.map(v => `<span class="yl" style="top:${pc(Y(v), H)};width:${pc(Lm - 6, W)}">${fmtv(v)}</span>`).join("")}
     ${xt.map((v, i) => `<span class="xl" style="left:${pc(X(v), W)};transform:translateX(${i === 0 && !xticks ? "0" : i === xt.length - 1 && !xticks ? "-100%" : "-50%"})">${+v.toFixed(2)}</span>`).join("")}
-    ${rings}${marks}${endDot && last && !rings ? `<i class="dot" style="left:${pc(X(last[0]), W)};top:${pc(Y(last[1]), H)};background:${shown[0].color}"></i>` : ""}</div>`;
+    ${strip?.length > 1 && !range ? lrStrip(strip, X, W) : ""}${rings}${marks}${endDot && last && !rings ? `<i class="dot" style="left:${pc(X(last[0]), W)};top:${pc(Y(last[1]), H)};background:${shown[0].color}"></i>` : ""}</div>`;
 }
-function chart(title, series, {h = 180, empty = true, xlabel = null, better: how, logx = false, dots = false} = {}) {
+// The learning rate as a thin strip under the x axis: darker is higher, so a schedule's shape reads next to the curve.
+function lrStrip(p, X, W) {
+  const top = Math.max(...p.map(x => x[1])) || 1;
+  return `<div class="lrs" title="lr"><span>lr</span>${p.map((x, i) => { const a = X(x[0]), b = i + 1 < p.length ? X(p[i + 1][0]) : a + (a - X(p[i - 1][0])); return `<i style="left:${(a / W * 100).toFixed(2)}%;width:${((b - a) / W * 100).toFixed(2)}%;opacity:${(.12 + .88 * x[1] / top).toFixed(2)}" title="${x[0]}: ${fmtv(x[1])}"></i>`; }).join("")}</div>`;
+}
+function chart(title, series, {h = 180, empty = true, xlabel = null, better: how, logx = false, dots = false, strip = null} = {}) {
   const id = title;
   series = series.filter(s => s.pts.length);
   const prev = CHARTS[id];
@@ -84,7 +90,7 @@ function chart(title, series, {h = 180, empty = true, xlabel = null, better: how
     ${series.map(x => `<span class="lg ${off.has(x.name) ? "off" : ""}" data-lg="${esc(x.name)}" tabindex="0" role="switch" aria-checked="${!off.has(x.name)}" title="${esc(t("chart_toggle"))}"><i style="background:${x.color}${x.dash ? ";opacity:.6" : ""}"></i>${esc(x.name)}</span>`).join("")}
     ${bp && !dots ? `<span class="bst">${t("best_at")} <b>${fmtv(bp[1])}</b> · ${bp[0]}</span>` : ""}
     <button type="button" class="cx" data-open="${esc(id)}" title="${esc(t("chart_open"))}" aria-label="${esc(t("chart_open"))}">⤢</button></div>
-    ${vis.length ? plot(id, vis, {h, logx, dots, area: !dots, best: dots ? null : bw, bestLabel: false}) : `<div class="empty" style="padding:${h / 2 - 10}px 0">—</div>`}</div>`;
+    ${vis.length ? plot(id, vis, {h, logx, dots, area: !dots, best: dots ? null : bw, bestLabel: false, strip}) : `<div class="empty" style="padding:${h / 2 - 10}px 0">—</div>`}</div>`;
 }
 function rerenderCharts() {
   if (route.view !== "project") return;

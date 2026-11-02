@@ -79,17 +79,18 @@ async function renderResults() {
   const v = (id, k = "primary") => R[id]?.metrics?.[k];
   // the column after the run: results.column in runboard.yaml, else the second field of the plan
   const col = d.column || Object.keys(Object.values(R)[0]?.fields || {})[1] || "";
-  const head = `<tr><th>${t("run")}</th><th>${en(col)}</th><th class="n">${esc(lab)}</th>${lab2 ? `<th class="n">${esc(lab2)}</th>` : ""}${d.classes.map(c => `<th class="n">${en(c)}</th>`).join("")}<th class="n">${t("best_epoch")}</th><th class="n">${t("duration")}</th></tr>`;
+  const head = `<tr><th class="ck"></th><th>${t("run")}</th><th>${en(col)}</th><th class="n">${esc(lab)}</th>${lab2 ? `<th class="n">${esc(lab2)}</th>` : ""}${d.classes.map(c => `<th class="n">${en(c)}</th>`).join("")}<th class="n">${t("best_epoch")}</th><th class="n">${t("duration")}</th></tr>`;
   // the main score carries a bar sized against the highest score of its table, so the order reads at a glance
   const row = (id, top) => { const r = R[id]; if (!r) return ""; const f2 = r.fields?.[col], x = v(id), bar = top > 0 && x != null && x >= 0;
-    return `<tr class="click" tabindex="0" role="link" data-go="${runPage(id)}"><td><b>${esc(id)}</b></td><td>${f2 == null ? `<span class="muted">${t("pending")}</span>` : esc(short(f2))}</td><td class="n">${bar ? `<span class="dbar" aria-hidden="true"><i style="width:${(x / top * 100).toFixed(1)}%"></i></span>` : ""}<b>${fmt(x)}</b></td>${lab2 ? `<td class="n">${fmt(v(id, "secondary"))}</td>` : ""}${d.classes.map(c => `<td class="n">${fmt(r.classes?.[c])}</td>`).join("")}<td class="n">${v(id, "best_epoch") != null ? `${v(id, "best_epoch")}/${v(id, "epochs") ?? "?"}` : "—"}</td><td class="n">${dur(v(id, "hours"))}</td></tr>`; };
+    return `<tr class="click" tabindex="0" role="link" data-go="${runPage(id)}"><td class="ck"><input type="checkbox" data-cmp="${esc(id)}" aria-label="${esc(t("compare"))} ${esc(id)}" ${CMP.has(id) ? "checked" : ""}></td><td><b>${esc(id)}</b></td><td>${f2 == null ? `<span class="muted">${t("pending")}</span>` : esc(short(f2))}</td><td class="n">${bar ? `<span class="dbar" aria-hidden="true"><i style="width:${(x / top * 100).toFixed(1)}%"></i></span>` : ""}<b>${fmt(x)}</b></td>${lab2 ? `<td class="n">${fmt(v(id, "secondary"))}</td>` : ""}${d.classes.map(c => `<td class="n">${fmt(r.classes?.[c])}</td>`).join("")}<td class="n">${v(id, "best_epoch") != null ? `${v(id, "best_epoch")}/${v(id, "epochs") ?? "?"}` : "—"}</td><td class="n">${dur(v(id, "hours"))}</td></tr>`; };
   const rows = ids => { const xs = ids.map(i => v(i)).filter(x => x != null); const top = xs.length && Math.min(...xs) >= 0 ? Math.max(...xs) : 0; return ids.map(i => row(i, top)).join(""); };
   const stat = ids => { const xs = ids.map(i => v(i)).filter(x => x != null); if (!xs.length) return "—";
     const m = xs.reduce((a, b) => a + b) / xs.length, s = xs.length > 1 ? Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / (xs.length - 1)) : null;
     return `<b>${m.toFixed(2)}</b>${s != null ? " ± " + s.toFixed(2) : ""} <span class="muted">(n=${xs.length})</span>`; };
   const tables = d.tables.length ? d.tables : [{title: t("results"), runs: Object.keys(R)}];
   const extras = Object.values(R).filter(r => r.extra).map(r => r.id);
-  morph($("#content"), `<div class="msg warn">${esc(tx(d.note) || t("results_note"))}</div>` + tables.map(tb => {
+  const none = !Object.values(R).some(r => r.metrics?.primary != null);
+  morph($("#content"), compareCard(R, d, lab, lab2) + (none ? invite(t("res_empty_h"), t("res_empty_p"), `#/p/${P.key}/runs`, t("go_runs")) : "") + `<div class="msg warn">${esc(tx(d.note) || t("results_note"))}</div>` + tables.map(tb => {
     if (tb.groups) return `<div class="card"><div class="ch"><h2>${esc(tx(tb.title))}</h2>${tb.subtitle ? `<span class="muted" style="font-size:12px">${esc(tx(tb.subtitle))}</span>` : ""}</div><div class="cb flush tw"><table>
       <tr><th></th><th>${t("runs")}</th><th class="n">${esc(lab)}</th></tr>${tb.groups.map(g => `<tr><td>${esc(tx(g.label))}</td><td>${esc(g.runs.join(", "))}</td><td class="n">${stat(g.runs)}</td></tr>`).join("")}</table></div>
       ${groupPlot(tb.groups, v)}
@@ -99,7 +100,39 @@ async function renderResults() {
     const curve = !tb.curve ? "" : cpts.length >= 2 ? `<div class="cb" style="border-top:1px solid var(--line)">${chart(`${lab} · ${tx(tb.curve.label) || ""}`, [{name: lab, color: COLORS[0], pts: cpts}], {xlabel: tx(tb.curve.label) || "x", dots: true, logx: wide})}</div>`
       : `<div class="cb muted" style="border-top:1px solid var(--line);font-size:12px">${esc(tx(tb.curve.label) || "")} · ${t("curve_wait")}</div>`;
     return `<div class="card"><div class="ch"><h2>${esc(tx(tb.title))}</h2>${tb.subtitle ? `<span class="muted" style="font-size:12px">${esc(tx(tb.subtitle))}</span>` : ""}</div><div class="cb flush tw"><table>${head}${rows(tb.runs)}</table></div>${curve}</div>`;
-  }).join("") + (extras.length ? `<div class="card"><div class="ch"><h2>${t("extra")}</h2></div><div class="cb flush tw"><table>${head}${rows(extras)}</table></div></div>` : ""));
+  }).join("") + (extras.length ? `<div class="card"><div class="ch"><h2>${t("extra")}</h2></div><div class="cb flush tw"><table>${head}${rows(extras)}</table></div></div>` : "")
+    + classPanels(d.classes, Object.keys(R).filter(id => !R[id].extra), (id, c) => R[id]?.classes?.[c]));
+  document.querySelectorAll("[data-cmp]").forEach(cb => cb.onchange = () => { cb.checked ? CMP.add(cb.dataset.cmp) : CMP.delete(cb.dataset.cmp); renderResults(); });
+  if ($("#cmpclr")) $("#cmpclr").onclick = () => { CMP.clear(); renderResults(); };
+  if ($("#cmpcur")) $("#cmpcur").onclick = () => { const [first, ...rest] = [...CMP]; compare = new Set(rest); sub = "charts"; go(runPage(first)); };
+}
+// Runs ticked on this page, side by side: every number of the first one chosen, and how far each other run is from it.
+const CMP = new Set();
+function compareCard(R, d, lab, lab2) {
+  const ids = [...CMP].filter(id => R[id]);
+  if (!ids.length) return "";
+  if (ids.length < 2) return `<div class="msg ok cmpbar">${t("cmp_pick")} · <b>${esc(ids[0])}</b></div>`;
+  const val = (id, k) => k.startsWith("c:") ? R[id]?.classes?.[k.slice(2)] : R[id]?.metrics?.[k];
+  const keys = [["primary", lab], ...(lab2 ? [["secondary", lab2]] : []), ...d.classes.map(c => ["c:" + c, c]), ["best_epoch", t("best_epoch")], ["hours", t("duration")]];
+  const lower = k => k === "hours";  // a shorter run is the better one; for every score higher is better
+  return `<div class="card cmp"><div class="ch"><h2>${t("cmp_title", {n: ids.length})}</h2><span class="muted" style="font-size:12px">${t("cmp_desc")}</span>
+    <div class="sp"><button class="btn" id="cmpcur">${t("cmp_curves")}</button><button class="btn" id="cmpclr">${t("cmp_clear")}</button></div></div>
+    <div class="cb flush tw"><table><tr><th></th>${ids.map((id, i) => `<th class="n">${esc(id)}</th>${i ? `<th class="n">Δ</th>` : ""}`).join("")}</tr>
+    ${keys.filter(([k]) => ids.some(id => val(id, k) != null)).map(([k, l]) => { const a = val(ids[0], k);
+      return `<tr><td>${esc(l)}</td>${ids.map((id, i) => { const x = val(id, k), dd = i && x != null && a != null ? x - a : null, good = dd == null || dd === 0 || k === "best_epoch" ? "" : (dd > 0) !== lower(k) ? "up" : "down";
+        return `<td class="n">${k === "hours" ? dur(x) : fmt(x, k === "best_epoch" ? 0 : 2)}</td>${i ? `<td class="n ${good}">${dd == null ? "—" : (dd > 0 ? "+" : "") + (k === "hours" ? dur(Math.abs(dd)).replace(/^/, dd < 0 ? "-" : "") : fmt(dd, k === "best_epoch" ? 0 : 2))}</td>` : ""}`; }).join("")}</tr>`; }).join("")}</table></div></div>`;
+}
+// One small panel per class, the same runs in the same order in each, every bar from zero against the highest score
+// of all classes: a class that is harder for every run, or a run that loses one class only, shows at a glance.
+function classPanels(classes, ids, val) {
+  if (classes.length < 2) return "";
+  const has = ids.filter(id => classes.some(c => val(id, c) != null)); if (!has.length) return "";
+  const all = has.flatMap(id => classes.map(c => val(id, c))).filter(x => x != null), top = Math.max(...all);
+  if (!(top > 0) || Math.min(...all) < 0) return "";
+  return `<div class="card"><div class="ch"><h2>${t("per_class")}</h2><span class="muted" style="font-size:12px">${t("per_class_desc")}</span></div>
+    <div class="cb"><div class="cpanels">${classes.map(c => { const xs = has.map(id => val(id, c)).filter(x => x != null), m = xs.length ? Math.max(...xs) : null;
+      return `<div class="cpanel"><div class="cph">${en(c)}<span>${m != null ? `${t("highest")} ${fmt(m)}` : ""}</span></div>${has.map(id => { const x = val(id, c);
+        return `<div class="cpr" tabindex="0" role="link" data-go="${runPage(id)}"><span>${esc(id)}</span><span class="dbar wide"><i style="width:${x == null ? 0 : (x / top * 100).toFixed(1)}%${x === m ? ";background:var(--s2)" : ""}"></i></span><b>${fmt(x)}</b></div>`; }).join("")}</div>`; }).join("")}</div></div></div>`;
 }
 // A group's runs (seeds, usually) as rings over their mean, with ± one standard deviation. The axis starts at zero
 // when the values are near it; when they all sit far above it, it starts near them and the mean is a mark, not a bar

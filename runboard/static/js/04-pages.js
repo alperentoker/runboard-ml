@@ -12,6 +12,7 @@ function renderChrome() {
     `<button class="glob ${route.view === "new" ? "on" : ""}" data-go="#/new" aria-label="${t("new_project")}"><svg viewBox="0 0 24 24">${ICONS.plus}</svg><span>${t("new_project")}</span></button>` +
     `<button class="glob ${route.view === "system" ? "on" : ""}" data-go="#/system" aria-label="${t("system")}"><svg viewBox="0 0 24 24">${ICONS.system}</svg><span>${t("system")}</span></button>`);
   const q = PS?.backends?.kaggle?.quota;
+  $("#palbtn").innerHTML = `${t("search")} <kbd>Ctrl K</kbd>`; $("#palbtn").title = t("pal_ph");
   morph($("#foot"), `${q ? `<div>Kaggle · ${q.used_h} / ${q.total_h} h<div class="bar"><i style="width:${Math.min(100, q.used_h / q.total_h * 100)}%"></i></div></div>` : ""}
     <div class="lang"><button class="${LANG === "en" ? "on" : ""}" data-lang="en">EN</button><button class="${LANG === "tr" ? "on" : ""}" data-lang="tr">TR</button></div>
     <div class="lang" role="group" aria-label="${t("theme")}">${["dark", "light", "auto"].map(k => `<button class="${document.documentElement.dataset.theme === k ? "on" : ""}" data-theme-set="${k}">${t("th_" + k)}</button>`).join("")}</div>
@@ -64,7 +65,7 @@ function renderOverview() {
   const H = act && activeDetail?.id === act.id ? seriesOf(activeDetail) : [], q = P.backend_info?.kaggle?.quota, lab = tx(P.labels.primary) || "score";
   const finished = P.runs.filter(r => r.status === "COMPLETE").sort((a, b) => (b.pushed_at || "").localeCompare(a.pushed_at || ""));
   const phases = P.phases.length ? P.phases : [{id: "", title: t("runs"), runs: P.runs.map(r => r.id)}];
-  morph($("#content"), `
+  morph($("#content"), `${stepsBar()}
   <div class="kpis ${q ? "k6" : ""}">
     <div class="kpi"><div class="l">${t("active_run")}</div><div class="v">${act ? esc(act.id) : "—"}</div><div class="s">${act ? esc(Object.values(act.fields).map(short).join(" · ")) : t("no_active")}</div></div>
     <div class="kpi"><div class="l">${t("progress")}</div><div class="v">${act ? `${p.epoch || 0}<small> / ${p.epochs || act.epochs || "?"}</small>` : "—"}</div><div class="bar"><i ${act ? L_("bar", P.key, act.id) : ""} style="width:${act ? (live(act).frac * 100).toFixed(1) : 0}%"></i></div></div>
@@ -88,6 +89,7 @@ function renderOverview() {
   <div class="card" style="margin-top:16px"><div class="ch"><h2>${t("finished")}</h2>${best ? `<span class="muted" style="font-size:12px">${esc(lab)} ${t("highest")}: <b style="color:var(--ink)">${esc(best.id)} · ${fmt(valOf(best))}</b></span>` : ""}</div>
     <div class="cb flush tw">${finished.length ? `<table><tr><th>${t("run")}</th>${Object.keys(finished[0].fields).map(f => `<th>${en(f)}</th>`).join("")}<th class="n">${esc(lab)}</th>${P.labels.secondary ? `<th class="n">${esc(tx(P.labels.secondary))}</th>` : ""}<th class="n">${t("best_epoch")}</th><th class="n">${t("duration")}</th></tr>
       ${finished.map(r => `<tr class="click" tabindex="0" role="link" data-go="${runPage(r.id)}"><td><b>${esc(r.id)}</b></td>${Object.values(r.fields).map(v => `<td>${esc(short(v))}</td>`).join("")}<td class="n"><b>${fmt(r.metrics?.primary)}</b></td>${P.labels.secondary ? `<td class="n">${fmt(r.metrics?.secondary)}</td>` : ""}<td class="n">${r.metrics?.best_epoch != null ? `${r.metrics.best_epoch}/${r.metrics.epochs ?? "?"}` : "—"}</td><td class="n">${dur(r.metrics?.hours)}</td></tr>`).join("")}</table>` : `<div class="empty">${t("none_finished")}</div>`}</div></div>
+  ${timelineCard(q)}
   ${Object.entries(P.jobs || {}).some(([, j]) => !j.per_run) ? `<div class="card" style="margin-top:16px"><div class="ch"><h2>${t("jobs")}</h2><div class="sp">${Object.entries(P.jobs).filter(([, j]) => !j.per_run).map(([k, j]) => `<button class="btn" data-pj="${esc(k)}">${esc(tx(j.title))}</button>`).join(" ")}</div></div>
     <div class="cb"><div id="pjob" data-keep></div></div></div>` : ""}`);
   document.querySelectorAll("[data-pj]").forEach(b => b.onclick = async () => {
@@ -96,6 +98,57 @@ function renderOverview() {
   });
   showJobs(P.key);
   tick();
+}
+
+// A pre-registered study's way: plan, lock, runs, evaluation, verdicts, paper. Each step says how far it is and opens
+// the page where it is done; the first unfinished one is marked as next.
+function stepsBar() {
+  const s = P.steps; if (!s) return "";
+  const k = P.key, all = s.runs || 0;
+  const st = [
+    ["st_plan", s.hypotheses > 0, t("st_hyp", {n: s.hypotheses}), `#/p/${k}/settings`],
+    ["st_lock", s.locked, s.locked ? t("st_locked") : t("st_not_yet"), `#/p/${k}/hypotheses`],
+    ["st_runs", all > 0 && s.done === all, `${s.done} / ${all}`, `#/p/${k}/runs`],
+    ["st_eval", all > 0 && s.evaluated === all, `${s.evaluated} / ${all}`, `#/p/${k}/overview`],
+    ["st_verdicts", all > 0 && s.evaluated === all && s.hypotheses > 0, all > 0 && s.evaluated === all ? t("st_ready") : t("st_waiting"), `#/p/${k}/hypotheses`],
+    ["st_paper", s.paper, s.paper ? t("st_exported") : t("st_not_yet"), `#/p/${k}/hypotheses`]];
+  const next = st.findIndex(x => !x[1]);
+  return `<nav class="psteps" aria-label="${esc(t("plan"))}">${st.map(([l, ok, sub, href], i) => `<button class="pst ${ok ? "ok" : i === next ? "nx" : ""}" data-go="${href}"><span class="pn">${ok ? "✓" : i + 1}</span><span class="pt"><b>${t(l)}</b><small>${i === next ? `${t("st_next")} · ` : ""}${esc(sub)}</small></span></button>`).join("")}</nav>`;
+}
+
+// When each run ran: a bar from its start for its duration (a running one up to now, then its estimated rest dashed),
+// one row per run, days marked; under it the Kaggle GPU week, split into this project's runs and the rest.
+const when = s => { const v = Date.parse(s || ""); return Number.isNaN(v) ? null : v; };
+function timelineCard(q) {
+  const now = Date.now(), rows = P.runs.map(r => {
+    const a = when(r.pushed_at); if (a == null) return null;
+    const on = ACTIVE.includes(r.status), h = r.metrics?.hours;
+    const b = on ? now : h != null ? a + h * 3600e3 : null, eta = on && r.progress?.eta_at ? r.progress.eta_at * 1000 : null;
+    return {r, a, b: b ?? a, eta: eta && eta > now ? eta : null, on};
+  }).filter(Boolean).sort((x, y) => x.a - y.a);
+  if (!rows.length) return "";
+  const t0 = Math.min(...rows.map(x => x.a)), t1 = Math.max(...rows.map(x => x.eta || x.b), t0 + 3600e3);
+  const pos = v => (v - t0) / (t1 - t0) * 100, day = 864e5, span = t1 - t0;
+  const ticks = []; const step = span > 10 * day ? 2 * day : span > 2 * day ? day : span > 12 * 3600e3 ? 6 * 3600e3 : 3600e3;
+  const first = new Date(t0); first.setMinutes(0, 0, 0); if (step >= day) first.setHours(0);
+  for (let v = first.getTime() + step; v < t1; v += step) ticks.push(v);
+  const lab = v => step >= day ? new Date(v).toLocaleDateString(LANG, {day: "numeric", month: "short"}) : new Date(v).toLocaleTimeString(LANG, {hour: "2-digit", minute: "2-digit"});
+  const grid = ticks.map(v => `<span class="tg" style="left:${pos(v)}%"></span>`).join("");
+  const be = r => P.backend_info?.[r.backend]?.label || r.backend || "";
+  let quota = "";
+  if (q?.total_h) {  // the Kaggle week: this project's runs in it, then whatever else used the quota
+    const wk1 = when(q.refresh) || now, wk0 = wk1 - 7 * day;
+    const mine = rows.filter(x => x.r.backend === "kaggle").map(x => ({id: x.r.id, h: Math.max(0, Math.min(x.b, wk1, now) - Math.max(x.a, wk0)) / 3600e3})).filter(x => x.h > .05);
+    const sum = mine.reduce((s, x) => s + x.h, 0), other = Math.max(0, q.used_h - sum), w = h => `${(h / q.total_h * 100).toFixed(2)}%`;
+    quota = `<div class="qwk"><div class="qhd"><b>${t("quota_week")}</b><span class="muted">${q.used_h} / ${q.total_h} h · ${t("quota_left")} ${Math.max(0, q.total_h - q.used_h).toFixed(1)} h${q.refresh ? ` · ${t("quota_refresh")} ${new Date(q.refresh).toLocaleString(LANG, {weekday: "short", hour: "2-digit", minute: "2-digit"})}` : ""}</span></div>
+      <div class="qm">${mine.map(x => `<i style="width:${w(x.h)}" title="${esc(x.id)} · ${x.h.toFixed(1)} h"></i>`).join("")}${other > .05 ? `<i class="o" style="width:${w(other)}" title="${esc(t("quota_other"))} · ${other.toFixed(1)} h"></i>` : ""}</div>
+      <div class="qlg">${mine.map(x => `<span>${esc(x.id)} <b>${x.h.toFixed(1)}</b></span>`).join("")}${other > .05 ? `<span class="muted">${t("quota_other")} <b>${other.toFixed(1)}</b></span>` : ""}</div></div>`;
+  }
+  return `<div class="card" style="margin-top:16px"><div class="ch"><h2>${t("timeline")}</h2><span class="muted" style="font-size:12px">${t("tl_desc")}</span></div>
+    <div class="tl">${rows.map(x => `<div class="tlr" tabindex="0" role="link" data-go="${runPage(x.r.id)}"><span class="tll">${esc(x.r.id)} <small>${esc(be(x.r))}</small></span>
+      <div class="tlt">${grid}<i class="${esc(x.r.status || "")}" style="left:${pos(x.a)}%;width:${Math.max(.3, pos(x.b) - pos(x.a))}%" title="${esc(x.r.id)} · ${new Date(x.a).toLocaleString(LANG)}"></i>${x.eta ? `<i class="eta" style="left:${pos(x.b)}%;width:${pos(x.eta) - pos(x.b)}%"></i>` : ""}${x.on ? `<span class="now" style="left:${pos(now)}%"></span>` : ""}</div>
+      <span class="tld">${x.on ? t("running") : dur(x.r.metrics?.hours)}</span></div>`).join("")}
+      <div class="tlr ax"><span></span><div class="faxis">${ticks.map(v => `<span style="left:${pos(v)}%">${lab(v)}</span>`).join("")}</div><span></span></div>${quota}</div></div>`;
 }
 
 /* ================= project: runs ================= */
@@ -152,7 +205,7 @@ function renderDetail() {
     const vlossKeys = [...new Set(H.flatMap(x => Object.keys(x).filter(k => k.startsWith("val_") && k.endsWith("_loss"))))];
     body = `${others.length ? `<div class="toolbar"><span class="muted" style="font-size:13px;font-weight:600">${t("compare")}</span>${others.map(o => `<label class="tog"><input type="checkbox" class="cmp" value="${esc(o.id)}" ${compare.has(o.id) ? "checked" : ""}>${esc(o.id)}</label>`).join("")}<span class="sp muted" style="font-size:12px">${t("source")}: ${d.curves?.length ? "results.csv" : t("live_log")}</span></div>` : ""}
       <div class="charts">
-      ${chart(lab, [{name: d.id, color: COLORS[0], pts: pts(H, "map")}, ...comp.map(s => ({...s, pts: pts(s.rows, "map")}))])}
+      ${chart(lab, [{name: d.id, color: COLORS[0], pts: pts(H, "map")}, ...comp.map(s => ({...s, pts: pts(s.rows, "map")}))], {strip: has("lr") ? pts(H, "lr") : null})}
       ${has("map50") ? chart(lab2 || "map50", [{name: d.id, color: COLORS[0], pts: pts(H, "map50")}, ...comp.map(s => ({...s, pts: pts(s.rows, "map50")}))]) : ""}
       ${has("p") || has("r") ? chart(t("ch_pr"), [{name: t("precision"), color: COLORS[1], pts: pts(H, "p")}, {name: t("recall"), color: COLORS[2], pts: pts(H, "r")}], {better: "max"}) : ""}
       ${lossKeys.length && vlossKeys.length ? chart(t("ch_loss_tv"), [{name: t("s_train"), color: COLORS[0], pts: lossSum(H, lossKeys)}, {name: t("s_val"), color: COLORS[1], dash: true, pts: lossSum(H, vlossKeys)}], {better: "min"}) : ""}

@@ -11,6 +11,8 @@ const hms = s => [s / 3600, s % 3600 / 60, s % 60].map(x => String(Math.floor(x)
 const ACTIVE = ["QUEUED", "STARTING", "RUNNING", "CANCELLING"];
 const COLORS = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)", "var(--s5)"];
 const PALETTE = ["#2c6b5a", "#2558a8", "#b0562b", "#7a4fa3", "#8a6d1f", "#1f7a8a"];
+// An empty page invites the next step instead of saying there is nothing: what goes here, and a button to get there.
+const invite = (h, p, href, label) => `<div class="invite"><b>${h}</b><p>${p}</p>${href ? `<button class="btn primary" data-go="${href}">${label}</button>` : ""}</div>`;
 const chip = (st, txt) => `<span class="chip ${st || ""}">${txt || (st ? t(st) : t("st_none"))}</span>`;
 const okColor = c => /^#[0-9a-f]{3,8}$|^[a-z]{3,20}$/i.test(c || "") ? c : null;  // only a colour reaches style=""
 const avatar = (p, size) => p.logo ? `<span class="avatar"${size ? ` style="width:${size}px;height:${size}px"` : ""}><img src="/api/p/${p.key}/logo" alt=""></span>`
@@ -160,7 +162,7 @@ document.addEventListener("keydown", e => {
 // content security policy can refuse every script that is not the page's own.
 document.addEventListener("click", e => {
   const el = e.target.closest?.("[data-go], [data-lang], [data-href], [data-theme-set]");
-  if (!el || e.defaultPrevented) return;
+  if (!el || e.defaultPrevented || e.target.closest("input, label, select, textarea")) return;  // a box ticked in a row is not a click on the row
   if (el.dataset.go != null) go(el.dataset.go);
   else if (el.dataset.lang) setLang(el.dataset.lang);
   else if (el.dataset.themeSet) { store("rb-theme", el.dataset.themeSet); document.documentElement.dataset.theme = el.dataset.themeSet; renderChrome(); }

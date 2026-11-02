@@ -41,7 +41,7 @@ function histCard(p) {
   const hs = p.hist; if (!hs) return "";
   const n = hs.n, top = Math.max(...n) || 1, w = (hs.hi - hs.lo) / n.length || 1, reps = n.reduce((a, b) => a + b, 0);
   const [a, b] = p.ci || [-Infinity, Infinity], zero = (0 - hs.lo) / (hs.hi - hs.lo) * 100;
-  const z = zero >= 0 && zero <= 100 ? `<span class="z" style="left:${zero}%"><span>0</span></span>`
+  const z = zero >= 0 && zero <= 100 ? `<span class="z ${zero > 85 ? "r" : ""}" style="left:${zero}%"><span>0</span></span>`
     : zero < 0 ? `<span class="off l">← ${t("h_zero_left")}</span>` : `<span class="off r">${t("h_zero_right")} →</span>`;
   return `<div class="hist v-${esc(p.verdict)}"><div class="t"><b title="${esc(p.text)}">${esc(p.text)}</b><span>${reps} ${t("h_reps")}</span></div>
     <div class="hbars" role="img" aria-label="${esc(t("h_dist"))}: ${esc(p.text)}">${n.map((k, i) => { const c = hs.lo + (i + .5) * w; return `<i class="${c >= a && c <= b ? "in" : ""}" style="height:${k / top * 100}%" title="${num(hs.lo + i * w)} … ${num(hs.lo + (i + 1) * w)}: ${k}"></i>`; }).join("")}${z}</div>
@@ -99,7 +99,7 @@ async function renderHypotheses() {
   morph($("#content"), `${exp}${forestCard(order)}${lockCard(d.status)}
     <p class="desc">${t("h_protocol", {metric: pr.metric, sets: Object.keys(pr.sets).join(", ") || "—", dir: pr.dir})}</p>
     ${qs}${loose.length ? `<h3 class="qhead">${t("h_other")}</h3>${loose.map(hypothesisCard).join("")}` : ""}
-    ${!d.hypotheses.length ? `<div class="msg warn">${t("h_empty")}</div>` : ""}
+    ${!d.hypotheses.length ? invite(t("h_empty_h"), t("h_empty_p"), `#/p/${P.key}/settings`, t("go_plan")) : ""}
     ${ledgerCard(d.status)}`);
   document.querySelectorAll("[data-hgo]").forEach(r => r.onclick = () => document.querySelector(`.card[data-h="${CSS.escape(r.dataset.hgo)}"]`)?.scrollIntoView({behavior: "smooth", block: "start"}));
   if ($("#hdev")) $("#hdev").onclick = async () => {

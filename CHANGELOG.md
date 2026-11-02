@@ -16,6 +16,15 @@ All notable changes to runboard. Versions follow [semantic versioning](https://s
 - Run charts: the best point is ringed and written in the chart's title, a lone series has a light fill under it,
   and *Loss: train and validation* puts the two totals side by side.
 - A theme switch (dark, light, or the system's own) in the sidebar; dark is the default.
+- The study's steps on the Overview of a pre-registered project: plan, lock, runs, evaluation, verdicts, paper, each
+  with how far it is and a link to where it is done; the next one is marked.
+- Overview: a timeline of when each run ran (a running one with its estimated rest), and the Kaggle GPU week split
+  into this project's runs and other work, with when it renews.
+- Results: one small panel per class with the same runs on one scale; tick runs in a table to compare them side by
+  side, with each one's difference from the first and a button to see their curves together.
+- Quick search (Ctrl+K, or *Search* at the top): projects, pages, runs and actions such as the theme or language.
+- Run charts: the learning rate as a strip under the main chart.
+- Empty pages say what goes there and offer the next step (no hypotheses yet, no finished run yet).
 
 ### Changed
 - One colour system: each colour has one job (verdicts, run states, series), verdicts carry a mark as well as a

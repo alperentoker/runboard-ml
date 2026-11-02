@@ -250,7 +250,23 @@ def api_project(key: str):
             "labels": (m.get("results") or {}).get("labels") or {}, "has_data": bool(m.get("data")), "v2": p.v2,
             "jobs": {k: {"title": v.get("title", k), "per_run": bool(v.get("per_run"))} for k, v in (m.get("jobs") or {}).items()},
             "job_views": [j.view(0) for (k, _), j in rt.jobs.items() if k == p.key],
-            "backend_info": rt.backend_info}
+            "backend_info": rt.backend_info, "steps": steps(p, rows)}
+
+
+def steps(p, rows) -> dict | None:
+    """Where a pre-registered study stands, cheaply (no verdicts are computed): the page draws it as a stepper."""
+    if not p.v2:
+        return None
+    try:
+        pl = p.pl
+    except Exception:  # an unreadable plan: the Settings page says why
+        return None
+    plan = [r for r in rows if not r.get("extra")]
+    ev = p.root / str((pl.get("protocol") or {}).get("dir") or "eval")
+    evaluated = sum(1 for r in plan if (ev / r["id"]).is_dir())
+    return {"hypotheses": len(pl.get("hypotheses") or []), "locked": p.locked, "runs": len(plan),
+            "done": sum(1 for r in plan if r["status"] == "COMPLETE"), "evaluated": evaluated,
+            "paper": (p.root / "paper" / "report.html").is_file()}
 
 
 @app.get("/api/p/{key}/run/{run_id}")

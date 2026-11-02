@@ -51,7 +51,9 @@ runs. From now on, changing either needs a written reason and is listed as a dev
 
 Go to **Runs** and click **Queue the 6 not started** at the top of the run list (a single run: open it and click
 **Start** or **Add to queue**). Runs start one after the other on this computer, about ten seconds each. The **Overview** shows the
-active run, the queue and the accuracy curve as it grows.
+active run, the queue and the accuracy curve as it grows. The row of steps at its top (plan, lock, runs, evaluation,
+verdicts, paper) says where the study stands and opens the page for the next step; further down, a timeline shows
+when each run ran.
 
 ![Runs in progress](images/tutorial-4-running.png)
 
@@ -71,8 +73,10 @@ the same items.
 
 ## 5. Read the verdicts
 
-Back on **Hypotheses**, each comparison now has its value on the whole set, the margin, the 95 % interval of the
-margin over the bootstrap replicates, and the share of replicates above zero.
+Back on **Hypotheses**, *Verdicts at a glance* puts every comparison on one axis: the margin as a dot, its 95 %
+interval as a line, and the dashed zero line between *against* and *for*. Each hypothesis below has its value on the
+whole set, the margin, the interval, the share of replicates above zero, and the bootstrap distribution itself: the
+bars inside the interval are coloured, and zero is marked.
 
 ![Verdicts](images/tutorial-7-verdicts.png)
 
@@ -82,7 +86,11 @@ margin over the bootstrap replicates, and the share of replicates above zero.
 A third verdict, *indistinguishable*, appears when the interval contains zero. The seed lines under each comparison
 show how much the three runs of a group disagree.
 
-The **Results** page has the tables of `runboard.yaml`: every run, and the seed groups as mean ± sd.
+The **Results** page has the tables of `runboard.yaml`: every run, and the seed groups as mean ± sd, drawn with one
+ring per run. Tick two or more runs to compare them side by side.
+
+Anywhere, **Ctrl+K** opens a search box for projects, pages and runs. The theme (dark, light, or the system's own)
+and the language are at the bottom of the sidebar.
 
 ![Results](images/tutorial-8-results.png)
 

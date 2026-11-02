@@ -394,6 +394,33 @@ def test_forest_plot_histogram_and_seed_plot_draw(page):
     assert page.js("__errors") == []
 
 
+def test_quick_search_reaches_a_run(page):
+    go(page, "#/p/demo/overview", "P && P.key === 'demo' && document.querySelector('.psteps')")
+    page.js("document.dispatchEvent(new KeyboardEvent('keydown', {key: 'k', ctrlKey: true, bubbles: true}))")
+    page.until("document.querySelector('#paldlg[open] #palq')")
+    page.js("(() => { const q = document.querySelector('#palq'); q.value = 'other'; q.dispatchEvent(new Event('input')); })()")
+    assert page.js("document.querySelectorAll('.pali').length") >= 1
+    page.js("document.querySelector('#palq').dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true}))")
+    page.until("location.hash === '#/p/demo/run/other'")
+    assert page.js("!document.querySelector('#paldlg[open]')") and page.js("__errors") == []
+
+
+def test_study_steps_and_comparing_runs(page):
+    go(page, "#/p/demo/overview", "document.querySelector('.psteps')")
+    assert page.js("document.querySelectorAll('.psteps .pst').length") == 6
+    assert page.js("document.querySelector('.psteps .pst').classList.contains('nx')")  # no hypotheses yet: the plan is next
+    go(page, "#/p/demo/results", "document.querySelector('[data-cmp=base]')")
+    page.js("document.querySelector('[data-cmp=base]').click()")
+    page.until("document.querySelector('.cmpbar')")
+    assert page.js("location.hash") == "#/p/demo/results"  # ticking a box in a row does not open the run
+    page.js("document.querySelector('[data-cmp=other]').click()")
+    page.until("document.querySelector('.card.cmp')")
+    assert "2" in page.js("document.querySelector('.card.cmp h2').textContent")
+    page.js("document.querySelector('#cmpclr').click()")
+    page.until("!document.querySelector('.card.cmp')")
+    assert page.js("__errors") == []
+
+
 def test_hypotheses_page_shows_verdicts_and_the_lock(page):
     root = Path(home.config()["projects"][0])
     (root / "plan.yaml").write_text(yaml.safe_dump({
