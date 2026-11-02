@@ -111,9 +111,9 @@ async function renderWizard() {
     body = `${sc.has_manifest ? `<div class="msg ok">${t("w_has_manifest")} <button class="btn" id="wexisting" style="margin-left:8px">${t("w_add_existing")}</button></div>` : ""}
       <p class="desc">${t("w_kind_desc")}</p>
       <div class="choices three">
-        <div class="choice ${W.kind === "yolo" ? "on" : ""}" data-kind="yolo"><b>${t("w_yolo")}</b><span>${t("w_yolo_desc")}</span>${sc.datasets.length ? chip("COMPLETE", t("w_found_ds", {n: sc.datasets.length})) : ""}</div>
-        <div class="choice ${W.kind === "research" ? "on" : ""}" data-kind="research"><b>${t("w_research")}</b><span>${t("w_research_desc")}</span>${sc.datasets.length ? chip("COMPLETE", t("w_found_ds", {n: sc.datasets.length})) : ""}</div>
-        <div class="choice ${W.kind === "script" ? "on" : ""}" data-kind="script"><b>${t("w_script")}</b><span>${t("w_script_desc")}</span>${sc.scripts.length ? chip("", t("w_found_py", {n: sc.scripts.length})) : ""}</div>
+        <div class="choice ${W.kind === "yolo" ? "on" : ""}" data-kind="yolo"><b>${t("w_yolo")}</b><span>${t("w_yolo_desc")}</span><span class="cwn">${t("w_yolo_when")}</span><span class="cgt">${t("w_yolo_get")}</span>${sc.datasets.length ? chip("COMPLETE", t("w_found_ds", {n: sc.datasets.length})) : ""}</div>
+        <div class="choice ${W.kind === "research" ? "on" : ""}" data-kind="research"><b>${t("w_research")}</b><span>${t("w_research_desc")}</span><span class="cwn">${t("w_research_when")}</span><span class="cgt">${t("w_research_get")}</span>${sc.datasets.length ? chip("COMPLETE", t("w_found_ds", {n: sc.datasets.length})) : ""}</div>
+        <div class="choice ${W.kind === "script" ? "on" : ""}" data-kind="script"><b>${t("w_script")}</b><span>${t("w_script_desc")}</span><span class="cwn">${t("w_script_when")}</span><span class="cgt">${t("w_script_get")}</span>${sc.scripts.length ? chip("", t("w_found_py", {n: sc.scripts.length})) : ""}</div>
       </div>
       ${W.kind === "research" ? `<p class="desc" style="margin-top:16px">${t("w_research_next")}</p>` : W.kind === "yolo" ? `<div class="form" style="margin-top:18px">
         <label class="wide">${t("w_dataset")}${sc.datasets.length ? `<select id="ydata">${sc.datasets.map(d => `<option value="${esc(d.file)}" ${d.file === y.data ? "selected" : ""}>${esc(d.file)}</option>`).join("")}</select>` : `<input id="ydata" value="${esc(y.data)}" placeholder="data/data.yaml">`}</label>

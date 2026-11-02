@@ -304,7 +304,7 @@ runs.
 
 ## The research wizard
 
-*New project → Pre-registered study (YOLO)* writes a version 2 project from a few answers:
+*New project → Pre-registered experiment (YOLO, for a paper)* writes a version 2 project from a few answers:
 
 | Step | Asks for | Becomes |
 | :--- | :--- | :--- |

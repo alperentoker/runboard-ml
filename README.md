@@ -204,7 +204,7 @@ stop and error to `~/.runboard/server.log`.
 
 ## Your own training script
 
-The wizard's *My own training script* runs any script with per-run arguments. To show live progress, print one line
+The wizard's *My own training code* runs any script with per-run arguments. To show live progress, print one line
 per event, or use `rb.py` (stdlib only; the wizard and the demo copy it next to your scripts):
 
 ```python

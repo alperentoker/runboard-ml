@@ -119,7 +119,7 @@ in a text editor behind runboard's back is caught too: the lock card turns red u
 
 ## Where to go next
 
-- Your own study: **New project → Pre-registered study (YOLO)** walks through questions, designs (specialists, a
+- Your own study: **New project → Pre-registered experiment (YOLO, for a paper)** walks through questions, designs (specialists, a
   data-size curve, architectures, ablations, seeds), the protocol and the hypotheses, and writes the evaluation
   scripts. Your own script works too: see [the manifest reference](manifest.md).
 - Where runs go: your GPU, Kaggle, a machine over SSH, or a SLURM cluster ([backends](manifest.md#backends)).
