@@ -98,8 +98,8 @@ class KaggleBackend(Backend):
         cfg = self._cfg(project)
         files = {dst: base64.b64encode((project.root / src).read_bytes()).decode()
                  for dst, src in (cfg.get("files") or {}).items()}
-        setup = [project.render(s, info) for s in cfg.get("setup", [])]
-        command = project.render(cfg.get("resume") if info.get("resume") else cfg.get("command", ""), info)
+        setup = [project.render(s, info, shell=True) for s in cfg.get("setup", [])]
+        command = project.render(cfg.get("resume") if info.get("resume") else cfg.get("command", ""), info, shell=True)
         code = (f"# runboard · {project.m.get('name', project.key)} · {run_id} — generated, do not edit.\n"
                 "import base64, json, os, pathlib, subprocess, sys\n"
                 f"FILES = json.loads({json.dumps(json.dumps(files))})\n"

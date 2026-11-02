@@ -38,6 +38,12 @@ A project's `runboard.yaml` lists commands (training, jobs, the post-run check) 
 user's rights, just like a `Makefile`. Only add projects you trust: when an existing project is added, runboard shows
 the commands it would run and asks first. Adding projects is possible only from this computer.
 
+The commands are written in `runboard.yaml`, which only this computer can change; the values put into them come
+from the runs file, which a paired device can edit. So every value is checked before it goes into a command
+(training on any backend, setup lines, jobs, the post-run check): letters, digits, spaces and `. , : = + @ / \ % ~
+[ ] -` only. A value that could end the command or start another (`; & | < > $` and the like) stops the run
+with an error instead of running. A run's name, the folder of its outputs, cannot climb out of the output folder.
+
 ## Secrets
 
 - The Kaggle token is written to `~/.kaggle/access_token` (or read from `KAGGLE_API_TOKEN`) and never returned by any

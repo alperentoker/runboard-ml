@@ -27,6 +27,18 @@ FILTERS = {
 }
 
 
+# What a value may hold to be put into a command: letters, digits, spaces and . , : = + @ / \ % ~ [ ] -, so
+# "--epochs 50 --lr 1e-3" or "data/ground.yaml" pass and nothing can end the command or start another one
+# (; & | < > $ ` " ' ( ) ^ ! * ? # and line breaks).
+SHELL_SAFE = re.compile(r"[\w .,:=+@/\\%~\[\]-]*")
+
+
+def safe_name(name: str) -> str:
+    """A run's name is the folder of its outputs: it may make subfolders, never climb out of the output folder."""
+    parts = [p.replace(":", "_") for p in re.split(r"[\\/]+", str(name)) if p not in ("", ".", "..")]
+    return "/".join(parts) or "run"
+
+
 def text(v, lang: str = "en") -> str:
     """Manifest texts may be plain strings or {en: …, tr: …}."""
     if isinstance(v, dict):
@@ -86,8 +98,12 @@ class Project:
 
     # ------------------------------------------------------------ templates
 
-    def render(self, tpl: str, ctx: dict) -> str:
-        """{field}, {field|filter|filter:arg} and {yaml:relative/file.yaml:key}."""
+    def render(self, tpl: str, ctx: dict, shell: bool = False) -> str:
+        """{field}, {field|filter|filter:arg} and {yaml:relative/file.yaml:key}.
+
+        shell: the result is a command line. Every value put into it must then be plain text (SHELL_SAFE): a value
+        comes from the runs file, which paired devices may edit, while commands are written in runboard.yaml, which
+        only this computer may. Without the check a run's field could carry `& another command`."""
         def rep(m):
             parts = m[1].split("|")
             head = parts[0]
@@ -104,6 +120,8 @@ class Project:
             for f in parts[1:]:
                 name, _, arg = f.partition(":")
                 v = FILTERS[name](v, arg)
+            if shell and head != "python" and not SHELL_SAFE.fullmatch(v):
+                raise Invalid("unsafe_value", field=head, value=v[:80])
             return v
         return re.sub(r"\{([^{}]+)\}", rep, tpl)
 
@@ -132,7 +150,7 @@ class Project:
         fields = {k: s.get(k) for k in r.get("fields", [])}
         return {"id": run_id, **fields, "fields": fields, "ready": ready,
                 "missing": [k for k in required if s.get(k) is None],
-                "name": self.render(r.get("name", "{id}"), s) if ready else None,
+                "name": safe_name(self.render(r.get("name", "{id}"), s)) if ready else None,
                 "locked": self.locked and not self.is_extra(run_id), "extra": self.is_extra(run_id)}
 
     def infos(self) -> list[dict]:

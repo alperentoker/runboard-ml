@@ -98,6 +98,50 @@ def test_tablet_cannot_touch_credentials_or_add_projects(server):
     assert tablet.post("/api/system/lan", json={"on": False}).status_code == 403
 
 
+def test_a_run_field_cannot_carry_a_command(server, tmp_path):
+    # a paired device may edit runs; what they hold goes into commands only runboard.yaml (this computer) writes
+    proj = tmp_path / "p"
+    proj.mkdir()
+    (proj / "runs.yaml").write_text("defaults: {seed: 0}\nruns:\n  base: {model: a.pt}\n")
+    (proj / "runboard.yaml").write_text(yaml.safe_dump({
+        "name": "P", "id": "p", "runs": {"file": "runs.yaml", "defaults": "defaults", "fields": ["model", "seed"]},
+        "backends": {"local": {"command": "echo {model}", "output_dir": "out"}}, "default_backend": "local"}))
+    cfg = home.config()
+    cfg["projects"] = [str(proj)]
+    home.save_config(cfg)
+    tablet = pair(server)
+    marker = proj / "INJECTED.txt"
+    assert tablet.put("/api/p/p/plan/runs/base", json={"values": {"model": f"a.pt & echo x > {marker.name}"}}).status_code == 200
+    r = tablet.post("/api/p/p/start/base", json={"backend": "local"})
+    assert r.status_code == 400 and r.json()["code"] == "unsafe_value" and r.json()["params"]["field"] == "model"
+    time.sleep(1)
+    assert not marker.exists()
+
+
+@pytest.mark.parametrize("value, ok", [
+    ("--epochs 50 --lr 1e-3", True), ("data/ground.yaml", True), (r"C:\data\a.yaml", True), ("[64,128]", True),
+    ("yolo11s.pt", True), ("çığ-ş_1", True), ("a; rm -rf ~", False), ("a && b", False), ("a | b", False),
+    ("$(whoami)", False), ("`id`", False), ('a" & calc', False), ("a > f", False), ("a\nb", False), ("a ^& b", False),
+])
+def test_only_plain_values_go_into_commands(value, ok):
+    from runboard.errors import Invalid
+    from runboard.project import Project
+    p = Project.__new__(Project)  # render needs no project files for plain fields
+    if ok:
+        assert p.render("python train.py {args}", {"args": value}, shell=True) == f"python train.py {value}"
+    else:
+        with pytest.raises(Invalid):
+            p.render("python train.py {args}", {"args": value}, shell=True)
+    assert p.render("{args}", {"args": value}) == value  # outside a command (names, paths, labels) nothing changes
+
+
+def test_a_run_name_stays_inside_the_output_folder():
+    from runboard.project import safe_name
+    assert safe_name("../../etc/x") == "etc/x" and safe_name(r"..\..\x") == "x" and safe_name("C:/x") == "C_/x"
+    assert safe_name("R1-combined-yolov8s-s0") == "R1-combined-yolov8s-s0" and safe_name("grp/R1") == "grp/R1"
+    assert safe_name("..") == "run"
+
+
 def test_removed_device_is_locked_out(server):
     tablet = pair(server)
     did = tablet.get("/api/me").json()["device"]["id"]

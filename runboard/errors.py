@@ -91,6 +91,7 @@ MESSAGES = {
     "not_on_kaggle": "{data} is not on Kaggle yet (Data tab)",
     "kaggle_error": "Kaggle refused: {problem}",
     "no_local_command": "backends.local.command is not set in runboard.yaml",
+    "unsafe_value": "{field} = '{value}' cannot go into a command: use letters, digits, spaces and . , : = + @ / \\ % ~ [ ] - only",
     "only_finished_delete": "Only finished runs can be deleted",
     "not_launched": "Not started yet: there is nothing to stop",
     "foreign_kernel": "This run is linked to a notebook runboard did not create; delete it on Kaggle",

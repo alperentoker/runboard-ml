@@ -148,7 +148,7 @@ class SSHBackend(Backend):
         tpl = cfg.get("resume") if info.get("resume") else cfg.get("command")
         if not tpl:
             raise Invalid("remote_config", backend=self.name, problem=f"backends.{self.name}.command is not set")
-        return project.render(tpl, {**info, "python": cfg.get("python") or "python3"})
+        return project.render(tpl, {**info, "python": cfg.get("python") or "python3"}, shell=True)
 
     def setup(self, project) -> str:
         return " && ".join(str(s) for s in self.cfg(project).get("setup") or [])

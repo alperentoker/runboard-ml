@@ -234,7 +234,7 @@ class Runtime:
         after = (project.m.get("results") or {}).get("after")
         check = None
         if after:
-            cmd = project.render(after, {**info, "out": project.output_dir(run_id, info)})
+            cmd = project.render(after, {**info, "out": project.output_dir(run_id, info)}, shell=True)
             proc = subprocess.run(cmd, shell=True, cwd=project.root, capture_output=True, text=True, encoding="utf-8",
                                   errors="replace", creationflags=NO_WINDOW)
             if proc.returncode:
@@ -502,7 +502,7 @@ class Runtime:
         if spec.get("per_run"):
             info = project.info(run_id or "")
             ctx = {**info, "out": project.output_dir(run_id, info)}
-        job = Job(kind, spec.get("title", kind), project.render(spec["cmd"], ctx), project.root, shell=True)
+        job = Job(kind, spec.get("title", kind), project.render(spec["cmd"], ctx, shell=True), project.root, shell=True)
         self.jobs[(project.key, kind)] = job
         return job
 
