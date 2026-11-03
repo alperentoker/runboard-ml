@@ -4,6 +4,12 @@ All notable changes to runboard. Versions follow [semantic versioning](https://s
 
 ## Unreleased
 
+### Changed
+- runboard is described as what it is first: a dashboard for training runs (start them anywhere, watch them live,
+  queue, compare and edit them). Pre-registered experiments stay, as an optional part for projects that need them;
+  the README, the PyPI description, the tutorial's introduction and the roadmap say so. The roadmap's next stages
+  are real SSH and SLURM machines, start-up on Linux and macOS, notifications, and projects that are not YOLO.
+
 ### Fixed
 - SSH: a run that finished exactly while the dashboard looked at it could be marked failed ("the process ended
   without an exit code"): its exit code was looked for, then the process, and the run could end in between. The

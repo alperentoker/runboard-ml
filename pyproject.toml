@@ -5,15 +5,15 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "runboard-ml"  # "runboard" on PyPI belongs to another project; the command and the module are still runboard
 version = "0.3.0"
-description = "Pre-registered ML experiments: lock the plan, run on your GPU, Kaggle, SSH or SLURM, watch live, and get hypotheses decided with bootstrap intervals and paper-ready output."
+description = "A dashboard for ML training runs: start them on your GPU, Kaggle, SSH or SLURM, watch them live, queue, compare and edit them; optional pre-registered hypotheses."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Alperen Toker" }]
 requires-python = ">=3.11"  # the Kaggle client (kaggle>=2.2) needs 3.11
 dependencies = ["fastapi>=0.110", "uvicorn>=0.29", "pyyaml>=6"]
-keywords = ["pre-registration", "reproducibility", "hypothesis testing", "bootstrap", "machine learning", "training",
-            "dashboard", "kaggle", "slurm", "yolo"]
+keywords = ["dashboard", "machine learning", "training", "experiment management", "kaggle", "slurm", "ssh", "gpu",
+            "yolo", "pre-registration"]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Environment :: Web Environment",

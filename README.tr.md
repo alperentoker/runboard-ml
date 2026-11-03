@@ -1,12 +1,11 @@
 # runboard
 
-**Plandan makaleye, ön kayıtlı makine öğrenmesi deneyleri.**
+**Eğitim koşuların için bir panel: istediğin yerde başlat, canlı izle, düzenli tut.**
 
-runboard kendi bilgisayarında çalışan bir panel. Çalışmanın neyi sorduğunu ve ne beklediğini daha hiçbir şey
-eğitmeden yazarsın, planı kilitlersin, deneyleri kendi GPU'nda, Kaggle'da, SSH ile bağlandığın kiralık bir makinede
-ya da üniversitenin SLURM kümesinde çalıştırır ve canlı izlersin. Değerlendirmeler gelince runboard her hipotezi
-bootstrap güven aralığıyla karara bağlar (*desteklendi*, *reddedildi* ya da *ayırt edilemedi*) ve makalen için
-tabloları, yöntem ve sapma bölümlerini ve bir tekrarlanabilirlik kontrol listesini yazar.
+runboard kendi bilgisayarında çalışır ve projelerinin eğitim koşularını yönetir. Bir koşuyu bu bilgisayarın
+GPU'sunda, Kaggle'ın ücretsiz GPU'larında, SSH ile bağlandığın kiralık bir makinede ya da bir SLURM kümesinde tek
+sayfadan başlatırsın. Her koşuyu saniye saniye izlersin (günlük, epoch, metrikler, kalan süre), sıradakileri kuyruğa
+alırsın, karşılaştırırsın, planı ve kodu düzenlersin, sonuçları yan yana görürsün.
 
 Her şey proje klasöründe okunabilir dosyalar olarak durur ve git'e girer: hesap yok, sunucu yok, gizli veritabanı yok.
 
@@ -16,195 +15,115 @@ Her şey proje klasöründe okunabilir dosyalar olarak durur ve git'e girer: hes
 · [Başvuru](https://github.com/alperentoker/runboard-ml/blob/main/docs/manifest.md)
 · [Değişiklikler](https://github.com/alperentoker/runboard-ml/blob/main/CHANGELOG.md)
 
-![İki hipotez %95 aralıklarıyla karara bağlanmış: biri desteklendi, biri reddedildi](https://raw.githubusercontent.com/alperentoker/runboard-ml/main/docs/images/tutorial-7-verdicts.png)
+![Bir projenin genel bakışı: çalışan koşu, canlı eğrisi, kuyruk ve plan](https://raw.githubusercontent.com/alperentoker/runboard-ml/main/docs/images/tutorial-4-running.png)
 
 ## İçindekiler
 
-- [Neden](#neden)
+- [Ne işe yarar](#ne-işe-yarar)
 - [Beş dakikada dene](#beş-dakikada-dene)
-- [Bir çalışma nasıl yürür](#bir-çalışma-nasıl-yürür)
-- [Bir projede neler var](#bir-projede-neler-var)
-- [Hipotez yazmak](#hipotez-yazmak)
 - [Koşular nerede çalışır](#koşular-nerede-çalışır)
 - [Özellikler](#özellikler)
+- [Bir projede neler var](#bir-projede-neler-var)
+- [Kendi eğitim betiğin](#kendi-eğitim-betiğin)
+- [Ön kayıtlı deneyler (isteğe bağlı)](#ön-kayıtlı-deneyler-isteğe-bağlı)
 - [Komut satırı](#komut-satırı)
 - [Tablet ve güvenlik](#tablet-ve-güvenlik)
 - [Sürekli çalıştırmak](#sürekli-çalıştırmak)
-- [Kendi eğitim scriptin](#kendi-eğitim-scriptin)
 - [Geliştirme](#geliştirme)
 
-## Neden
+## Ne işe yarar
 
-Çoğu makine öğrenmesi çalışması, neyin başarı sayılacağına sayıları gördükten sonra karar verir: başka bir metrik,
-başka bir seed, bir taban model daha. Deney takip araçları olanı kaydeder ama ne *beklendiğini* kaydetmez; okuyucu
-doğrulanmış bir hipotezle sonradan anlatılan bir hikâyeyi ayırt edemez.
+Birkaç düzine model eğitmek çoğu zaman her makine için bir terminal, her Kaggle koşusu için bir not defteri,
+klasörlere dağılmış günlükler ve elle tutulan bir sonuç tablosu demek. runboard bunları tek yerde toplar:
 
-runboard ikisini birbirinden ayırır:
-
-| Eğitimden önce | Eğitimden sonra |
+| İstediğin | runboard |
 | :--- | :--- |
-| Sorular, makinenin kontrol edebileceği ölçütler olarak yazılmış hipotezler, değerlendirme protokolü | Her ölçüt değerlendirmeler üzerinde, bootstrap turlarından %95 aralıkla hesaplanır |
-| Kilit: zaman, git commit'i ve planın, koşuların ve scriptlerin parmak izleri | Plandaki her sonraki değişiklik, gerekçesiyle, sapma olarak |
-| Mühürlü bir test kümesi | Bu kümedeki her değerlendirmenin defteri |
-
-Gerisi (koşuları başlatma, canlı ilerleme, kuyruk, sonuç tabloları) bütün çalışmayı tek araçla yürütebilmen için.
+| bir koşu başlatmak | seçtiğin ortamda tek düğme; ya da kuyruğa al, ortam boşalınca kendisi başlar |
+| nasıl gittiğini bilmek | canlı günlük, epoch ve batch, hız, metrikler, kayıp eğrileri ve kalan süre; her cihazdan |
+| bulut kotasını boşa harcamamak | koşu gönderilmeden önce kısa bir duman testi (az veriyle tek epoch) ve sözdizimi denetimi |
+| sırada ne koşacağını değiştirmek | koşuları düzenle, kopyala, ekle, sil, değer taramaları; kaydetmeden önce farkını gör |
+| kodu düzeltmek | projenin dosyalarını panelde oku ve düzenle |
+| nerede olduğunu görmek | sonuç tabloları, tohum özetleri, sınıf panelleri, koşu karşılaştırması, ne zaman ne koştuğunun zaman çizelgesi |
 
 ## Beş dakikada dene
 
 ```bash
 pip install runboard-ml numpy
-runboard demo        # ~/runboard-demo içine küçük bir ön kayıtlı çalışma kurar ve panele ekler
+runboard demo        # ~/runboard-demo içine küçük bir demo proje kurar ve panele ekler
 runboard             # paneli açar: http://localhost:8000
 ```
 
-Demo GPU istemez, hiçbir şey indirmez: sentetik veride iki model (doğrusal ve kübik), her biri üç seed'le, iki
-hipotez. Planı kilitle, altı koşuyu kuyruğa ekle (her biri yaklaşık on saniye), değerlendir ve kararları oku: bir
-hipotez *desteklendi*, öteki *reddedildi* çıkar. [Rehber](https://github.com/alperentoker/runboard-ml/blob/main/docs/tutorial.md)
-her ekranı adım adım gösterir.
+Demo GPU istemez, hiçbir şey indirmez: sentetik veride iki model (doğrusal ve kübik), her biri üç tohumla. Altı
+koşuyu kuyruğa ekle (her biri yaklaşık on saniye), eğitilişlerini izle, sonra sonuçlara bak ve koşuları karşılaştır.
+[Rehber](https://github.com/alperentoker/runboard-ml/blob/main/docs/tutorial.md) her ekranı adım adım gösterir.
 
 > PyPI'daki paketin adı **runboard-ml**, çünkü `runboard` adı başka bir projeye ait; komut ve Python modülü `runboard`.
 > İkisini aynı ortama kurma. Python 3.11 ya da daha yenisi gerekir; Kaggle istemcisi için `pip install "runboard-ml[kaggle]"`.
-
-## Bir çalışma nasıl yürür
-
-```
- plan.yaml            kilit              koşular              değerlendirme          kararlar             paper/
- sorular,      ──►  plan.lock.json ──►  GPU, Kaggle,     ──►  eval/<koşu>/<küme> ──►  desteklendi /  ──►  tablolar, yöntem,
- hipotezler,        commit +           SSH, SLURM;          ortak turlarda         reddedildi /        sapmalar, kontrol
- protokol           parmak izleri      canlı ilerleme       koşu skorları          ayırt edilemedi     listesi, rapor
-```
-
-1. **Plan.** Panelde (*Yeni proje → Ön kayıtlı çalışma*) ya da `plan.yaml`'da: sorular, hipotezler, değerlendirme
-   kümeleri ve metrik, ve koşulara (R1, R2, …) dönüşen deney tasarımları.
-2. **Kilit.** *Hipotezler → Planı kilitle*. Bundan sonra plan, koşular ve değerlendirme scriptleri sadece yazılı bir
-   gerekçeyle değişir; her değişiklik sapma olarak listelenir.
-3. **Koşu.** Koşuları herhangi bir ortamda başlat ya da kuyruğa ekle. Panel log'u, epoch'u, batch'i, hızı,
-   metrikleri ve kalan süreyi saniye saniye gösterir.
-4. **Değerlendirme.** Bir değerlendirme scripti (YOLO için runboard yazar, ya da kendi scriptin) her koşuyu her
-   kümede puanlar. Bütün koşular küme başına tek bir yeniden örnekleme planını paylaşır; böylece her koşunun k. bootstrap
-   turu aynı görüntüleri kullanır ve koşular arası karşılaştırmalar eşleştirilmiş olur.
-5. **Karar.** Hipotezler sayfası her ölçütü tüm kümede ve her turda hesaplar ve kararı aralığıyla verir.
-6. **Rapor.** *Makale için dışa aktar* `paper/` klasörünü yazar: Markdown ve LaTeX tablolar, hipotez tablosu, yöntem
-   taslağı, sapmalar bölümü, tekrarlanabilirlik listesi, tek sayfalık kayıtlı rapor ve Zenodo için arşiv.
-
-## Bir projede neler var
-
-Proje, içinde `runboard.yaml` olan herhangi bir klasördür. runboard birkaç dosya ekler, senin dosyalarını değiştirmez.
-
-| Dosya | İçeriği | Kilitli |
-| :--- | :--- | :---: |
-| `runboard.yaml` | koşuların nasıl başladığı (komutlar, ortamlar), neyi raporladıkları, fazlar ve tablolar, işler | hayır |
-| `plan.yaml` | sorular, hipotezler, değerlendirme protokolü, seed grupları, kararlar | evet |
-| koşu dosyası (`runs.yaml` ya da kendininki) | koşular ve ortak ayarları, senin biçiminde | evet |
-| `plan.lock.json` | planın ne zaman, hangi commit'te kilitlendiği ve parmak izleri | bir kez yazılır |
-| `deviations.md` | kilitten sonraki her değişiklik, gerekçesi ve diff'iyle | eklenir |
-| `eval/` | ortak yeniden örnekleme planları ve her koşunun her kümedeki skorları | — |
-| şablon scriptleri | split, check, subsets, evaluate, speed, convert: okuyup değiştirebileceğin sıradan Python | evet |
-| `paper/` | *Makale için dışa aktar*'ın yazdıkları | — |
-
-Çalışmanın parçası olmayan durum (koşu kayıtları, loglar, eşleştirilmiş cihazlar) projede değil `~/.runboard`'da durur.
-
-## Hipotez yazmak
-
-Bir hipotez insanlar için bir cümle, makine için bir ölçüttür:
-
-```yaml
-hypotheses:
-  - id: H1
-    question: S1
-    text: Sadece karayla eğitilen model hava görüntülerinde, sadece havayla eğitilenin karada çöktüğünden daha çok çöker.
-    criterion: "collapse(R4, ground, aerial) > collapse(R5, aerial, ground)"
-  - id: H2
-    question: S2
-    text: Hava verisinin dörtte biri, hava uzmanının %90'ına ulaşır.
-    criterion: "R7.aerial >= 0.9 * R5.aerial"
-  - id: H3
-    question: S2
-    text: Doğruluk, hava payının logaritmasıyla artar.
-    criterion: "log_fit({R6: 10, R7: 25, R8: 50}, aerial).r2 >= 0.9"
-```
-
-`R7.aerial`, R7 koşusunun `aerial` kümesindeki metriğidir; `R7.aerial@person` tek bir sınıftır; `cubic` gibi bir seed
-grubu, koşularının ortalamasıdır. Sayılar, `+ - * /`, karşılaştırmalar, `and` ve birkaç fonksiyon (`collapse`, `mean`,
-`min`, `max`, `abs`, `log_fit`) kullanılabilir; başka hiçbir şey kullanılamaz ve ölçütler asla Python olarak
-çalıştırılmaz. Her ölçüt sen yazarken planlanan koşulara ve kümelere göre kontrol edilir.
-
-Her karşılaştırma bootstrap turlarındaki farkına göre karara bağlanır: %95 aralığın tamamı sıfırın üstündeyse
-**desteklendi**, altındaysa **reddedildi**, aksi hâlde **ayırt edilemedi**. Ayrıntılar
-[tasarım notlarında](https://github.com/alperentoker/runboard-ml/blob/main/docs/design-v2.md).
 
 ## Koşular nerede çalışır
 
 | Ortam | Ne için | Nasıl |
 | :--- | :--- | :--- |
-| **Yerel** | bu bilgisayarın GPU'su (ya da CPU'su) | panel yeniden başlasa da süren bağımsız bir süreç; durdurulabilir |
-| **Kaggle** | ücretsiz bulut GPU (haftada yaklaşık 30 saat) | özel script kernel'leri, canlı log, kuyrukta haftalık kota, yasaklı yol kontrolüyle özel veri yükleme; Python dosyaları gönderilmeden önce derlenir |
-| **SSH** | kiralık GPU, laboratuvar sunucusu | kendi `ssh`'ın ve anahtarların (runboard parola görmez); kod tar olarak gönderilir, koşu uzakta bağımsız çalışır, log canlı izlenir, çıktılar eve gelir |
-| **SLURM** | üniversite kümesi | giriş düğümünde `sbatch` ile iş, `sacct` ile izleme, `scancel` ile durdurma; kuyruğa istediğin kadar |
+| **Yerel** | bu bilgisayarın GPU'su (ya da CPU'su) | panel yeniden başlasa da süren ayrı bir süreç; durdurulabilir |
+| **Kaggle** | ücretsiz bulut GPU'ları (haftada yaklaşık 30 saat) | özel betik çekirdekleri, canlı günlük, genel bakışta ve kuyrukta haftalık kota, yasak yol denetimiyle özel veri kümesi yükleme |
+| **SSH** | kiralık bir GPU, laboratuvar sunucusu | kendi `ssh`'ın ve anahtarların (runboard şifre görmez); kod tar olarak gider, koşu karşı tarafta ayrı çalışır, günlük akar, çıktılar eve gelir |
+| **SLURM** | üniversite kümesi | giriş düğümünde `sbatch` ile işler, `sacct` ile takip, `scancel` ile durdurma; kuyrukta istediğin kadar |
 
-Bir proje birkaçını birden kullanabilir; her koşu nerede çalıştığını ve neyle başladığını (commit, commit'lenmemiş
-değişiklikler, plan, koşu, script ve veri parmak izleri) kaydeder.
+Bir proje birkaçını birden kullanabilir. Her koşu nerede çalıştığını ve neyle başladığını kaydeder: commit,
+commit edilmemiş değişiklikler, koşuların, betiklerin ve verinin parmak izleri.
 
 ## Özellikler
 
-**Planlama**
-- Araştırma sihirbazı: sorular, veri paketleri, deney tasarımları (uzmanlar, veri miktarı eğrisi, mimariler, ablasyon,
-  seed tekrarları), protokol ve hipotezler, önerilen ölçütlerle birlikte hazır bir projeye dönüşür.
-- Panelde plan düzenleme: koşuları düzenle, kopyala, ekle ve sil; taramalar (değerlerin her kombinasyonu için bir
-  koşu), ortak ayarlar ve dosyanın tamamı; her değişiklik önce diff olarak gösterilir ve yedeklenir; başlamış koşular
-  ayarlarını korur.
-
 **Çalıştırma**
-- Projeler arası tek kuyruk: her ortam boşalınca sıradakini başlatır; Kaggle kotası yetmeyecekse bekler.
-- Log satırları arasında canlı ilerleme, yakınlaştırılabilir ve koşular arası karşılaştırmalı metrik ve kayıp
-  grafikleri, durduktan sonra kaldığı yerden sürdürme.
+- Projeler arası tek kuyruk: her ortam boşalınca sıradakini başlatır; Kaggle girdileri haftalık kota yetmeyecekse
+  bekler.
+- Günlük satırları arasında bile canlı ilerleme, durduktan sonra devam etme, koşu sayfasından durdurma ve yeniden
+  başlatma.
 - Duman testi: gerçek koşu bulut kotası harcamadan önce az veriyle kısa bir epoch.
 
+**İzleme**
+- En iyi noktası işaretli metrik ve kayıp grafikleri, eğitim ve doğrulama kaybı birlikte, öğrenme oranı şeridi;
+  büyük görünümde yakınlaştırma, kaydırma, yumuşatma, log ölçek ve CSV.
+- Koşuları karşılaştırma: eğrilerini üst üste çiz ya da sonuç tablosunda işaretle, her sayıyı farkıyla yan yana gör.
+- Genel bakış: çalışan koşu, kuyruk, planın ilerlemesi, ne zaman ne koştuğunun zaman çizelgesi ve Kaggle GPU haftası.
+
+**Planlama**
+- Yeni proje sihirbazı: bir YOLO veri kümesi ve modeller seç (eğitim betiğini runboard yazar) ya da kendi betiğini
+  göster; bir koşu bir ayar takımı ya da komut satırı argümanlarıdır.
+- Panelde plan düzenleme: koşuları düzenle, kopyala, ekle, sil, taramalar (her değer birleşimi için bir koşu), ortak
+  ayarlar ve dosyanın tamamı; her değişiklik önce fark olarak gösterilir ve yedeklenir; başlamış koşular ayarlarını
+  korur.
+
 **Kod**
-- Şablonlar: split (seed'li; videoları ya da sahneleri tek kümede tutar), check (bozuk etiketler, kümeler arası
-  sızıntı, benzer görüntüler), convert (COCO / VOC → YOLO), subsets (iç içe veri miktarı listeleri), evaluate (YOLO,
-  kararlar için), speed. Bir formdan bir kez yazılır; sen değiştirmedikçe yeniden yazılabilir.
-- Kod sayfası: projenin dosyalarını her yerden oku, bu bilgisayardan değiştir; kaydetmeden önce sözdizimi kontrolü.
+- Kod sayfası: projenin dosyalarını her yerden oku, bu bilgisayardan değiştir; kaydetmeden önce sözdizimi denetimi.
+- YOLO veri kümeleri için şablonlar: split (tohumlu, videoları ya da sahneleri tek bölmede tutar), check (bozuk
+  etiketler, bölmeler arası sızıntı, birbirine benzeyen görüntüler), convert (COCO / VOC'den YOLO'ya), subsets (iç içe
+  veri miktarı listeleri), evaluate, speed. Bir formdan bir kez yazılır; sen değiştirmediğin sürece yeniden yazılır.
 
 **Sonuçlar**
-- `runboard.yaml`'dan sonuç tabloları ve seed özetleri, kararlarıyla Hipotezler sayfası, makale çıktısı.
+- `runboard.yaml`'dan sonuç tabloları ve tohum özetleri, sınıf başına küçük paneller, veri miktarı eğrileri.
 
 **Her yerde**
-- Tablet görünümü (`/mini`) ve QR kodla eşleştirme; İngilizce ve Türkçe; açık ve koyu tema.
+- Hızlı arama (Ctrl+K): projeler, sayfalar, koşular; tablet görünümü (`/mini`) ve QR kodla eşleştirme; English ve
+  Türkçe; koyu, açık ya da sistemin teması.
 
-## Komut satırı
+## Bir projede neler var
 
-| Komut | Ne yapar |
+Proje, içinde `runboard.yaml` olan herhangi bir klasördür. runboard birkaç dosya ekler, seninkileri asla değiştirmez.
+
+| Dosya | Ne tutar |
 | :--- | :--- |
-| `runboard` / `runboard serve` | paneli (ve bekçisini) başlatır |
-| `runboard stop` | ikisini durdurur |
-| `runboard demo [klasör]` | beş dakikalık demo çalışmayı kurar |
-| `runboard add KLASÖR` / `remove KLASÖR` / `list` | paneldeki projeleri yönetir |
-| `runboard lock [klasör]` | planı kilitler |
-| `runboard verdicts [klasör]` | her hipotezin kararını yazdırır |
-| `runboard export [klasör]` | `paper/` klasörünü yazar |
-| `runboard template AD [klasör] --set anahtar=değer` | şablondan bir script yazar |
-| `runboard migrate [klasör]` | eski bir projenin kararlarını ve kilidini `plan.yaml`'a taşır |
+| `runboard.yaml` | koşular nasıl başlar (komutlar, ortamlar), ne raporlar, aşamalar ve tablolar, işler |
+| koşu dosyası (`runs.yaml` ya da kendi dosyan) | koşular ve ortak ayarları, senin biçiminde |
+| şablonlardan gelen betikler | split, check, subsets, evaluate, speed, convert: okuyup değiştirebileceğin sıradan Python |
 
-## Tablet ve güvenlik
+Projenin parçası olmayan durum (koşu kayıtları, günlükler, eşleşmiş cihazlar) projede değil, `~/.runboard` içinde
+durur.
 
-runboard varsayılan olarak sadece bu bilgisayarı dinler (`127.0.0.1`) ve hiçbir şey sormaz. Aynı Wi-Fi'daki bir
-tabletten izlemek için **Sistem → Tablet erişimi**'ni aç, **Cihaz eşleştir**'e bas ve QR kodu okut ya da 6 haneli kodu
-gir (bir kez, iki dakika geçerli). Eşleştirilmiş cihazlar koşuları izleyebilir, başlatıp durdurabilir ve planı
-düzenleyebilir; token'lar, yeni projeler, kod, proje dosyası, kilitleme ve klasör tarayıcısı bu bilgisayarda kalır.
-Kaggle token'ı `~/.kaggle`'da durur. Ev ağının dışından erişim için Tailscale gibi bir VPN kullan. Bkz.
-[SECURITY.md](https://github.com/alperentoker/runboard-ml/blob/main/SECURITY.md).
+## Kendi eğitim betiğin
 
-## Sürekli çalıştırmak
-
-*Sistem → Windows açılınca runboard'u başlat* (Windows), ya da `runboard serve` çalıştıran bir systemd/launchd
-servisi. `runboard serve` ayrıca bir bekçi başlatır: panel cevap vermezse yeniden başlatır ve her başlatmayı,
-durdurmayı ve hatayı `~/.runboard/server.log`'a yazar.
-
-## Kendi eğitim scriptin
-
-Sihirbazdaki *Kendi eğitim scriptim* herhangi bir scripti koşu başına argümanlarla çalıştırır. Canlı ilerleme için
-her olayda bir satır yazdır ya da `rb.py`'yi kullan (sadece standart kütüphane; sihirbaz ve demo scriptlerinin yanına
+Sihirbazdaki *Kendi eğitim kodum* herhangi bir betiği koşu başına argümanlarla çalıştırır. Canlı ilerleme için her
+olayda bir satır yazdır ya da `rb.py`'yi kullan (yalnızca standart kütüphane; sihirbaz ve demo onu betiklerinin yanına
 kopyalar):
 
 ```python
@@ -214,12 +133,11 @@ rb.start(epochs=100, batches=798)
 rb.epoch(3, epochs=100, metrics={"map": 48.2}, best=48.2)
 ```
 
-Hipotezler için bir değerlendirme, her koşunun skorlarını ortak biçimde `rb.write_eval` (bootstrap turlarındaki
-değerler) ya da `rb.write_samples` (öğe başına bir değer) ile yazar. Elle bir proje kısa bir `runboard.yaml`'dır:
+Elle kurulan bir proje kısa bir `runboard.yaml`'dır:
 
 ```yaml
 version: 2
-name: Dedektörüm
+name: Benim dedektörüm
 runs: {file: configs/runs.yaml, section: runs, defaults: train, name: "{id}"}
 backends:
   local:  {command: '"{python}" train.py --run {id}', output_dir: runs/local}
@@ -231,14 +149,65 @@ results:
 
 Bütün seçenekler [başvuru belgesinde](https://github.com/alperentoker/runboard-ml/blob/main/docs/manifest.md).
 
+## Ön kayıtlı deneyler (isteğe bağlı)
+
+Bir projenin beklentilerini sonuçlardan önce yazdığını göstermesi gerektiğinde (tez, makale, kurum içi bir karar)
+projeye bir `plan.yaml` eklenebilir: sorular, makinenin kontrol edebileceği ölçütler olarak yazılmış hipotezler ve
+koşuların nasıl değerlendirileceği.
+
+```yaml
+hypotheses:
+  - id: H2
+    text: Hava verisinin dörtte biri, hava uzmanının %90'ına ulaşır.
+    criterion: "R7.aerial >= 0.9 * R5.aerial"
+```
+
+- **Kilit** (*Hipotezler → Planı kilitle*): `plan.lock.json` zamanı, commit'i ve parmak izlerini tutar; sonraki
+  değişiklikler gerekçe ister ve `deviations.md`'ye yazılır.
+- **Kararlar:** bir değerlendirme betiği her koşuyu ortak bootstrap turlarında ölçer; her ölçüt %95 aralığıyla
+  *desteklendi*, *reddedildi* ya da *ayırt edilemedi* çıkar, orman grafiği ve histogramlarla gösterilir.
+- **Dışa aktarma:** `paper/` içine Markdown ve LaTeX tablolar, yöntem taslağı, sapmalar ve bir rapor sayfası.
+
+Sihirbazdaki *Önceden kayıtlı deney* bunu YOLO projeleri için kurar; demo da bunu kullanır. Ölçüt dili, değerlendirme
+biçimi ve kilit [başvuru belgesinde](https://github.com/alperentoker/runboard-ml/blob/main/docs/manifest.md) ve
+[tasarım notlarında](https://github.com/alperentoker/runboard-ml/blob/main/docs/design-v2.md) anlatılır. `plan.yaml`
+olmayan projelerde bu sayfalar görünmez.
+
+## Komut satırı
+
+| Komut | Ne yapar |
+| :--- | :--- |
+| `runboard` / `runboard serve` | paneli (ve bekçisini) başlatır |
+| `runboard stop` | ikisini durdurur |
+| `runboard demo [klasör]` | beş dakikalık demo projeyi kurar |
+| `runboard add YOL` / `remove YOL` / `list` | paneldeki projeleri yönetir |
+| `runboard template AD [klasör] --set anahtar=değer` | bir şablondan betik yazar |
+| `runboard lock` / `verdicts` / `export [klasör]` | ön kayıtlı projeler: planı kilitler, kararları yazdırır, `paper/` yazar |
+| `runboard migrate [klasör]` | eski bir projenin kararlarını ve kilidini `plan.yaml`'a taşır |
+
+## Tablet ve güvenlik
+
+runboard varsayılan olarak yalnızca bu bilgisayarı dinler (`127.0.0.1`) ve hiçbir şey sormaz. Aynı Wi-Fi'daki bir
+tabletten izlemek için **Sistem → Tablet erişimi**'ni aç, **Cihaz eşleştir**'e bas ve QR kodu okut ya da 6 haneli kodu
+yaz (iki dakika geçerli, tek kullanımlık). Eşleşmiş cihazlar koşuları izleyebilir, başlatıp durdurabilir ve koşuları
+düzenleyebilir; anahtarlar, yeni projeler, kod, proje dosyası ve klasör gezgini bu bilgisayarda kalır, komuta giren
+her değer önce denetlenir. Kaggle anahtarı `~/.kaggle` içinde durur. Ev ağının dışında Tailscale gibi bir VPN kullan.
+Ayrıntılar [SECURITY.md](https://github.com/alperentoker/runboard-ml/blob/main/SECURITY.md)'de.
+
+## Sürekli çalıştırmak
+
+*Sistem → Windows açılınca runboard'u başlat* (Windows) ya da `runboard serve` çalıştıran bir systemd/launchd
+servisi. `runboard serve` ayrıca panel yanıt vermezse onu yeniden başlatan bir bekçi çalıştırır ve her başlatma,
+durma ve hatayı `~/.runboard/server.log`'a yazar.
+
 ## Geliştirme
 
 ```bash
 git clone https://github.com/alperentoker/runboard-ml
 cd runboard-ml
 pip install -e .[dev]
-pytest                # yaklaşık 200 test; Chrome ya da Edge kuruluysa gerçek bir başsız tarayıcıyla
+pytest                # 200'den fazla test; Chrome ya da Edge kuruluysa gerçek, başsız bir tarayıcıyla
 ```
 
-Planlar: [ROADMAP.md](https://github.com/alperentoker/runboard-ml/blob/main/ROADMAP.md) · yayın:
+Planlar: [ROADMAP.md](https://github.com/alperentoker/runboard-ml/blob/main/ROADMAP.md) · sürümler:
 [RELEASING.md](https://github.com/alperentoker/runboard-ml/blob/main/RELEASING.md) · MIT lisanslı.

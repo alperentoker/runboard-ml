@@ -1,19 +1,19 @@
 # Roadmap
 
-runboard is becoming a **pre-registration tool for machine-learning experiments**. A researcher writes questions and
-hypotheses, builds the data pipeline and evaluation from templates, locks the plan, runs it locally, on Kaggle, over
-SSH or on a SLURM cluster, and gets every hypothesis decided with a confidence interval, plus the methods, results and
-deviations sections of the paper.
+runboard is a **dashboard and working environment for machine-learning training runs**: start them on this
+computer, Kaggle, a machine over SSH or a SLURM cluster, follow them live, queue, compare and edit them, and see the
+results in one place. Pre-registered experiments (hypotheses decided with confidence intervals, a locked plan, paper
+output) are an optional part for projects that need them.
 
 Principles that do not change:
 
 1. **Everything is a readable file** in the project folder and goes into git. No hidden database, no account.
-2. **No hidden code.** Templates (and, later, AI help) write ordinary files a reviewer can read.
-3. **A lock is a lock.** After it, every change of the plan is a recorded deviation.
-4. **The test split is sealed.** It never goes to the cloud, and every use of it is written down.
-5. **Local first.** No server, account or subscription.
+2. **No hidden code.** Templates (and, later, AI help) write ordinary files anyone can read.
+3. **Local first.** No server, account or subscription.
+4. **For pre-registered projects:** a lock is a lock (every later change is a recorded deviation), and the test split
+   is sealed (it never goes to the cloud, and every use of it is written down).
 
-The design behind the first stages is in [docs/design-v2.md](docs/design-v2.md).
+Stages RB-0 to RB-9 were planned around pre-registration; their design is in [docs/design-v2.md](docs/design-v2.md).
 
 | Stage | What | Release |
 |---|---|---|
@@ -28,11 +28,11 @@ The design behind the first stages is in [docs/design-v2.md](docs/design-v2.md).
 | **RB-8** · first contact ✓ | `runboard demo`: a five-minute pre-registered study on any CPU; the step-by-step tutorial with screenshots | 0.2 |
 | **RB-9** · PyPI ✓ | published as `runboard-ml` (the name `runboard` is taken); a version tag tests, builds and publishes it through trusted publishing (RELEASING.md) | 0.2 |
 | **RB-10** · the dashboard ✓ | dark by default with a theme switch, one colour system, a forest plot and bootstrap histograms of the verdicts, seed plots, per-class panels, a run timeline and the Kaggle week, the study's steps, quick search, comparing runs; a review of the whole project and its security fix | 0.3 |
-| **RB-11** · what a reviewer asks | training seeds inside the interval (a two-level bootstrap over seeds and images), an optional correction for several hypotheses, equivalence margins so *no difference* can be claimed, the lock time stamped outside the computer (a public commit, OSF or Zenodo) | 0.4 |
-| later | a documentation site, `CITATION.cff` and a DOI, a case study, a workshop paper, JOSS | 1.0 |
+| **RB-11** · on real machines | SSH and SLURM tried on real servers and clusters (so far against a stand-in); start with the computer on Linux (systemd) and macOS (launchd) as on Windows; a word when a run ends or fails even with the page closed | 0.4 |
+| **RB-12** · any training code | the wizard and the results for projects that are not YOLO: your script, its metrics and curves read without a YOLO layout; a simpler wizard (models from a list, the runs and files it will write shown before it writes them) | 0.4 |
+| later | a documentation site, `CITATION.cff`; for pre-registered projects, training seeds inside the interval, a correction for several hypotheses, equivalence margins and a lock stamped outside the computer | — |
 
-Not planned: competing with experiment trackers on logging and charts, a hosted service, multi-user lab features
-(unless real users ask for them).
+Not planned: a hosted service, accounts, multi-user lab features (unless real users ask for them).
 
-Validation: Ground2Air-LWIR, a pre-registered thermal-detection study run with
-runboard, is the reference project. RB-1 must reproduce its hand-made verdicts exactly before it ships.
+Reference project: Ground2Air-LWIR, a thermal-detection study whose fourteen Kaggle runs were managed with runboard; its
+hand-made verdicts are reproduced exactly by the pre-registration part.

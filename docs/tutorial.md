@@ -1,8 +1,9 @@
-# Five minutes with runboard: a pre-registered study from start to verdict
+# Five minutes with runboard: six runs from start to results
 
-This walkthrough runs a complete, small study on your own computer: you write nothing, train six tiny models, and
-watch runboard decide two hypotheses with confidence intervals. It needs Python 3.11+, runboard and numpy. No GPU,
-no account, no download.
+This walkthrough runs a complete, small project on your own computer: you write nothing, queue six tiny trainings,
+watch them live, and read their results. The demo also uses runboard's optional pre-registration part, so at the end
+it decides two hypotheses with confidence intervals; projects without a `plan.yaml` skip those steps. It needs
+Python 3.11+, runboard and numpy. No GPU, no account, no download.
 
 **The study.** Two classes shaped like interleaving half-moons. A *linear* model can only draw a straight boundary;
 a *cubic* one can bend. Each is trained with three seeds (R1, R1s1, R1s2 and R2, R2s1, R2s2). Two questions:
