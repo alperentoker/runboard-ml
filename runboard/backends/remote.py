@@ -277,8 +277,10 @@ class SlurmBackend(SSHBackend):
         opts = {"job-name": f"rb-{project.key}-{_safe(run_id)}"[:60], **{str(k): v for k, v in (cfg.get("sbatch") or {}).items()}}
         lines = ["#!/bin/bash"] + [f"#SBATCH --{k}={v}" for k, v in opts.items() if v not in (None, "", False)]
         setup = self.setup(project)
+        # the job ends with the run's own status: SLURM (and sacct) must see a failed run fail, not the line that wrote
+        # the exit code down succeed
         lines += ["set -o pipefail", f"cd {rpath(d)}"] + ([setup] if setup else []) + [self.command(project, run_id, info),
-                                                                                    write_code(f["code"])]
+                                                                                    write_code(f["code"]), "exit $c"]
         return "\n".join(lines) + "\n"
 
     def submit(self, project, run_id, info):
@@ -296,12 +298,19 @@ class SlurmBackend(SSHBackend):
         job = st.get("job")
         if not job:
             return "ERROR", "no SLURM job id"
-        out = self.remote(project).check(f"sacct -j {int(job)} -n -X -P -o State,ExitCode 2>/dev/null || "
-                                         f"squeue -h -j {int(job)} -o %T").strip()
+        # sacct knows every job, but only where the cluster keeps accounting; squeue knows a job only while it waits
+        # or runs. When neither knows it, the job has ended and the exit code its script wrote says how.
+        j, code = int(job), rpath(self.files(project, run_id)["code"])
+        out = self.remote(project).check(
+            f's=$(sacct -j {j} -n -X -P -o State,ExitCode 2>/dev/null); if [ -n "$s" ]; then echo "$s"; '
+            f'else q=$(squeue -h -j {j} -o %T 2>/dev/null); if [ -n "$q" ]; then echo "$q"; '
+            f'elif [ -f {code} ]; then echo "code:$(cat {code})"; fi; fi').strip()
         return self.read_state(out)
 
     @staticmethod
     def read_state(out: str) -> tuple[str, str | None]:
+        if out.startswith("code:"):
+            return SSHBackend.read_code(out[5:].strip())
         if not out:
             return "QUEUED", None  # sacct can lag behind sbatch for a few seconds
         first = out.splitlines()[0].split("|")

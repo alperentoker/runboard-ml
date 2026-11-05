@@ -81,4 +81,4 @@ try { if (window.Notification && Notification.permission === "default") document
 if (store("rb-side") === "mini") $("#app").classList.add("mini-side");
 $("#collapse").onclick = () => { const on = $("#app").classList.toggle("mini-side"); store("rb-side", on ? "mini" : "full"); };
 document.documentElement.lang = LANG;
-Promise.all([loadProjects(), api("/api/me").then(m => { ME = m; })]).then(render).catch(() => { $("#upd").textContent = t("unreachable"); });
+Promise.all([loadProjects(), api("/api/me").then(m => { ME = m; tellLang(); })]).then(render).catch(() => { $("#upd").textContent = t("unreachable"); });

@@ -111,7 +111,8 @@ MESSAGES = {
     "unknown_device": "Unknown device",
     "bad_token": "That does not look like a Kaggle API token (Settings → API Tokens → Generate New Token)",
     "token_rejected": "Kaggle rejected the token: {why}",
-    "autostart_windows": "Autostart switch is Windows-only; use your OS's service manager",
+    "notify_windows": "Notifications outside the page are shown on Windows only",
+    "autostart_unsupported": "Starting with the computer is set up on Windows, Linux (systemd) and macOS only",
     # new-project wizard
     "not_folder": "Not a folder: {path}",
     "choose_dataset": "Choose the dataset's YAML file (it lists the classes and the train/val folders)",

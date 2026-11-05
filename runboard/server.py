@@ -22,7 +22,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse,
                                StreamingResponse)
 
-from . import __version__, access, home, qr, wizard
+from . import __version__, access, autostart, home, notify, qr, wizard
 from .backends import ACTIVE, BACKENDS
 from .progress import Parser
 from .project import Project
@@ -52,7 +52,6 @@ class SafeJSON(JSONResponse):
 
 
 STATIC = Path(__file__).parent / "static"
-STARTUP = Path(os.environ.get("APPDATA", "")) / "Microsoft/Windows/Start Menu/Programs/Startup/runboard.vbs"
 rt = Runtime()
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, default_response_class=SafeJSON)
 PUBLIC = {"/pair", "/api/pair", "/icon.svg", "/manifest.webmanifest"}  # reachable before a device is paired
@@ -936,7 +935,8 @@ def api_system():
             "lan": f"http://{local_ip()}:{port()}", "lan_on": bool(home.config().get("lan")), "port": port(),
             "backends": rt.backend_info,
             "disk": {"free_gb": round(disk.free / 2**30, 1), "total_gb": round(disk.total / 2**30, 1)},
-            "autostart": STARTUP.exists() if os.name == "nt" else None, "pid": os.getpid()}
+            "autostart": autostart.enabled(), "notify": notify.enabled() if notify.available() else None,
+            "pid": os.getpid()}
 
 
 def port() -> int:
@@ -945,17 +945,36 @@ def port() -> int:
 
 @app.post("/api/system/autostart", dependencies=LOCAL)
 def api_autostart(body: dict = Body(...)):
-    if os.name != "nt":
-        raise Invalid("autostart_windows")
-    if body.get("on"):
-        pyw = Path(sys.executable).with_name("pythonw.exe")
-        STARTUP.parent.mkdir(parents=True, exist_ok=True)
-        STARTUP.write_text('Set sh = CreateObject("WScript.Shell")\r\n'
-                           f'sh.Run """{pyw if pyw.exists() else sys.executable}"" -m runboard serve", 0, False\r\n',
-                           encoding="utf-8")
-    elif STARTUP.exists():
-        STARTUP.unlink()
-    return {"autostart": STARTUP.exists()}
+    """Windows startup script, systemd user service or launchd agent (autostart.py): on from the next sign-in."""
+    if autostart.enabled() is None:
+        raise Invalid("autostart_unsupported")
+    autostart.enable() if body.get("on") else autostart.disable()
+    return {"autostart": autostart.enabled()}
+
+
+@app.post("/api/system/notify", dependencies=LOCAL)
+def api_notify(body: dict = Body(...)):
+    """Windows notifications when a run ends (notify.py); body {"on": bool} switches them, {"test": true} shows one."""
+    if not notify.available():
+        raise Invalid("notify_windows")
+    if "on" in body:
+        cfg = home.config()
+        cfg["notify"] = bool(body["on"])
+        home.save_config(cfg)
+    if body.get("test"):
+        w = notify.words()
+        notify.show(w["test"], w["test_body"], f"http://localhost:{port()}/#/system")
+    return {"notify": notify.enabled()}
+
+
+@app.post("/api/system/lang", dependencies=LOCAL)
+def api_lang(body: dict = Body(...)):
+    """The language the dashboard is used in, for what it says outside the page (notifications)."""
+    if body.get("lang") in ("en", "tr") and home.config().get("lang") != body["lang"]:
+        cfg = home.config()
+        cfg["lang"] = body["lang"]
+        home.save_config(cfg)
+    return {"lang": home.config().get("lang")}
 
 
 @app.post("/api/system/restart")
@@ -993,6 +1012,12 @@ def port_busy(p: int) -> bool:
         return s.connect_ex(("127.0.0.1", p)) == 0
 
 
+def watchdog_wanted() -> bool:
+    """runboard's own watchdog, unless config.yaml turns it off or a service manager (systemd, launchd: see
+    autostart.py) started the dashboard and restarts it itself."""
+    return bool(home.config().get("watchdog", True)) and not os.environ.get("RUNBOARD_NO_WATCHDOG")
+
+
 def serve(wait_port: bool = False) -> None:
     import uvicorn
 
@@ -1016,7 +1041,7 @@ def serve(wait_port: bool = False) -> None:
     threading.excepthook = lambda a: note(f"unexpected error in thread {a.thread.name}:\n"
                                           + "".join(traceback.format_exception(a.exc_type, a.exc_value, a.exc_traceback)))
     atexit.register(lambda: note(f"dashboard stopped (pid {os.getpid()})"))
-    if home.config().get("watchdog", True):
+    if watchdog_wanted():
         ensure_running()
     old = home.HOME / "password.txt"
     if old.exists():  # earlier versions used a password; access is now by machine and paired device

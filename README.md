@@ -71,7 +71,8 @@ the six runs (about ten seconds each), watch them train, then look at the result
 | **SLURM** | a university cluster | jobs through `sbatch` on the login node, followed with `sacct`, stopped with `scancel`; as many in the queue as you like |
 
 A project can use several. Each run records where it ran and what it started from: the commit, uncommitted changes,
-and fingerprints of the runs, the scripts and the data.
+and fingerprints of the runs, the scripts and the data. The SSH and SLURM backends are tested on every change
+against a real machine: sshd and a one-node SLURM cluster with accounting, in a container (`tests/docker`).
 
 ## Features
 
@@ -79,6 +80,8 @@ and fingerprints of the runs, the scripts and the data.
 - One queue across projects: each backend starts its next entry when it is free; Kaggle entries wait when the weekly
   quota would not cover them.
 - Live progress between log lines, resume after a stop, stop and restart from the run page.
+- A Windows notification when a run finishes (with its score), fails or is stopped, even with no page open; a
+  click opens the run.
 - Smoke test: one short epoch on a little data before a real run uses cloud quota.
 
 **Watching**
@@ -196,9 +199,12 @@ Tailscale. See [SECURITY.md](https://github.com/alperentoker/runboard-ml/blob/ma
 
 ## Running it permanently
 
-*System → Start runboard when Windows starts* (Windows), or a systemd/launchd service running `runboard serve`.
-`runboard serve` also starts a watchdog that restarts the dashboard if it stops answering, and writes every start,
-stop and error to `~/.runboard/server.log`.
+*System → Start runboard when I sign in to this computer* sets it up the way each system does: a startup script on
+Windows, a systemd user service on Linux (`~/.config/systemd/user/runboard.service`), a launchd agent on macOS
+(`~/Library/LaunchAgents/io.github.runboard.plist`). It takes effect at the next sign-in; on Linux, to have it
+start at boot without signing in, run `loginctl enable-linger` once. `runboard serve` starts a watchdog that
+restarts the dashboard if it stops answering (under systemd and launchd the service manager does that instead), and
+writes every start, stop and error to `~/.runboard/server.log`.
 
 ## Development
 

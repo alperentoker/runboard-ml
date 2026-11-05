@@ -70,7 +70,9 @@ koşuyu kuyruğa ekle (her biri yaklaşık on saniye), eğitilişlerini izle, so
 | **SLURM** | üniversite kümesi | giriş düğümünde `sbatch` ile işler, `sacct` ile takip, `scancel` ile durdurma; kuyrukta istediğin kadar |
 
 Bir proje birkaçını birden kullanabilir. Her koşu nerede çalıştığını ve neyle başladığını kaydeder: commit,
-commit edilmemiş değişiklikler, koşuların, betiklerin ve verinin parmak izleri.
+commit edilmemiş değişiklikler, koşuların, betiklerin ve verinin parmak izleri. SSH ve SLURM ortamları her
+değişiklikte gerçek bir makineye karşı test edilir: bir kapsayıcıda sshd ve kayıt tutan tek düğümlü bir SLURM
+kümesi (`tests/docker`).
 
 ## Özellikler
 
@@ -79,6 +81,8 @@ commit edilmemiş değişiklikler, koşuların, betiklerin ve verinin parmak izl
   bekler.
 - Günlük satırları arasında bile canlı ilerleme, durduktan sonra devam etme, koşu sayfasından durdurma ve yeniden
   başlatma.
+- Bir koşu bitince (skoruyla), hata verince ya da durdurulunca Windows bildirimi; hiçbir sayfa açık olmasa da
+  gelir, tıklayınca koşuyu açar.
 - Duman testi: gerçek koşu bulut kotası harcamadan önce az veriyle kısa bir epoch.
 
 **İzleme**
@@ -196,9 +200,12 @@ Ayrıntılar [SECURITY.md](https://github.com/alperentoker/runboard-ml/blob/main
 
 ## Sürekli çalıştırmak
 
-*Sistem → Windows açılınca runboard'u başlat* (Windows) ya da `runboard serve` çalıştıran bir systemd/launchd
-servisi. `runboard serve` ayrıca panel yanıt vermezse onu yeniden başlatan bir bekçi çalıştırır ve her başlatma,
-durma ve hatayı `~/.runboard/server.log`'a yazar.
+*Sistem → Bu bilgisayarda oturum açınca runboard'u başlat* bunu her sistemin kendi yoluyla kurar: Windows'ta bir
+başlangıç betiği, Linux'ta bir systemd kullanıcı servisi (`~/.config/systemd/user/runboard.service`), macOS'ta bir
+launchd ajanı (`~/Library/LaunchAgents/io.github.runboard.plist`). Bir sonraki oturum açışta etkin olur; Linux'ta
+oturum açmadan açılışta başlaması için bir kez `loginctl enable-linger` çalıştır. `runboard serve` panel yanıt
+vermezse onu yeniden başlatan bir bekçi çalıştırır (systemd ve launchd altında bunu servis yöneticisi yapar) ve
+her başlatma, durma ve hatayı `~/.runboard/server.log`'a yazar.
 
 ## Geliştirme
 

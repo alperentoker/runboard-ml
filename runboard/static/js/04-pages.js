@@ -24,7 +24,9 @@ function renderChrome() {
   const onTab = $("#nav .on")?.dataset.go;  // the phone bar scrolls sideways: show the open page, once per page
   if (onTab && onTab !== renderChrome.shown) { renderChrome.shown = onTab; $("#nav .on").scrollIntoView({block: "nearest", inline: "nearest"}); }
 }
-function setLang(l) { LANG = l; store("rb-lang", l); document.documentElement.lang = l; render(); if (ES) setConn(ES.readyState === 1); }
+function setLang(l) { LANG = l; store("rb-lang", l); document.documentElement.lang = l; render(); if (ES) setConn(ES.readyState === 1); tellLang(); }
+// notifications outside the page speak the language the dashboard is used in on this computer
+const tellLang = () => { if (ME?.local) api("/api/system/lang", {json: {lang: LANG}}).catch(() => {}); };
 function setTitle(title, crumb) { $("#title").textContent = title; $("#crumb").innerHTML = crumb || ""; document.title = `${title} · runboard`; }
 
 /* ================= home ================= */

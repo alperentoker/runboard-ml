@@ -22,12 +22,14 @@ async function renderSystem() {
         <p class="desc" style="margin:12px 0 0">${t("firewall")}</p>` : ""}
     </div></div>
     <div class="card"><div class="ch"><h2>${t("env")}</h2></div><div class="cb flush tw"><table>${row("runboard", s.version)}${row("python", s.python)}${row("os", esc(s.os))}${row("home", esc(s.home))}${row("disk", `${s.disk.free_gb} / ${s.disk.total_gb} GB`)}</table></div>
-      <div class="cb"><div class="toolbar" style="margin:0">${L && s.autostart != null ? `<label class="tog"><input type="checkbox" id="auto" ${s.autostart ? "checked" : ""}> ${t("autostart")}</label>` : ""}<span class="sp"><button class="btn" id="restart">${t("restart_srv")}</button></span></div></div></div>
+      <div class="cb"><div class="toolbar" style="margin:0;flex-direction:column;align-items:flex-start">${L && s.autostart != null ? `<label class="tog"><input type="checkbox" id="auto" ${s.autostart ? "checked" : ""}> ${t("autostart")}</label>` : ""}${L && s.notify != null ? `<span style="display:flex;gap:10px;align-items:center"><label class="tog"><input type="checkbox" id="notif" ${s.notify ? "checked" : ""}> ${t("notify_lbl")}</label><button class="btn" id="notift">${t("notify_test")}</button></span>` : ""}<span class="sp"><button class="btn" id="restart">${t("restart_srv")}</button></span></div></div></div>
   </div>
   <div class="card" style="margin-top:16px"><div class="ch"><h2>${t("jobs")}</h2></div><div class="cb"><p class="desc">${t("jobs_desc")}</p>
     ${PS.projects.map(p => `<div class="toolbar">${avatar(p, 24)}<b>${esc(p.name)}</b><span class="sp" id="jb-${p.key}"></span></div><div id="jobbox-${p.key}" data-keep></div>`).join("")}</div></div>`);
   kb.bind($("#kbox"));
   if ($("#auto")) $("#auto").onchange = async e => { try { await api("/api/system/autostart", {json: {on: e.target.checked}}); } catch (err) { say(err.message); e.target.checked = !e.target.checked; } };
+  if ($("#notif")) $("#notif").onchange = async e => { try { await api("/api/system/notify", {json: {on: e.target.checked}}); } catch (err) { say(err.message); e.target.checked = !e.target.checked; } };
+  if ($("#notift")) $("#notift").onclick = async () => { try { await api("/api/system/notify", {json: {test: true}}); toast(t("notify_sent")); } catch (err) { say(err.message); } };
   if ($("#lan")) $("#lan").onchange = async e => {
     const on = e.target.checked;
     if (!await ask(t(on ? "sure_lan_on" : "sure_lan_off"))) { e.target.checked = !on; return; }

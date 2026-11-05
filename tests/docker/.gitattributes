@@ -1,0 +1,2 @@
+# The image runs these on Linux: they keep LF line endings on every checkout, Windows included.
+* text eol=lf

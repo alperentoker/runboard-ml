@@ -93,7 +93,9 @@ def test_ssh_states(out, state):
 
 @pytest.mark.parametrize("out, state", [("PENDING|0:0", "QUEUED"), ("RUNNING|0:0", "RUNNING"), ("COMPLETED|0:0", "COMPLETE"),
                                         ("CANCELLED by 1000|0:15", "CANCELLED"), ("TIMEOUT|0:0", "ERROR"),
-                                        ("OUT_OF_MEMORY|0:125", "ERROR"), ("", "QUEUED")])
+                                        ("OUT_OF_MEMORY|0:125", "ERROR"), ("", "QUEUED"),
+                                        # no accounting, gone from squeue: the exit code the job wrote
+                                        ("code:0", "COMPLETE"), ("code:2", "ERROR"), ("code:cancelled", "CANCELLED")])
 def test_slurm_states(out, state):
     from runboard.backends.remote import SlurmBackend
     assert SlurmBackend.read_state(out)[0] == state
@@ -111,7 +113,7 @@ def test_slurm_submits_a_batch_script(rb, monkeypatch):
     tar = tarfile.open(fileobj=io.BytesIO(fake.calls[0][1]))
     script = tar.extractfile(".runboard/A.sbatch").read().decode()
     assert "#SBATCH --partition=gpu" in script and "#SBATCH --gres=gpu:1" in script and "#SBATCH --job-name=rb-p-A" in script
-    assert script.strip().endswith('mv -f "$HOME"/runboard/p/.runboard/A.code.tmp "$HOME"/runboard/p/.runboard/A.code; }')
+    assert script.strip().endswith('mv -f "$HOME"/runboard/p/.runboard/A.code.tmp "$HOME"/runboard/p/.runboard/A.code; }\nexit $c')
     assert "sbatch --parsable --output=" in fake.calls[1][0]
     fake = Scripted([("sbatch", "nope", 0)])
     monkeypatch.setattr(Remote, "run", fake)

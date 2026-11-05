@@ -4,6 +4,17 @@ All notable changes to runboard. Versions follow [semantic versioning](https://s
 
 ## Unreleased
 
+### Added
+- Start with the computer on Linux and macOS too: *System → Start runboard when I sign in* writes a systemd user
+  service or a launchd agent (Windows keeps its startup script). The service manager restarts a crashed dashboard,
+  so runboard's own watchdog stays off there (`RUNBOARD_NO_WATCHDOG`).
+- Windows notifications when a run finishes (with its score), fails or is stopped, from the dashboard's own loop,
+  so no page has to be open; once per start of a run, in the dashboard's language, with a switch and a test button
+  on the System page.
+- The SSH and SLURM backends, and the Linux autostart, are tested against a real machine: a container
+  (`tests/docker`) with sshd, a one-node SLURM cluster that keeps accounting, and systemd. CI runs it on every
+  change.
+
 ### Changed
 - runboard is described as what it is first: a dashboard for training runs (start them anywhere, watch them live,
   queue, compare and edit them). Pre-registered experiments stay, as an optional part for projects that need them;
@@ -11,6 +22,10 @@ All notable changes to runboard. Versions follow [semantic versioning](https://s
   are real SSH and SLURM machines, start-up on Linux and macOS, notifications, and projects that are not YOLO.
 
 ### Fixed
+- SLURM: a run that failed was shown as finished: the job's last line (writing the exit code down) succeeded, so
+  SLURM recorded the job as completed. The job now ends with the run's own exit status.
+- SLURM: on a cluster without accounting a finished run stayed *queued* for good (sacct knew nothing and squeue
+  forgets a job once it ends). When neither knows the job, the exit code its script wrote decides.
 - SSH: a run that finished exactly while the dashboard looked at it could be marked failed ("the process ended
   without an exit code"): its exit code was looked for, then the process, and the run could end in between. The
   code is now looked for again once the process is gone. On every backend the exit code is written aside and moved

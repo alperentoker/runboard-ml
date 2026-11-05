@@ -12,7 +12,7 @@ import threading
 import time
 from pathlib import Path
 
-from . import home
+from . import home, notify
 from .backends import ACTIVE, BACKENDS, DONE
 from .errors import Busy, Invalid, Missing
 from .progress import Parser, redact
@@ -288,6 +288,8 @@ class Runtime:
                     continue
                 project.state.update(run_id, status=status, failure=failure)
                 key = (project.key, run_id)
+                if status in ("ERROR", "CANCELLED") and st.get("status") not in DONE:  # a finished run: after collection
+                    notify.run_ended(project, run_id, status, failure)
                 if status in ACTIVE:
                     t = self.streams.get(key)
                     if not t or not t.is_alive():
@@ -315,6 +317,7 @@ class Runtime:
             project.state.update(run_id, check={"error": f"collect: {e}"})
         finally:
             self._collecting.discard((project.key, run_id))
+            notify.run_ended(project, run_id, "COMPLETE")  # with its score, now that the outputs are here
 
     def loop(self) -> None:
         last = 0.0
