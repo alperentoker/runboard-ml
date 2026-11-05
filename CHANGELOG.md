@@ -2,7 +2,12 @@
 
 All notable changes to runboard. Versions follow [semantic versioning](https://semver.org/).
 
-## Unreleased
+## 0.4.0 — 2026-11-05
+
+runboard as a dashboard first: SSH and SLURM tested on a real machine (with two SLURM fixes: a failed run no
+longer shows as finished, and a run on a cluster without accounting no longer stays queued), start with the
+computer on Linux and macOS, Windows notifications, a wizard that says what each choice does, and projects that
+are not YOLO. Upgrade from 0.3.0 if you use SLURM.
 
 ### Added
 - Projects that are not YOLO: every number a run reports (`rb.epoch(3, accuracy=0.91, loss=0.31)`, or a column of
