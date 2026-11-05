@@ -1,6 +1,8 @@
 /* ================= helpers ================= */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+// t() for HTML: the text is the translation's own, the filled-in values (names, paths, versions) are escaped
+const th = (k, vars = {}) => t(k, Object.fromEntries(Object.entries(vars).map(([x, v]) => [x, esc(v)])));
 const fmt = (v, d = 2) => v == null || v === "" || Number.isNaN(+v) ? "—" : Number(v).toFixed(d);
 const short = v => String(v ?? "").replace(/\.(pt|pth|ckpt)$/, "");
 const en = s => `<span lang="en">${esc(s)}</span>`;  // English terms keep their letters under Turkish uppercase (size ≠ SİZE)

@@ -2,6 +2,26 @@
 
 All notable changes to runboard. Versions follow [semantic versioning](https://semver.org/).
 
+## Unreleased
+
+Fixes from a review of 0.4.0. Upgrade if other devices are paired with your dashboard.
+
+### Fixed
+- Security: a paired device could read any `.log` file on the computer through the run log page, with a run name
+  that climbs out of the logs folder (`..%5C..`). A run name from the address is now checked before it reaches
+  a file.
+- A malformed progress line from your own code (`@@rb` without an epoch, or text where a number belongs) no longer
+  stops the whole log from being read: that line is skipped and the rest still counts.
+- The best score of a run whose log names none is the highest of all epochs, not the first epoch's.
+- Only one dashboard runs for a runboard folder (`RUNBOARD_HOME`): a second one on another port says which one is
+  running and stops, instead of both polling and writing the same runs.
+- SSH and SLURM: a run's outputs come home through a file on disk, not memory, so large checkpoints no longer
+  need their size in RAM.
+- SLURM: a job that waits in the queue starts from the code it was sent with, not from whatever a later job sent
+  into the same work folder.
+- Names, paths and versions shown in the page (protocol, export folder, template version, Kaggle status) are
+  escaped; the compare list no longer carries runs of another project with the same name.
+
 ## 0.4.0 — 2026-11-05
 
 runboard as a dashboard first: SSH and SLURM tested on a real machine (with two SLURM fixes: a failed run no

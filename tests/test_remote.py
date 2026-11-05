@@ -115,6 +115,9 @@ def test_slurm_submits_a_batch_script(rb, monkeypatch):
     assert "#SBATCH --partition=gpu" in script and "#SBATCH --gres=gpu:1" in script and "#SBATCH --job-name=rb-p-A" in script
     assert script.strip().endswith('mv -f "$HOME"/runboard/p/.runboard/A.code.tmp "$HOME"/runboard/p/.runboard/A.code; }\nexit $c')
     assert "sbatch --parsable --output=" in fake.calls[1][0]
+    # the job starts from the files sent with it, kept beside its script, not whatever the folder holds by then
+    assert 'tee "$HOME"/runboard/p/.runboard/A.tgz | tar xzf -' in fake.calls[0][0]
+    assert 'cd "$HOME"/runboard/p\ntar xzf "$HOME"/runboard/p/.runboard/A.tgz -C . || exit 1\n' in script
     fake = Scripted([("sbatch", "nope", 0)])
     monkeypatch.setattr(Remote, "run", fake)
     with pytest.raises(Invalid):

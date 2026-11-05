@@ -27,7 +27,7 @@ from .backends import ACTIVE, BACKENDS
 from .progress import Parser
 from .project import Project
 from .errors import Busy, Denied, Err, Invalid, Missing
-from .proc import spawn_detached
+from .proc import hold_lock, spawn_detached
 from .runtime import Runtime
 from .watch import ensure_running, note
 
@@ -1018,6 +1018,9 @@ def watchdog_wanted() -> bool:
     return bool(home.config().get("watchdog", True)) and not os.environ.get("RUNBOARD_NO_WATCHDOG")
 
 
+_INSTANCE = None  # the open lock file of this process's dashboard
+
+
 def serve(wait_port: bool = False) -> None:
     import uvicorn
 
@@ -1032,6 +1035,17 @@ def serve(wait_port: bool = False) -> None:
             time.sleep(0.5)
     if port_busy(p):
         print(f"runboard is already running: http://localhost:{p}")
+        return
+    # One dashboard per runboard home: two would both poll and write the same runs (state, logs, collections)
+    # with nothing between them. The lock goes with the process, however it ends.
+    global _INSTANCE
+    for _ in range(30 if wait_port else 1):  # a restart: the old process may still be on its way out
+        if (_INSTANCE := hold_lock(home.HOME / "server.lock")):
+            break
+        time.sleep(0.5)
+    if not _INSTANCE:
+        pid = (home.HOME / "server.pid").read_text().strip() if (home.HOME / "server.pid").exists() else "?"
+        print(f"runboard is already running for {home.HOME} (pid {pid}, another port); stop it first: runboard stop")
         return
     # Anything that ends this process is written down, so a dashboard that disappeared says why; the watchdog
     # (watch.py) starts it again unless it was stopped on purpose.

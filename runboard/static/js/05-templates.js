@@ -12,7 +12,7 @@ function paramInput(k, rule, v) {
 function templatesCard() {
   if (!TPL) return "";
   const rows = TPL.files.map(f => { const [cls, key] = TPL_STATE[f.state] || ["", f.state];
-    return `<tr><td class="mono">${esc(f.path)}</td><td>${esc(f.template)} ${esc(f.version || "")}</td><td>${chip(cls, t(key))}${f.update ? ` ${chip("QUEUED", t("tpl_update", {v: f.latest}))}` : ""}</td>
+    return `<tr><td class="mono">${esc(f.path)}</td><td>${esc(f.template)} ${esc(f.version || "")}</td><td>${chip(cls, t(key))}${f.update ? ` ${chip("QUEUED", th("tpl_update", {v: f.latest}))}` : ""}</td>
       <td class="acts">${TPL.can_write && f.state === "pristine" ? `<button class="btn" data-tedit="${esc(f.path)}">${t(f.update ? "tpl_do_update" : "tpl_change")}</button>` : ""}</td></tr>`; }).join("");
   return `<div class="card" id="tplcard"><div class="ch"><h2>${t("tpl_title")}</h2></div><div class="cb">
     <p class="desc">${t("tpl_desc")}</p>

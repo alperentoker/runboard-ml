@@ -33,6 +33,25 @@ def spawn_detached(args: list[str]) -> int:
     return popen_detached([str(exe), *args]).pid
 
 
+def hold_lock(path: Path):
+    """An exclusive lock on `path` for as long as this process lives (the system lets go when it ends, even by a
+    crash, so no lock is ever left behind). Returns the open file to keep, or None when another process holds it."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    f = open(path, "a+")  # never inherited by children (PEP 446): runs started from the dashboard do not keep it
+    try:
+        if os.name == "nt":
+            import msvcrt
+            f.seek(0)
+            msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        f.close()
+        return None
+    return f
+
+
 def stop_pid(pid: int) -> None:
     if os.name == "nt":
         subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True,

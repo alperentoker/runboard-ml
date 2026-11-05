@@ -69,6 +69,20 @@ class Remote:
         except subprocess.TimeoutExpired:
             raise Invalid("ssh_error", host=self.host, problem=f"no answer within {int(timeout)} s") from None
 
+    def download(self, cmd: str, dest: Path, timeout: float = 1800) -> subprocess.CompletedProcess:
+        """Like run, but the command's output goes straight into `dest`, not memory: a run's outputs (weights,
+        checkpoints) can be gigabytes. stderr (small) comes back as usual."""
+        try:
+            with open(dest, "wb") as out, tempfile.TemporaryFile() as err:
+                p = subprocess.run([*self.ssh, *self.opts, self.host, cmd], stdin=subprocess.DEVNULL, stdout=out,
+                                   stderr=err, timeout=timeout, creationflags=NO_WINDOW)
+                err.seek(0)
+                return subprocess.CompletedProcess(p.args, p.returncode, b"", err.read())
+        except FileNotFoundError:
+            raise Invalid("no_ssh") from None
+        except subprocess.TimeoutExpired:
+            raise Invalid("ssh_error", host=self.host, problem=f"no answer within {int(timeout)} s") from None
+
     def check(self, cmd: str, data: bytes | None = None, timeout: float = 120) -> str:
         r = self.run(cmd, data, timeout)
         if r.returncode:
@@ -116,7 +130,7 @@ class SSHBackend(Backend):
 
     def files(self, project, run_id: str) -> dict[str, str]:
         d, r = self.workdir(project), _safe(run_id)
-        return {k: f"{d}/.runboard/{r}.{k}" for k in ("log", "code", "pid", "sbatch")}
+        return {k: f"{d}/.runboard/{r}.{k}" for k in ("log", "code", "pid", "sbatch")} | {"bundle": f"{d}/.runboard/{r}.tgz"}
 
     # ------------------------------------------------------------ upload
 
@@ -144,9 +158,11 @@ class SSHBackend(Backend):
                 tar.addfile(info, io.BytesIO(data))
         return buf.getvalue()
 
-    def push(self, project, run_id: str, extra: dict[str, str] | None = None) -> Remote:
+    def push(self, project, run_id: str, extra: dict[str, str] | None = None, keep: str | None = None) -> Remote:
+        """The project's files into the work folder; `keep` (a path under it) also stores the bundle as it was sent."""
         rm, d = self.remote(project), self.workdir(project)
-        rm.check(f"mkdir -p {rpath(d)}/.runboard && tar xzf - -C {rpath(d)}", self.bundle(project, extra), timeout=600)
+        save = f"tee {rpath(d + '/' + keep)} | " if keep else ""
+        rm.check(f"mkdir -p {rpath(d)}/.runboard && {save}tar xzf - -C {rpath(d)}", self.bundle(project, extra), timeout=600)
         return rm
 
     def command(self, project, run_id: str, info: dict) -> str:
@@ -240,22 +256,30 @@ class SSHBackend(Backend):
         cfg, info = self.cfg(project), project.info(run_id)
         remote_out = project.render(str(cfg.get("output") or "runs/{name}"), info)
         target = project.root / str(cfg.get("output_dir") or f"runs/{self.name}") / info["name"]
-        data = self.remote(project).run(f"cd {rpath(self.workdir(project))} && tar czf - -C {rpath(remote_out)} .", timeout=1800)
-        if data.returncode:
-            msg = data.stderr.decode("utf-8", "replace").strip().splitlines()
-            raise Invalid("ssh_error", host=self.cfg(project).get("host"), problem=(msg[-1] if msg else "no outputs")[:300])
-        extract(data.stdout, target)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        part = target.parent / f".{target.name}.tar.gz.part"  # on the same disk as the outputs, gone afterwards
+        try:
+            r = self.remote(project).download(
+                f"cd {rpath(self.workdir(project))} && tar czf - -C {rpath(remote_out)} .", part, timeout=1800)
+            if r.returncode:
+                msg = r.stderr.decode("utf-8", "replace").strip().splitlines()
+                raise Invalid("ssh_error", host=self.cfg(project).get("host"), problem=(msg[-1] if msg else "no outputs")[:300])
+            extract(part, target)
+        finally:
+            part.unlink(missing_ok=True)
 
     def _resume_info(self, project, run_id, st, info):
         cfg = self.cfg(project)
         return {"resume": f"{self.workdir(project)}/{project.render(str(cfg.get('output') or 'runs/{name}'), info)}"}
 
 
-def extract(data: bytes, target: Path) -> None:
-    """Unpacks a tar from the remote side, refusing anything that would land outside target (or be a link)."""
+def extract(data: bytes | Path, target: Path) -> None:
+    """Unpacks a tar from the remote side (bytes, or a file it was saved to), refusing anything that would land
+    outside target (or be a link)."""
     target.mkdir(parents=True, exist_ok=True)
     root = target.resolve()
-    with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tar:
+    src = {"name": str(data)} if isinstance(data, Path) else {"fileobj": io.BytesIO(data)}
+    with tarfile.open(mode="r:gz", **src) as tar:
         members = []
         for m in tar.getmembers():
             dest = (root / m.name).resolve()
@@ -286,14 +310,16 @@ class SlurmBackend(SSHBackend):
         setup = self.setup(project)
         # the job ends with the run's own status: SLURM (and sacct) must see a failed run fail, not the line that wrote
         # the exit code down succeed
-        lines += ["set -o pipefail", f"cd {rpath(d)}", self.run_env(project, run_id, info).strip()] + ([setup] if setup else []) + [self.command(project, run_id, info),
+        # a job may wait in the queue for hours while the project's code changes and other jobs are sent: it starts
+        # from the files as they were when it was queued (the bundle sent with it), not the latest ones
+        lines += ["set -o pipefail", f"cd {rpath(d)}", f"tar xzf {rpath(f['bundle'])} -C . || exit 1", self.run_env(project, run_id, info).strip()] + ([setup] if setup else []) + [self.command(project, run_id, info),
                                                                                     write_code(f["code"]), "exit $c"]
         return "\n".join(lines) + "\n"
 
     def submit(self, project, run_id, info):
         f, d = self.files(project, run_id), self.workdir(project)
         rel = f".runboard/{_safe(run_id)}.sbatch"
-        rm = self.push(project, run_id, {rel: self.script(project, run_id, info)})
+        rm = self.push(project, run_id, {rel: self.script(project, run_id, info)}, keep=f".runboard/{_safe(run_id)}.tgz")
         out = rm.check(f"cd {rpath(d)} && rm -f {rpath(f['code'])} {rpath(f['log'])} && "
                        f"sbatch --parsable --output={rpath(f['log'])} {shlex.quote(rel)}")
         job = out.strip().splitlines()[-1].split(";")[0] if out.strip() else ""

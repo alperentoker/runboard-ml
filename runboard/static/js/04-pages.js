@@ -39,7 +39,7 @@ function renderHome() {
     <div class="kpi"><div class="l">${t("projects_count")}</div><div class="v">${PS.projects.length}</div></div>
     <div class="kpi"><div class="l">${t("active_runs")}</div><div class="v">${act}</div></div>
     <div class="kpi"><div class="l">Kaggle · ${t("gpu_quota")}</div><div class="v">${k?.quota ? `${k.quota.used_h}<small> / ${k.quota.total_h} h</small>` : "—"}</div>${k?.quota ? `<div class="bar"><i style="width:${Math.min(100, k.quota.used_h / k.quota.total_h * 100)}%"></i></div>` : `<div class="s">${esc(k?.error || "")}</div>`}</div>
-    <div class="kpi"><div class="l">${t("local_gpu")}</div><div class="v" style="font-size:18px">${l?.gpu ? esc(l.gpu.replace("NVIDIA GeForce ", "")) : "—"}</div><div class="s">${l?.gpu ? t("gpu_mem", {f: l.free_gb, t: l.total_gb}) : ""}</div></div>
+    <div class="kpi"><div class="l">${t("local_gpu")}</div><div class="v" style="font-size:18px">${l?.gpu ? esc(l.gpu.replace("NVIDIA GeForce ", "")) : "—"}</div><div class="s">${l?.gpu ? th("gpu_mem", {f: l.free_gb, t: l.total_gb}) : ""}</div></div>
   </div>
   ${Object.entries(PS.errors).map(([p, e]) => `<div class="msg bad" style="margin-top:16px">${t("broken")}: <span class="mono">${esc(p)}</span> — ${esc(e)}</div>`).join("")}
   ${queueCard()}
@@ -366,7 +366,7 @@ async function renderSettings() {
   ${c.decision_log ? `<div class="card"><div class="ch"><h2>${t("decision_log")}</h2></div><div class="cb"><pre class="raw">${esc(c.decision_log)}</pre></div></div>` : ""}
   ${filesCards()}
   ${templatesCard()}
-  ${ME?.local ? `<div class="card"><div class="ch"><h2>${t("remove_proj")}</h2></div><div class="cb"><p class="desc">${t("remove_desc", {path: P.path})}</p>
+  ${ME?.local ? `<div class="card"><div class="ch"><h2>${t("remove_proj")}</h2></div><div class="cb"><p class="desc">${th("remove_desc", {path: P.path})}</p>
     <button class="btn danger" id="prm">${t("remove_proj")}</button></div></div>` : ""}`);
   if ($("#prm")) $("#prm").onclick = async () => {  // out of the dashboard only: the folder and its files stay
     if (!await ask(t("sure_remove_proj", {name: P.name}), true)) return;

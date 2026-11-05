@@ -188,3 +188,21 @@ def test_system_page_without_a_kaggle_token(server, monkeypatch):
     monkeypatch.setattr(KaggleApi, "authenticate", lambda self: exit(1))
     r = client(server, True).get("/api/connections")
     assert r.status_code == 200 and r.json()["kaggle"]["ok"] is False
+
+
+def test_log_endpoint_stays_in_the_logs_folder(server, tmp_path):
+    """A run id from the URL must not walk out of the logs folder (`..%5C` is a Windows path separator)."""
+    proj = tmp_path / "p"
+    proj.mkdir()
+    (proj / "runs.yaml").write_text("runs:\n  base: {model: a.pt}\n")
+    (proj / "runboard.yaml").write_text(yaml.safe_dump({"name": "P", "id": "p", "runs": {"file": "runs.yaml", "fields": ["model"]},
+                                                        "backends": {"local": {"command": "echo {model}"}}}))
+    home.save_config({"projects": [str(proj)], "port": 8000, "lan": True})
+    (tmp_path / "secret.log").write_text("SECRET LINE\n")
+    tablet = pair(server)
+    logs = server.rt.project("p").state.logs
+    climb = "%5C".join([".."] * len(logs.relative_to(tmp_path).parts) + ["secret"])
+    for c in (tablet, client(server, True)):
+        r = c.get(f"/api/p/p/log/{climb}")
+        assert r.status_code == 404 and "SECRET" not in r.text
+    assert client(server, True).get("/api/p/p/log/base").status_code == 200

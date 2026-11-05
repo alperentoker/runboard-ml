@@ -53,15 +53,18 @@ class Parser:
                     ev = json.loads(ln[len(PREFIX):])
                 except json.JSONDecodeError:
                     continue
-                self._event(p, hist, ev.pop("t", ""), ev)
+                if isinstance(ev, dict):
+                    self._safe(p, hist, str(ev.pop("t", "")), ev)
                 continue
             if not self.patterns or (self.marker and self.marker not in ln):
                 continue
             at = self._clock(ln, now)
             for kind, rx in self.patterns.items():
                 if m := rx.search(ln):
-                    self._event(p, hist, kind, {k: v for k, v in m.groupdict().items() if v is not None}, at)
+                    self._safe(p, hist, kind, {k: v for k, v in m.groupdict().items() if v is not None}, at)
         p["history"] = [hist[k] for k in sorted(hist)]
+        if p.get("best") is None and hist:  # the log names no best: the highest mAP so far, over all epochs
+            p["best"] = max((h.get("map") if self._isnum(h.get("map")) else 0) for h in hist.values())
         return p
 
     @staticmethod
@@ -70,6 +73,18 @@ class Parser:
             return float(v) if "." in str(v) else int(v)
         except (TypeError, ValueError):
             return v
+
+    def _safe(self, p: dict, hist: dict, kind: str, ev: dict, at: float | None = None) -> None:
+        """One event; a malformed one (no epoch, text where a number belongs) is skipped, never the whole log:
+        the line comes from the user's training code and the page must still show the rest."""
+        try:
+            self._event(p, hist, kind, ev, at)
+        except (TypeError, ValueError, KeyError, AttributeError, OverflowError):
+            pass
+
+    @staticmethod
+    def _isnum(v) -> bool:
+        return isinstance(v, (int, float)) and not isinstance(v, bool)
 
     def _event(self, p: dict, hist: dict, kind: str, ev: dict, at: float | None = None) -> None:
         n = self._num
@@ -83,6 +98,7 @@ class Parser:
             for k in ("map", "map50", "p", "r"):  # also as text, from the log patterns of runboard.yaml
                 if k in ev:
                     metrics[k] = n(ev[k])
+            metrics = {k: v for k, v in metrics.items() if self._isnum(v)}  # text where a number belongs: left out
             # any other number of the event is a metric under its own name (rb.epoch(3, accuracy=0.91))
             for k, v in ev.items():
                 if k not in EPOCH_FIELDS and k not in metrics and isinstance(v, (int, float)) and not isinstance(v, bool):
@@ -93,7 +109,8 @@ class Parser:
             elif isinstance(loss, str):  # plain-text log: "box_loss 1.2 cls_loss 0.8 …"
                 loss = dict(re.findall(r"(\w+_loss) ([\d.]+)", loss))
             secs = n(ev["secs"]) if "secs" in ev else hms_secs(ev["time"]) if "time" in ev else None
-            hist[e] = {"e": e, **metrics, **{k: n(v) for k, v in loss.items()},
+            loss = {k: n(v) for k, v in loss.items()} if isinstance(loss, dict) else {}
+            hist[e] = {"e": e, **metrics, **{k: v for k, v in loss.items() if self._isnum(v)},
                        **({"secs": secs} if secs is not None else {})}
             p.update(epoch=e, map=metrics.get("map"), map50=metrics.get("map50"), batch=None)
             if "epochs" in ev:
@@ -118,8 +135,6 @@ class Parser:
                 p.update(current_epoch=n(ev["epoch"]), batch=0, beat_at=at)
         elif kind == "done":
             p["done"] = ev.get("text", "")
-        if p.get("best") is None and hist:
-            p["best"] = max((h.get("map") or 0) for h in hist.values())
 
     def human(self, lines: list[str], everything: bool = False) -> list[str]:
         """Log for people: protocol lines hidden; by default only the marker lines (or no progress-bar frames)."""

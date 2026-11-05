@@ -35,7 +35,7 @@ function codeEditor() {
   const o = CODE.open;
   if (!o) return `<div class="empty" style="padding:30px">${t("c_pick")}</div>`;
   const item = CODE.list.files.find(x => x.path === o.path) || {};
-  const tpl = o.template ? chip(o.template.state === "owned" ? "lock" : "COMPLETE", `${o.template.template} ${o.template.version} · ${t(o.template.state === "owned" ? "tpl_owned" : "tpl_pristine")}`) : "";
+  const tpl = o.template ? chip(o.template.state === "owned" ? "lock" : "COMPLETE", `${esc(o.template.template)} ${esc(o.template.version)} · ${t(o.template.state === "owned" ? "tpl_owned" : "tpl_pristine")}`) : "";
   const ro = !CODE.list.can_write || o.special;
   return `<div class="ch"><h2 class="mono" style="font-size:14px">${esc(o.path)}</h2>${o.new ? chip("QUEUED", t("c_new")) : ""}${tpl}${item.locked ? chip("lock", t("h_locked")) : ""}<span class="rawstate" id="cstate"></span></div>
     <div class="cb">

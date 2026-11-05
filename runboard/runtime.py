@@ -120,8 +120,17 @@ class Runtime:
         # after a restart the stream replays from the start: until it has caught up, the saved copy is further along
         return live if len(live) >= len(saved) else saved
 
+    @staticmethod
+    def log_file(project: Project, run_id: str) -> Path:
+        """A run's saved log. The id comes from a URL, so it must be a run id and nothing that walks out of the
+        folder (a URL's `..%5Csecret` arrives here as a Windows path that climbs out)."""
+        from .runsfile import RUN_ID
+        if not RUN_ID.fullmatch(run_id or "") or ".." in run_id:
+            raise Missing("unknown_run", run=run_id)
+        return project.state.logs / f"{run_id}.log"
+
     def _saved(self, project: Project, run_id: str) -> list[str]:
-        p = project.state.logs / f"{run_id}.log"
+        p = self.log_file(project, run_id)
         if not p.exists():
             return []
         stat = p.stat()
@@ -139,7 +148,7 @@ class Runtime:
     def save_log(self, project: Project, run_id: str, lines: list[str]) -> None:
         if lines:
             project.state.logs.mkdir(parents=True, exist_ok=True)
-            p = project.state.logs / f"{run_id}.log"
+            p = self.log_file(project, run_id)
             tmp = p.with_name(f"{p.name}.{threading.get_ident()}.tmp")
             tmp.write_text("\n".join(lines), encoding="utf-8")
             home._retry(lambda: tmp.replace(p))
@@ -166,7 +175,7 @@ class Runtime:
         with self.lock:
             hit = self._parsed.get(key)
         if not hit or hit[0] != sig:
-            saved = project.state.logs / f"{run_id}.log"
+            saved = self.log_file(project, run_id)
             # a saved log is read against the time it was last written, not today (lines carry only a clock time)
             streaming = (t := self.streams.get(key)) is not None and t.is_alive()
             at = None if streaming or not saved.exists() else saved.stat().st_mtime

@@ -309,3 +309,18 @@ def test_a_missing_kaggle_token_is_reported_not_fatal(monkeypatch):
         exit(1)
     monkeypatch.setattr(KaggleApi, "authenticate", no_token)
     assert KaggleBackend().available() == (False, "no Kaggle token (~/.kaggle/access_token)")
+
+
+def test_one_dashboard_per_home(tmp_path):
+    """A second process cannot take the dashboard lock while the first holds it; once the first ends it can."""
+    import subprocess
+    import sys
+    from runboard.proc import hold_lock
+    lock = tmp_path / "server.lock"
+    held = hold_lock(lock)
+    assert held is not None
+    probe = "import sys; from pathlib import Path; from runboard.proc import hold_lock; " \
+            "sys.exit(0 if hold_lock(Path(sys.argv[1])) else 3)"
+    assert subprocess.run([sys.executable, "-c", probe, str(lock)]).returncode == 3
+    held.close()
+    assert subprocess.run([sys.executable, "-c", probe, str(lock)]).returncode == 0

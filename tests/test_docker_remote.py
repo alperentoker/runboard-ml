@@ -112,7 +112,8 @@ def test_slurm_failure_and_cancel_on_a_real_cluster(machine, tmp_path):
     p = project(tmp_path, "slurmf", "slurm", machine, 'FAIL=3 "{python}" -u train.py {id}')
     st = b.submit(p, "A", p.info("A"))
     state, why = wait(lambda: b.status(p, "A", st), {"COMPLETE", "ERROR"}, 90)
-    assert state == "ERROR" and "FAILED" in why
+    # sacct says FAILED; when its accounting lags behind the job's end, the exit code the script wrote says the same
+    assert state == "ERROR" and ("FAILED" in why or "exit code 3" in why)
     p = project(tmp_path, "slurmc", "slurm", machine, 'NAP=30 "{python}" -u train.py {id}')
     st = b.submit(p, "B", p.info("B"))
     assert wait(lambda: b.status(p, "B", st), {"RUNNING"}, 60)[0] == "RUNNING"
@@ -168,3 +169,19 @@ def test_slurm_without_accounting_still_sees_a_job_end(machine, tmp_path):
         assert wait(lambda: b.status(p, "A", st), {"COMPLETE", "ERROR"}, 90) == ("COMPLETE", None)
     finally:
         docker_exec("slurmdbd; sleep 2")
+
+
+def test_a_queued_slurm_job_keeps_the_code_it_was_sent_with(machine, tmp_path):
+    """A job waits in the queue while the code changes and another job is sent: it still runs its own version."""
+    from runboard.backends.remote import SlurmBackend
+    p, b = project(tmp_path, "queued", "slurm", machine, '"{python}" -u v.py'), SlurmBackend()
+    (p.root / "v.py").write_text("print('code v1', flush=True)\n")
+    p.m["backends"]["slurm"]["sbatch"]["begin"] = "now+20"  # A waits in the queue
+    a = b.submit(p, "A", p.info("A"))
+    assert b.status(p, "A", a)[0] == "QUEUED"
+    (p.root / "v.py").write_text("print('code v2', flush=True)\n")
+    del p.m["backends"]["slurm"]["sbatch"]["begin"]
+    bb = b.submit(p, "B", p.info("B"))  # sends v2 into the same work folder while A still waits
+    assert wait(lambda: b.status(p, "B", bb), {"COMPLETE", "ERROR"}, 90) == ("COMPLETE", None)
+    assert wait(lambda: b.status(p, "A", a), {"COMPLETE", "ERROR"}, 120) == ("COMPLETE", None)
+    assert b.final_log(p, "A", a) == ["code v1"] and b.final_log(p, "B", bb) == ["code v2"]

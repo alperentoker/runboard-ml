@@ -103,3 +103,18 @@ def test_your_own_code_pre_registered_from_the_wizard_to_the_verdict(tmp_path, m
     assert subprocess.run([sys.executable, "evaluate.py"], cwd=root, capture_output=True, text=True).returncode == 0
     h = {x["id"]: x for x in prereg.hypotheses(p)["hypotheses"]}["H1"]
     assert h["verdict"] == "supported" and h["parts"][0]["margin"] > 0.2  # about 0.9 against 0.6
+
+
+def test_malformed_progress_lines_are_skipped():
+    """Lines come from the user's own code: a broken one is skipped, the rest of the log still counts."""
+    from runboard.progress import Parser
+    lines = ['@@rb {"t": "epoch", "epoch": 1, "map": 0.5, "loss": 0.3}',
+             '@@rb {"t": "epoch", "map": 0.9}',                    # no epoch
+             '@@rb {"t": "epoch", "epoch": "two", "map": 0.9}',    # not a number
+             '@@rb {"t": "epoch", "epoch": 2, "map": "high", "loss": {"box": "x"}}',  # text metrics
+             '@@rb {"t": "beat", "epoch": 2}',                     # half a heartbeat
+             '@@rb [1, 2]', '@@rb "text"', '@@rb {"t": ["epoch"]}',
+             '@@rb {"t": "epoch", "epoch": 3, "map": 0.7}']
+    p = Parser(None).parse(lines)
+    assert [h["e"] for h in p["history"]] == [1, 2, 3]
+    assert p["history"][1] == {"e": 2} and p["epoch"] == 3 and p["best"] == 0.7

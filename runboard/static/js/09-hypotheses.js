@@ -97,7 +97,7 @@ async function renderHypotheses() {
   const exp = ME?.local ? `<div class="toolbar" style="margin:0 0 12px"><span class="desc" style="margin:0">${t("x_desc")}</span><span class="sp"><button class="btn" id="hexport">${t("x_export")}</button></span></div><div id="hxout" data-keep></div>` : "";
   const order = d.questions.flatMap(q => byQ[q.id] || []).concat(loose);
   morph($("#content"), `${exp}${forestCard(order)}${lockCard(d.status)}
-    <p class="desc">${t("h_protocol", {metric: pr.metric, sets: Object.keys(pr.sets).join(", ") || "—", dir: pr.dir})}</p>
+    <p class="desc">${th("h_protocol", {metric: pr.metric, sets: Object.keys(pr.sets).join(", ") || "—", dir: pr.dir})}</p>
     ${qs}${loose.length ? `<h3 class="qhead">${t("h_other")}</h3>${loose.map(hypothesisCard).join("")}` : ""}
     ${!d.hypotheses.length ? invite(t("h_empty_h"), t("h_empty_p"), `#/p/${P.key}/settings`, t("go_plan")) : ""}
     ${ledgerCard(d.status)}`);
@@ -108,7 +108,7 @@ async function renderHypotheses() {
   if ($("#hexport")) $("#hexport").onclick = async () => {
     try {
       const j = await api(`/api/p/${P.key}/export`, {method: "POST"});
-      $("#hxout").innerHTML = `<div class="msg ok" style="margin-bottom:12px">${t("x_done", {dir: j.dir})} ${j.files.map(f => `<a href="/api/p/${P.key}/paper/${f}" ${f.endsWith(".html") ? 'target="_blank" rel="noopener"' : ""}>${esc(f)}</a>`).join(" · ")}</div>`;
+      $("#hxout").innerHTML = `<div class="msg ok" style="margin-bottom:12px">${th("x_done", {dir: j.dir})} ${j.files.map(f => `<a href="/api/p/${P.key}/paper/${f}" ${f.endsWith(".html") ? 'target="_blank" rel="noopener"' : ""}>${esc(f)}</a>`).join(" · ")}</div>`;
     } catch (e) { say(e.message); }
   };
   if ($("#hlock")) $("#hlock").onclick = async () => {

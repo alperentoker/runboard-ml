@@ -20,7 +20,7 @@ async function renderData() {
     ${d.rows.map(r => { const k = remote[r._key];
       return `<tr><td><input type="checkbox" class="pk" value="${esc(r._key)}" ${r._on_disk ? "" : "disabled"} aria-label="${esc(r._key)}"></td><td><b>${esc(r._key)}</b>${r._on_disk ? "" : ` <span class="muted">(${t("missing")})</span>`}</td>
       ${Object.entries(cols).filter(([k]) => k !== "size_mb").map(([k, c]) => k === "folder" ? `<td class="mono">${esc(r[c])}</td>` : `<td class="n">${(+r[c] || 0).toLocaleString(LANG)}</td>`).join("")}<td class="n">${size(r)}</td>
-      <td>${k?.exists ? `${chip(k.status === "ready" ? "ready" : "running", k.status === "ready" ? t("ready") : k.status || "?")} <span class="muted" style="font-size:12px">${esc(k.dataset)} · v${k.version} · ${fsize(k.gb * 1024)}${k.private ? " · " + t("private") : ""}</span>${k.private === false ? ` <span class="chip ERROR">${t("public")}</span>` : ""}` : `<span class="muted">${t("not_uploaded")}</span>`}</td>
+      <td>${k?.exists ? `${chip(k.status === "ready" ? "ready" : "running", k.status === "ready" ? t("ready") : esc(k.status || "?"))} <span class="muted" style="font-size:12px">${esc(k.dataset)} · v${esc(k.version)} · ${fsize(k.gb * 1024)}${k.private ? " · " + t("private") : ""}</span>${k.private === false ? ` <span class="chip ERROR">${t("public")}</span>` : ""}` : `<span class="muted">${t("not_uploaded")}</span>`}</td>
       <td class="muted" style="font-size:12px">${esc(uses(r._key))}</td></tr>`; }).join("")}</table></div></div>
   <div class="card"><div class="ch"><h2>${t("job")}</h2></div><div class="cb" id="jobbox" data-keep><span class="muted">${t("no_job")}</span></div></div>`);
   $("#dref").onclick = renderData;

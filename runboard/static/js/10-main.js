@@ -52,7 +52,10 @@ function projectChanged() {
 async function render() {
   route = parseRoute();
   if (route.view === "project") {
-    if (!P || P.key !== route.key) { try { P = await api(`/api/p/${route.key}`); } catch (e) { $("#content").innerHTML = `<div class="msg bad">${esc(e.message)}</div>`; return; } }
+    if (!P || P.key !== route.key) {
+      compare = new Set(); compCache = {};  // run names repeat across projects: another project's runs are not these
+      try { P = await api(`/api/p/${route.key}`); } catch (e) { $("#content").innerHTML = `<div class="msg bad">${esc(e.message)}</div>`; return; }
+    }
     const onRun = route.tab === "run";
     setTitle(onRun ? route.run : t(route.tab), `<a href="#/">${t("projects")}</a> / <a href="#/p/${P.key}/overview">${esc(P.name)}</a>${onRun ? ` / <a href="#/p/${P.key}/runs">${t("runs")}</a>` : ""}`);
     renderChrome();
