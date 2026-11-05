@@ -5,6 +5,10 @@ All notable changes to runboard. Versions follow [semantic versioning](https://s
 ## Unreleased
 
 ### Added
+- A clearer new-project wizard: every step opens with what is decided in it; each kind of project lists what it
+  does, what it does not do and what it needs; a design shows the runs it will make as you change it, with the
+  models picked from a list; *My own training code* shows the command each run gets, how to follow it and where
+  the score comes from; the last step lists every file it will write with what it is for, and what to do after.
 - Start with the computer on Linux and macOS too: *System → Start runboard when I sign in* writes a systemd user
   service or a launchd agent (Windows keeps its startup script). The service manager restarts a crashed dashboard,
   so runboard's own watchdog stays off there (`RUNBOARD_NO_WATCHDOG`).

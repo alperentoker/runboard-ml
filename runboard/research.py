@@ -222,5 +222,7 @@ def build(spec: dict, files: dict, m: dict, root: Path, train_script: str, runs_
         m["jobs"][key] = {"title": job["title"], "cmd": f'"{{python}}" -u {path}' + (f" {job['args']}" if job.get("args") else ""),
                           **({"per_run": True} if job.get("per_run") else {})}
     m["version"] = 2
+    # designs: the runs each design makes, in the wizard's order, so it can show them under the design itself
     return {"runs": [{"id": k, **v} for k, v in plan["runs"].items()], "groups": plan["groups"], "sets": list(sets),
+            "designs": [[x for r in ph["runs"] for x in plan["groups"].get(f"{r}_seeds", [r])] for ph in plan["phases"]],
             "suggest": [s for s in plan["suggest"] if set(s.pop("sets")) <= set(sets)], "problems": problems, "slug": slugify(m.get("id") or "")}

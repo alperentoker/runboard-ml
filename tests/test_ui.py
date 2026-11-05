@@ -487,6 +487,43 @@ def test_research_wizard_plans_runs_checks_hypotheses_and_creates_the_project(pa
     assert page.js("__errors") == []
 
 
+def test_the_wizard_says_what_each_choice_does_and_shows_what_it_will_make(page):
+    folder = Path(tempfile.mkdtemp(prefix="rb-clear-")) / "study"
+    for key in ("ground", "aerial"):
+        d = folder / "data" / key
+        d.mkdir(parents=True)
+        (d / "train.txt").write_text("./images/a.jpg\n")
+        (d / "data.yaml").write_text("train: train.txt\nval: val.txt\nnames: [person]\n")
+    (folder / "train.py").write_text("print('hi')\n")
+    go(page, "#/new", "document.querySelector('.stepper')")
+    assert page.js("!!document.querySelector('.wabout')")  # every step says what is decided in it
+    page.js(f"W.fs = {{path: {json.dumps(str(folder))}, dirs: [], roots: []}}; W.step = 1; renderWizard()", 0.3)
+    page.js("document.querySelector('#wpick').click()")
+    page.until("document.querySelectorAll('.choice .wlim').length === 3")
+    assert page.js("document.querySelectorAll('.choice .wl-n').length") >= 6  # what each one does not do, too
+    # your own code: the command each run gets follows what is typed
+    page.js("document.querySelector('[data-kind=script]').click()", 0.3)
+    page.js("(() => { const a = document.querySelector('.sargs'); a.value = '--lr 0.1'; a.dispatchEvent(new Event('input')); })()")
+    assert page.js("document.querySelector('.wcmds div').innerText").endswith("train.py --lr 0.1")
+    # a pre-registered experiment: every design shows the runs it makes, and follows the models ticked
+    page.js("document.querySelector('[data-kind=research]').click()", 0.3)
+    page.js("document.querySelector('#wnext').click()")
+    page.until("document.querySelector(\"[data-r='questions.0.id']\")")
+    page.js("document.querySelector('#wnext').click()")
+    page.until("document.querySelectorAll('.wrun').length === 2")
+    page.js("document.querySelector('[data-radd=designs]').click()")
+    page.until("document.querySelectorAll('.wruns')[1]?.querySelectorAll('.wrun').length === 3")  # three models ticked
+    page.js("document.querySelector('.wdm[data-i=\"1\"][value=\"yolo26s.pt\"]').click()")
+    page.until("document.querySelectorAll('.wruns')[1]?.querySelectorAll('.wrun').length === 2")
+    for _ in range(4):  # protocol, hypotheses, where, review: each step checks with the server before the next
+        page.js("document.querySelector('#wnext').click()", 2)
+    page.until("document.querySelector('#wcreate')", 15)
+    rows = page.js("[...document.querySelectorAll('.wizard table tr')].map(r => r.cells[1]?.innerText || '')")
+    assert rows and all(rows), rows  # every file it will write says what it is for
+    assert page.js("!!document.querySelector('.wabout b')") and not (folder / "plan.yaml").exists()  # nothing written yet
+    assert page.js("__errors") == []
+
+
 
 def test_code_page_highlights_checks_and_saves_after_the_diff(page):
     root = Path(home.config()["projects"][0])

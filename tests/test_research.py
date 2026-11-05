@@ -116,5 +116,9 @@ def test_preview_api_returns_the_plan(folder):
     c = TestClient(server.app, base_url="http://127.0.0.1:8000", client=("127.0.0.1", 50000))
     j = c.post("/api/wizard/preview", json=spec(folder)).json()
     assert "plan.yaml" in j["files"] and len(j["research"]["runs"]) == 13 and j["research"]["sets"] == ["ground", "aerial"]
+    # the runs of each design, seed repeats included, for the wizard to show under the design: every run once
+    per_design = j["research"]["designs"]
+    assert len(per_design) == len(spec(folder)["research"]["designs"])
+    assert sorted(x for d in per_design for x in d) == sorted(r["id"] for r in j["research"]["runs"])
     j = c.post("/api/wizard/create", json=spec(folder)).json()
     assert j["key"] == "study" and (folder / "scripts" / "evaluate.py").is_file()
