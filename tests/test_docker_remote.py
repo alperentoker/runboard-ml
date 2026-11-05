@@ -66,7 +66,9 @@ def project(tmp_path, name, kind, cfg, command):
 
 def test_ssh_on_a_real_machine(machine, tmp_path):
     from runboard.backends.remote import SSHBackend
-    p, b = project(tmp_path, "sshp", "ssh", machine, '"{python}" -u train.py {id}'), SSHBackend()
+    # the run is told its name and output folder (RUNBOARD_RUN, RUNBOARD_OUT): what it writes there comes home
+    cmd = 'echo "$RUNBOARD_RUN" > "$RUNBOARD_OUT"/who.txt; "{python}" -u train.py {id}'
+    p, b = project(tmp_path, "sshp", "ssh", machine, cmd), SSHBackend()
     st = b.submit(p, "A", p.info("A"))
     assert st["pid"]
     assert wait(lambda: b.status(p, "A", st), {"COMPLETE", "ERROR"}, 60) == ("COMPLETE", None)
@@ -75,6 +77,7 @@ def test_ssh_on_a_real_machine(machine, tmp_path):
     assert sink == ["epoch 0", "epoch 1", "epoch 2"]
     b.fetch(p, "A", st)
     assert (p.root / "runs" / "ssh" / "A" / "summary.json").read_text() == '{"map": 42.0}'
+    assert (p.root / "runs" / "ssh" / "A" / "who.txt").read_text().strip() == "A"
 
 
 def test_ssh_failure_and_cancel_on_a_real_machine(machine, tmp_path):

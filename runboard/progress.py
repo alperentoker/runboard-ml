@@ -13,6 +13,8 @@ import re
 from datetime import datetime, timedelta, timezone
 
 PREFIX = "@@rb "
+# what an epoch event says about the epoch itself; every other number in it is a metric
+EPOCH_FIELDS = {"t", "ts", "epoch", "epochs", "secs", "time", "best", "eta", "loss", "metrics"}
 
 
 def hms_secs(s: str) -> int:
@@ -78,11 +80,17 @@ class Parser:
         elif kind == "epoch":
             e = int(ev["epoch"])
             metrics = {k: n(v) for k, v in (ev.get("metrics") or {}).items()}
-            for k in ("map", "map50", "p", "r"):
+            for k in ("map", "map50", "p", "r"):  # also as text, from the log patterns of runboard.yaml
                 if k in ev:
                     metrics[k] = n(ev[k])
+            # any other number of the event is a metric under its own name (rb.epoch(3, accuracy=0.91))
+            for k, v in ev.items():
+                if k not in EPOCH_FIELDS and k not in metrics and isinstance(v, (int, float)) and not isinstance(v, bool):
+                    metrics[k] = n(v)
             loss = ev.get("loss") or {}
-            if isinstance(loss, str):  # plain-text log: "box_loss 1.2 cls_loss 0.8 …"
+            if isinstance(loss, (int, float)) and not isinstance(loss, bool):  # one loss: rb.epoch(3, loss=0.31)
+                loss = {"loss": loss}
+            elif isinstance(loss, str):  # plain-text log: "box_loss 1.2 cls_loss 0.8 …"
                 loss = dict(re.findall(r"(\w+_loss) ([\d.]+)", loss))
             secs = n(ev["secs"]) if "secs" in ev else hms_secs(ev["time"]) if "time" in ev else None
             hist[e] = {"e": e, **metrics, **{k: n(v) for k, v in loss.items()},

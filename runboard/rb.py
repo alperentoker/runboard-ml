@@ -6,9 +6,12 @@ training script or embedded into a Kaggle kernel.
     rb.stage("Training · epoch 3/100", epoch=3)
     rb.beat(epoch=3, batch=400, batches=798, its=4.9)          # every ~15 s while training
     rb.epoch(3, epochs=100, secs=171, map=48.2, map50=79.5, best=48.2, loss={"box_loss": 1.27})
+    rb.epoch(3, accuracy=0.91, val_accuracy=0.88, loss=0.31)  # any numbers: each becomes a curve under its name
     rb.done("val mAP50-95 50.79")
+    rb.report(score=88.4, best_epoch=37)                       # the run's results, for the results table
 
 For Ultralytics: rb.ultralytics(model) adds callbacks that do all of the above.
+rb.out() is the folder runboard brings home as the run's outputs (RUNBOARD_OUT, set for every run).
 
 Each call prints one line: "@@rb " + JSON. Your own human-readable log lines are unaffected.
 """
@@ -43,6 +46,27 @@ def epoch(e: int, **fields) -> None:
 
 def done(text: str = "") -> None:
     emit("done", text=text)
+
+
+def out():
+    """The run's output folder: what runboard brings home and reads results from ({out} in runboard.yaml). Outside
+    runboard, the current folder."""
+    import os
+    from pathlib import Path
+    p = Path(os.environ.get("RUNBOARD_OUT") or ".")
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+def report(**values) -> None:
+    """The run's results, in <out>/summary.json (added to what is there): the wizard's projects read the score and
+    the results table from it."""
+    f = out() / "summary.json"
+    try:
+        old = json.loads(f.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        old = {}
+    f.write_text(json.dumps({**old, **values}, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
 def ultralytics(model, every: float = 15.0) -> None:

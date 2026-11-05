@@ -159,13 +159,20 @@ class SSHBackend(Backend):
     def setup(self, project) -> str:
         return " && ".join(str(s) for s in self.cfg(project).get("setup") or [])
 
+    def run_env(self, project, run_id: str, info: dict) -> str:
+        """Shell that tells the run where its outputs go (the folder fetch brings home) and which run it is; it runs
+        in the work folder, so the output folder is that folder's."""
+        out = project.render(str(self.cfg(project).get("output") or "runs/{name}"), info)
+        return (f'export RUNBOARD_RUN={shlex.quote(run_id)} RUNBOARD_OUT="$PWD"/{shlex.quote(out)}; '
+                'mkdir -p "$RUNBOARD_OUT"; ')
+
     # ------------------------------------------------------------ the run
 
     def submit(self, project, run_id, info):
         f, d = self.files(project, run_id), self.workdir(project)
         cmd, setup = self.command(project, run_id, info), self.setup(project)
         rm = self.push(project, run_id)
-        body = (f"{setup} && " if setup else "") + f"( {cmd} ); {write_code(f['code'])}"
+        body = self.run_env(project, run_id, info) + (f"{setup} && " if setup else "") + f"( {cmd} ); {write_code(f['code'])}"
         # its own process group (set -m), all output to the log and no terminal: ssh returns at once and the run
         # outlives the connection; cancel ends the whole group
         # only the run goes to the background (a backgrounded `a && b &` list would keep ssh's output open, and
@@ -279,7 +286,7 @@ class SlurmBackend(SSHBackend):
         setup = self.setup(project)
         # the job ends with the run's own status: SLURM (and sacct) must see a failed run fail, not the line that wrote
         # the exit code down succeed
-        lines += ["set -o pipefail", f"cd {rpath(d)}"] + ([setup] if setup else []) + [self.command(project, run_id, info),
+        lines += ["set -o pipefail", f"cd {rpath(d)}", self.run_env(project, run_id, info).strip()] + ([setup] if setup else []) + [self.command(project, run_id, info),
                                                                                     write_code(f["code"]), "exit $c"]
         return "\n".join(lines) + "\n"
 

@@ -109,6 +109,10 @@ class KaggleBackend(Backend):
                 f"for cmd in {json.dumps(setup)}:\n"
                 "    subprocess.check_call(cmd, shell=True)\n"
                 "os.environ['PYTHONUNBUFFERED'] = '1'\n"
+                # where the run's outputs go: /kaggle/working comes home into output_dir, so <name> in it is the run's
+                f"os.environ['RUNBOARD_RUN'] = {json.dumps(run_id)}\n"
+                f"os.environ['RUNBOARD_OUT'] = {json.dumps('/kaggle/working/' + str(info.get('name') or run_id))}\n"
+                "os.makedirs(os.environ['RUNBOARD_OUT'], exist_ok=True)\n"
                 f"sys.exit(subprocess.call({json.dumps(command)}, shell=True, cwd=d))\n")
         shutil.rmtree(folder, ignore_errors=True)
         folder.mkdir(parents=True)

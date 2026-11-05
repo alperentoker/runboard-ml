@@ -47,8 +47,13 @@ class LocalBackend(Backend):
         python = cfg.get("python") or sys.executable
         # {python} is the environment the project asked for, not the one the dashboard runs on
         cmd = project.render(cfg["resume"] if info.get("resume") else cfg["command"], {**info, "python": python}, shell=True)
+        out = project.output_dir(run_id, info, self.name)
+        if out:
+            out.mkdir(parents=True, exist_ok=True)
+        # the run is told where its outputs go (rb.out(), rb.report()) and which run it is
+        env = {**os.environ, "RUNBOARD_RUN": run_id, **({"RUNBOARD_OUT": str(out)} if out else {})}
         proc = popen_detached([sys.executable, "-m", "runboard.localrun", str(log), str(code), str(alive), python, cmd],
-                              cwd=project.root)
+                              cwd=project.root, env=env)
         return {"pid": proc.pid, "command": cmd, "url": None, "status": "RUNNING"}  # it has started: no queue in between
 
     def status(self, project, run_id, st):

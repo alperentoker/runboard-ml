@@ -2,7 +2,7 @@
 // Steps depend on the kind: a research project adds its questions, designs, protocol and hypotheses (research.py).
 const W = {step: 1, path: "", fs: null, scan: null, kind: "yolo", name: "", description: "", color: "#2c6b5a",
            yolo: {data: "", models: ["yolo11n.pt", "yolo11s.pt"], epochs: 50, imgsz: 640, batch: 16, seeds: "0", exclude_test: true},
-           script: {file: "", runs: [{id: "run1", args: ""}], files: [], pip: "", data_dir: "", report: "", metric: "score"},
+           script: {file: "", runs: [{id: "run1", args: ""}], files: [], pip: "", data_dir: "", report: "{out}/summary.json", metric: "score", curves: "", epoch_column: "epoch", prereg: false},
            research: null, rmeta: null, remote: {host: "", workdir: "~/runboard/{project}", python: "python3", partition: "", gres: "gpu:1", time: "12:00:00"},
            backends: ["local"], default_backend: "local", conn: null, preview: null, error: null};
 const MODELS = {yolo11: "YOLO11", yolo26: "YOLO26", yolov8: "YOLOv8"};
@@ -11,10 +11,12 @@ const ARCH = "yolov8s.pt, yolo11s.pt, yolo26s.pt";  // what an architecture desi
 const ALL_MODELS = Object.keys(MODELS).flatMap(f => "nsmlx".split("").map(sz => `${f}${sz}.pt`));
 // A card says what a choice does, what it does not and what it needs, so nobody finds out three steps later.
 const limits = k => `<div class="wlim"><span class="wl-h">${t("w_can")}</span>${t(`w_${k}_can`).split("|").map(x => `<span class="wl-y">${esc(x)}</span>`).join("")}<span class="wl-h">${t("w_cant")}</span>${t(`w_${k}_cant`).split("|").map(x => `<span class="wl-n">${esc(x)}</span>`).join("")}<span class="wl-h">${t("w_needs")}</span><span class="wl-r">${esc(t(`w_${k}_needs`))}</span></div>`;
-const about = step => `<div class="wabout"><b>${t("w_this_step")}</b> ${t("w_about_" + step)}</div>`;
+const about = step => `<div class="wabout"><b>${t("w_this_step")}</b> ${t("w_about_" + (step === "protocol" && W.kind === "script" ? "protocol_code" : step))}</div>`;
 // the model of a design as a list of the known ones; anything else is still typed
 const msel = (path, val) => { const known = ALL_MODELS.includes(val); return `<select data-r="${path}" class="wmsel">${ALL_MODELS.map(m => `<option ${m === val ? "selected" : ""}>${m}</option>`).join("")}<option value="" ${known ? "" : "selected"}>${t("w_other_model")}</option></select>${known ? "" : rin(path, val, "my-model.pt", "wmother")}`; };
-const stepIds = () => ["folder", "kind", ...(W.kind === "research" ? ["questions", "design", "protocol", "hypotheses"] : []), "where", "review"];
+const codePrereg = () => W.kind === "script" && W.script.prereg;  // your own code, pre-registered
+const stepIds = () => ["folder", "kind", ...(W.kind === "research" ? ["questions", "design", "protocol", "hypotheses"]
+  : codePrereg() ? ["questions", "protocol", "hypotheses"] : []), "where", "review"];
 const cur = () => stepIds()[W.step - 1];
 const list = v => String(v ?? "").split(/[,\s]+/).filter(Boolean);
 function newResearch() {
@@ -25,8 +27,17 @@ function newResearch() {
           protocol: {sets: pk.map(p => `${p.key}=${p.data.replace(/[^/]*$/, "")}val.txt`).join(", "), sealed: "", metric: "map50_95", replicates: 200},
           hypotheses: [{id: "H1", question: "S1", text: "", criterion: ""}], check: true, lock: false};
 }
+// the research plan of the kind chosen: YOLO designs, or questions and hypotheses around your own runs
+function newResearchCode() {
+  return {packages: [], designs: [], questions: [{id: "S1", text: ""}], hypotheses: [{id: "H1", question: "S1", text: "", criterion: ""}],
+          protocol: {sets: "val", sealed: "", metric: "score", script: ""}, lock: false};
+}
+function useResearch() {
+  W.research = W.kind === "research" ? (W.ryolo ??= newResearch()) : codePrereg() ? (W.rcode ??= newResearchCode()) : null;
+  W.rmeta = null;
+}
 function wSpec() {
-  const r = W.research && {...W.research, designs: W.research.designs.map(d => ({...d, packages: list(d.packages), models: list(d.type === "architecture" ? d.models ?? ARCH : d.models)}))};
+  const r = W.research && (W.kind === "research" || codePrereg()) && {...W.research, designs: W.research.designs.map(d => ({...d, packages: list(d.packages), models: list(d.type === "architecture" ? d.models ?? ARCH : d.models)}))};
   return {path: W.path, name: W.name, description: W.description, color: W.color, kind: W.kind, backends: W.backends,
           default_backend: W.default_backend,
           yolo: {...W.yolo, seeds: String(W.yolo.seeds).split(/[,\s]+/).filter(Boolean).map(Number)},
@@ -77,6 +88,10 @@ function researchBody(step) {
       ${designFields(d, i)}<span style="align-self:end">${del("designs", i, r.designs.length)}</span></div>
       <p class="desc" style="margin:8px 0 0">${t("d_" + d.type + "_desc")}</p>${designRuns(i)}</div></div>`).join("")}
     <div class="toolbar"><button class="btn" data-radd="designs">+ ${t("w_add_design")}</button></div>`;
+  if (step === "protocol" && W.kind === "script") return `<div class="form"><label class="wide">${t("w_sets_names")}${rin("protocol.sets", r.protocol.sets, "val, test", "wfull")}</label>
+      <label>${t("w_sealed")}${rin("protocol.sealed", r.protocol.sealed, "test")}</label><label>${t("w_metric_name")}${rin("protocol.metric", r.protocol.metric)}</label>
+      <label class="wide">${t("w_eval_script")}<select data-r="protocol.script"><option value="">—</option>${(W.scan?.scripts || []).map(f => `<option ${f === r.protocol.script ? "selected" : ""}>${esc(f)}</option>`).join("")}</select></label></div>
+    <h3 class="wh">${t("w_eval_how")}</h3><pre class="raw">import rb\nids = [path.name for path in items]          # the items of the set, the same for every run\nrb.resample_plan(\"val\", ids)              # the first evaluation fixes them; the rest must match\nfor run in [\"run1\", \"run2\"]:\n    scores = [...]                           # one value per item, in the order of ids\n    rb.write_samples(run, \"val\", {\"score\": scores})</pre>`;
   if (step === "protocol") return `<p class="desc">${t("w_proto_desc")}</p>
     <div class="form"><label class="wide">${t("w_sets")}${rin("protocol.sets", r.protocol.sets, "ground=data/ground/val.txt, aerial=data/aerial/val.txt", "wfull")}</label>
       <label>${t("w_sealed")}${rin("protocol.sealed", r.protocol.sealed, "test")}</label><label>${t("w_metric_name")}${rin("protocol.metric", r.protocol.metric)}</label>
@@ -87,8 +102,9 @@ function researchBody(step) {
   return `<p class="desc">${t("w_h_desc")}</p>
     ${m ? `<div class="summary"><div><span>${t("runs")}</span><b>${m.runs.length}</b></div><div><span>${t("w_sets")}</span><b>${m.sets.map(esc).join(", ")}</b></div>
       <div><span>${t("w_groups")}</span><b>${Object.keys(m.groups).map(esc).join(", ") || "—"}</b></div></div>
-      <details style="margin-bottom:10px"><summary>${t("w_planned")}</summary><div class="card tw"><table><tr><th>${t("run")}</th><th>${t("w_package")}</th><th>${t("w_model")}</th><th>seed</th></tr>
-      ${m.runs.map(x => `<tr><td class="mono">${esc(x.id)}</td><td>${esc(x.package)}${x.train ? ` <span class="muted mono">${esc(JSON.stringify(x.train))}</span>` : ""}</td><td>${esc(x.model)}</td><td>${x.seed ?? 0}</td></tr>`).join("")}</table></div></details>` : ""}
+      <details style="margin-bottom:10px"><summary>${t("w_planned")}</summary><div class="card tw"><table>${W.kind === "script"
+        ? `<tr><th>${t("run")}</th><th>${t("w_args")}</th></tr>${m.runs.map(x => `<tr><td class="mono">${esc(x.id)}</td><td class="mono">${esc(x.args || "")}</td></tr>`).join("")}`
+        : `<tr><th>${t("run")}</th><th>${t("w_package")}</th><th>${t("w_model")}</th><th>seed</th></tr>${m.runs.map(x => `<tr><td class="mono">${esc(x.id)}</td><td>${esc(x.package)}${x.train ? ` <span class="muted mono">${esc(JSON.stringify(x.train))}</span>` : ""}</td><td>${esc(x.model)}</td><td>${x.seed ?? 0}</td></tr>`).join("")}`}</table></div></details>` : ""}
     ${r.hypotheses.map((h, i) => `<div class="card" style="margin-bottom:10px" data-wh="${i}"><div class="cb"><div class="form">
       <label>${t("w_id")}${rin(`hypotheses.${i}.id`, h.id)}</label><label>${t("w_question")}${qsel(`hypotheses.${i}.question`, h.question)}</label>
       <label class="wide">${t("w_h_text")}${rin(`hypotheses.${i}.text`, h.text, "", "wfull")}</label>
@@ -153,10 +169,14 @@ async function renderWizard() {
         <div class="card tw"><table><tr><th style="width:180px">${t("run")}</th><th>${t("w_args")}</th><th style="width:60px"></th></tr>
         ${sp.runs.map((r, i) => `<tr><td><input class="srid" data-i="${i}" value="${esc(r.id)}" style="width:100%"></td><td><input class="sargs" data-i="${i}" value="${esc(r.args)}" placeholder="--epochs 50 --lr 0.01" style="width:100%"></td><td class="n">${sp.runs.length > 1 ? `<button class="btn danger sdel" data-i="${i}">×</button>` : ""}</td></tr>`).join("")}</table></div>
         <div class="toolbar" style="margin-top:10px"><button class="btn" id="sadd">+ ${t("run")}</button></div>
+        <label class="tog" style="margin-top:14px"><input type="checkbox" id="sprereg" ${sp.prereg ? "checked" : ""}> ${t("w_prereg_code")}</label>
+        ${sp.prereg ? `<p class="desc" style="margin:6px 0 0">${t("w_prereg_code_desc")}</p>` : ""}
         <h3 class="wh">${t("w_cmd_preview")}</h3><div class="wcmds">${sp.runs.map(r => `<div class="mono"><span class="muted">${esc(r.id)}</span> python -u ${esc(sp.file || "train.py")} ${esc(r.args)}</div>`).join("")}</div>
         <h3 class="wh">${t("w_watch")}</h3><p class="desc">${t("w_watch_desc")}</p>
         <div class="form"><label>${t("w_report")}<input id="sreport" value="${esc(sp.report)}" placeholder="{out}/metrics.json"></label>
-          <label>${t("w_metric")}<input id="smetric" value="${esc(sp.metric)}"></label></div>
+          <label>${t("w_metric")}<input id="smetric" value="${esc(sp.metric)}"></label>
+          <label>${t("w_curves")}<input id="scurves" value="${esc(sp.curves)}" placeholder="{out}/history.csv"></label>
+          <label>${t("w_epoch_col")}<input id="sepoch" value="${esc(sp.epoch_column)}"></label></div>
         <p class="desc" style="margin-top:6px">${t("w_report_desc")}</p>
         <details style="margin-top:8px"><summary>${t("w_advanced")}</summary><div class="form" style="margin-top:12px">
           <label class="wide">${t("w_extra_files")}<select id="sfiles" multiple size="5">${[...sc.scripts, ...sc.configs].filter(f => f !== sp.file).map(f => `<option ${sp.files.includes(f) ? "selected" : ""}>${esc(f)}</option>`).join("")}</select></label>
@@ -197,7 +217,7 @@ async function renderWizard() {
         <div><span>${t("w_where")}</span><b>${W.backends.map(b => ({local: t("local_gpu"), kaggle: "Kaggle", ssh: "SSH", slurm: "SLURM"}[b])).join(" + ")}</b></div>
         <div><span>${t("runs")}</span><b>${pv ? pv.nruns : "—"}</b></div>
       </div>
-      ${W.kind === "research" ? `<label class="tog"><input type="checkbox" id="wlock" ${W.research.lock ? "checked" : ""}> ${t("w_lock")}</label><p class="desc">${t("w_lock_desc")}</p>` : ""}
+      ${W.kind === "research" || codePrereg() ? `<label class="tog"><input type="checkbox" id="wlock" ${W.research.lock ? "checked" : ""}> ${t("w_lock")}</label><p class="desc">${t("w_lock_desc")}</p>` : ""}
       ${pv ? `<h3 class="wh">${t("w_files_title")}</h3><div class="card tw"><table>${Object.keys(pv.files).map(f => `<tr><td class="mono" style="width:40%">${esc(f)}</td><td class="muted">${esc(fileWhat(f))}</td></tr>`).join("")}</table></div>
         <p class="desc" style="margin-top:6px">${t("w_yours_safe")}</p>
         <div class="wabout" style="margin-top:12px"><b>${t("w_after")}</b> ${t("w_after_" + W.kind)}</div>
@@ -218,7 +238,7 @@ function readStep2() {
   } else if ($("#sfile")) {
     sp.file = $("#sfile").value; sp.pip = $("#spip").value;
     sp.runs = [...document.querySelectorAll(".srid")].map((x, i) => ({id: x.value, args: document.querySelector(`.sargs[data-i="${i}"]`).value}));
-    sp.report = $("#sreport").value; sp.metric = $("#smetric").value;
+    sp.report = $("#sreport").value; sp.metric = $("#smetric").value; sp.curves = $("#scurves").value; sp.epoch_column = $("#sepoch").value;
     if ($("#sfiles")) { sp.files = [...$("#sfiles").selectedOptions].map(o => o.value); sp.data_dir = $("#sdata").value; }
   }
 }
@@ -242,7 +262,7 @@ function wireWizard() {
     if (cmds.length && !await ask(`${t("w_trust")}\n\n${cmds.join("\n")}`)) return;
     try { const j = await api("/api/projects", {json: {path: W.path}}); await loadProjects(); go(`#/p/${j.key}/overview`); } catch (e) { say(e.message); } });
   document.querySelectorAll("[data-kind]").forEach(el => el.onclick = () => {
-    readStep2(); W.kind = el.dataset.kind; if (W.kind === "research" && !W.research) W.research = newResearch(); renderWizard();
+    readStep2(); W.kind = el.dataset.kind; useResearch(); renderWizard();
   });
   document.querySelectorAll(".ym, #yseeds, #ydata, #sfile").forEach(el => el.onchange = () => { readStep2(); renderWizard(); });
   // the command each run gets follows what is typed, without redrawing the inputs being typed in
@@ -250,6 +270,7 @@ function wireWizard() {
     readStep2(); const rows = document.querySelectorAll(".wcmds div");
     W.script.runs.forEach((r, i) => { if (rows[i]) rows[i].innerHTML = `<span class="muted">${esc(r.id)}</span> python -u ${esc(W.script.file || "train.py")} ${esc(r.args)}`; });
   });
+  on("#sprereg", "change", e => { readStep2(); W.script.prereg = e.target.checked; useResearch(); renderWizard(); });
   on("#sadd", "click", () => { readStep2(); W.script.runs.push({id: `run${W.script.runs.length + 1}`, args: ""}); renderWizard(); });
   document.querySelectorAll(".sdel").forEach(b => b.onclick = () => { readStep2(); W.script.runs.splice(+b.dataset.i, 1); renderWizard(); });
   // research: add and remove rows, switch a design's type, take a suggested hypothesis, check criteria as they are typed
@@ -304,7 +325,7 @@ async function previewWizard() {
 async function createWizard(overwrite) {
   try {
     const j = await api("/api/wizard/create", {json: {...wSpec(), overwrite}});
-    toast(t("w_created")); await loadProjects(); Object.assign(W, {step: 1, preview: null, scan: null, name: "", error: null, research: null, rmeta: null}); go(`#/p/${j.key}/${W.kind === "research" ? "hypotheses" : "overview"}`);
+    toast(t("w_created")); await loadProjects(); Object.assign(W, {step: 1, preview: null, scan: null, name: "", error: null, research: null, rmeta: null, ryolo: null, rcode: null}); go(`#/p/${j.key}/${W.kind === "research" || codePrereg() ? "hypotheses" : "overview"}`);
   } catch (e) {
     if (/Already exists/.test(e.message) && await ask(t("w_overwrite", {f: e.message.replace("Already exists: ", "")}), true)) return createWizard(true);
     W.error = e.message; renderWizard();

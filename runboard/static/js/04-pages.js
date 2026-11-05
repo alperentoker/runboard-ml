@@ -205,14 +205,25 @@ function renderDetail() {
     const has = k => H.some(x => x[k] != null);
     const lossKeys = [...new Set(H.flatMap(x => Object.keys(x).filter(k => k.endsWith("_loss") && !k.startsWith("val_"))))];
     const vlossKeys = [...new Set(H.flatMap(x => Object.keys(x).filter(k => k.startsWith("val_") && k.endsWith("_loss"))))];
+    // any other number a run reports (accuracy, f1, rmse, loss…) gets a chart under its own name; x and val_x share
+    // one, train against validation; a name that sounds like an error is better low
+    const KNOWN = new Set(["e", "t", "secs", "lr", "map", "map50", "p", "r"]);
+    const extra = [...new Set(H.flatMap(x => Object.keys(x)))].filter(k => !KNOWN.has(k) && !k.endsWith("_loss") && H.some(x => typeof x[k] === "number"));
+    const paired = new Set(extra.filter(k => k.startsWith("val_") && extra.includes(k.slice(4))));
+    const lowBetter = k => /loss|err|rmse|mae|mse|perplex|wer|cer|latency/i.test(k);
+    const extraCharts = extra.filter(k => !paired.has(k)).map(k => { const both = paired.has("val_" + k);
+      return chart(k, [{name: both ? t("s_train") : d.id, color: COLORS[0], pts: pts(H, k)},
+        ...(both ? [{name: t("s_val"), color: COLORS[1], dash: true, pts: pts(H, "val_" + k)}] : comp.map(s => ({...s, pts: pts(s.rows, k)})))],
+        {better: lowBetter(k) ? "min" : "max"}); }).join("");
     body = `${others.length ? `<div class="toolbar"><span class="muted" style="font-size:13px;font-weight:600">${t("compare")}</span>${others.map(o => `<label class="tog"><input type="checkbox" class="cmp" value="${esc(o.id)}" ${compare.has(o.id) ? "checked" : ""}>${esc(o.id)}</label>`).join("")}<span class="sp muted" style="font-size:12px">${t("source")}: ${d.curves?.length ? "results.csv" : t("live_log")}</span></div>` : ""}
       <div class="charts">
-      ${chart(lab, [{name: d.id, color: COLORS[0], pts: pts(H, "map")}, ...comp.map(s => ({...s, pts: pts(s.rows, "map")}))], {strip: has("lr") ? pts(H, "lr") : null})}
+      ${has("map") || !extra.length ? chart(lab, [{name: d.id, color: COLORS[0], pts: pts(H, "map")}, ...comp.map(s => ({...s, pts: pts(s.rows, "map")}))], {strip: has("lr") ? pts(H, "lr") : null}) : ""}
       ${has("map50") ? chart(lab2 || "map50", [{name: d.id, color: COLORS[0], pts: pts(H, "map50")}, ...comp.map(s => ({...s, pts: pts(s.rows, "map50")}))]) : ""}
       ${has("p") || has("r") ? chart(t("ch_pr"), [{name: t("precision"), color: COLORS[1], pts: pts(H, "p")}, {name: t("recall"), color: COLORS[2], pts: pts(H, "r")}], {better: "max"}) : ""}
       ${lossKeys.length && vlossKeys.length ? chart(t("ch_loss_tv"), [{name: t("s_train"), color: COLORS[0], pts: lossSum(H, lossKeys)}, {name: t("s_val"), color: COLORS[1], dash: true, pts: lossSum(H, vlossKeys)}], {better: "min"}) : ""}
       ${lossKeys.length ? chart(t("ch_tloss"), lossKeys.map((k, i) => ({name: k.replace("_loss", ""), color: COLORS[i % 5], pts: pts(H, k)})), {better: "min"}) : ""}
       ${vlossKeys.length ? chart(t("ch_vloss"), vlossKeys.map((k, i) => ({name: k.replace("val_", "").replace("_loss", ""), color: COLORS[i % 5], pts: pts(H, k)})), {better: "min"}) : ""}
+      ${extraCharts}
       ${has("lr") ? chart(t("ch_lr"), [{name: "lr", color: COLORS[3], pts: pts(H, "lr")}], {better: null}) : ""}
       </div>`;
   } else if (sub === "result") {

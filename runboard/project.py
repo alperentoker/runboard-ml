@@ -684,14 +684,21 @@ class Project:
             while len(_CSV) > 64:
                 _CSV.pop(next(iter(_CSV)))
         rows = _CSV[key][1]
-        cols = c.get("columns") or ULTRALYTICS_COLUMNS
-        scale = set(c.get("percent", ["map", "map50", "p", "r"] if not c.get("columns") else []))
+        # columns: {csv column: key} by hand; epoch: the epoch column, and every other column keeps its own name (any
+        # training code's CSV, each metric charted under its name); neither: Ultralytics' results.csv
+        mine = c.get("columns") or ({c["epoch"]: "e", **{k: k for k in (rows[0] if rows else {}) if k != c["epoch"]}}
+                                    if c.get("epoch") else None)
+        cols = mine or ULTRALYTICS_COLUMNS
+        scale = set(c.get("percent", [] if mine else ["map", "map50", "p", "r"]))
         out_rows = []
         for r in rows:
             d = {}
             for src, key in cols.items():
                 if r.get(src) not in (None, ""):
-                    d[key] = round(100 * float(r[src]), 3) if key in scale else float(r[src])
+                    try:
+                        d[key] = round(100 * float(r[src]), 3) if key in scale else float(r[src])
+                    except ValueError:  # a text column (a timestamp, a note): not a curve
+                        pass
             if "e" in d:
                 d["e"] = int(d["e"])
                 out_rows.append(d)

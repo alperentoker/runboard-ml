@@ -189,7 +189,8 @@ results:
   labels: {primary: val mAP50-95, secondary: mAP50}
   final: "{out}/final_val.json"
   per_class: {path: per_class, metric: map50_95, scale: 100, names: [person, vehicle]}
-  curves: {file: "{out}/results.csv", format: ultralytics}   # or columns: {csv column: key}
+  curves: {file: "{out}/results.csv", format: ultralytics}   # or columns: {csv column: key}, or epoch: <column>
+                                                             # (every other number column a curve by its name)
   after: '"{python}" scripts/check_run.py "{out}"'             # runs after outputs are downloaded
   column: model                          # optional: the field shown after the run in the results table
   note: …

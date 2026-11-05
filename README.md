@@ -125,15 +125,23 @@ project.
 
 ## Your own training script
 
-The wizard's *My own training code* runs any script with per-run arguments. To show live progress, print one line
-per event, or use `rb.py` (stdlib only; the wizard and the demo copy it next to your scripts):
+The wizard's *My own training code* runs any script, in any framework, with per-run arguments. To show live
+progress, print one line per event, or use `rb.py` (stdlib only; the wizard and the demo copy it next to your scripts):
 
 ```python
 import rb
-rb.ultralytics(model)            # Ultralytics: one line adds everything below
-rb.start(epochs=100, batches=798)
-rb.epoch(3, epochs=100, metrics={"map": 48.2}, best=48.2)
+rb.start(epochs=100)
+rb.epoch(3, epochs=100, accuracy=0.91, val_accuracy=0.88, loss=0.31)   # every number becomes a curve, by its name
+rb.report(score=88.4, best_epoch=37)                                   # the result the results table shows
+rb.ultralytics(model)            # Ultralytics: one line reports all of the above
 ```
+
+Every run is told where its outputs go: `rb.out()` (or the `RUNBOARD_OUT` variable) is the folder runboard brings
+home and reads results from, locally, on Kaggle, over SSH and on SLURM; `RUNBOARD_RUN` is the run's name. A CSV your
+script writes there, one row an epoch, can be given as the curves file: every number column becomes a curve. With
+*Pre-registered* ticked, the wizard also asks for questions, evaluation sets and hypotheses; your evaluation script
+writes each run's results with `rb.resample_plan` and `rb.write_samples` (or `rb.write_eval`), and runboard decides
+the hypotheses as for any other project.
 
 A project by hand is a short `runboard.yaml`:
 

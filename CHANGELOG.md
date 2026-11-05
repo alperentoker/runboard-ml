@@ -5,6 +5,14 @@ All notable changes to runboard. Versions follow [semantic versioning](https://s
 ## Unreleased
 
 ### Added
+- Projects that are not YOLO: every number a run reports (`rb.epoch(3, accuracy=0.91, loss=0.31)`, or a column of
+  its own CSV) gets a chart under its own name, `x` and `val_x` together; a single `loss` is charted too.
+- Every run knows its output folder and name (`RUNBOARD_OUT`, `RUNBOARD_RUN`; `rb.out()`) on every backend, and
+  `rb.report(score=…)` writes the result the results table reads. The wizard copies `rb.py` next to your script.
+- `curves: {file: …, epoch: <column>}` reads any CSV, one row an epoch, without a column map; the wizard asks for it.
+- A pre-registered experiment around your own training code: the wizard asks for questions, evaluation sets and
+  hypotheses, checks the criteria against your runs, and adds your evaluation script as a job; your script writes
+  the results with `rb.write_samples` or `rb.write_eval`.
 - A clearer new-project wizard: every step opens with what is decided in it; each kind of project lists what it
   does, what it does not do and what it needs; a design shows the runs it will make as you change it, with the
   models picked from a list; *My own training code* shows the command each run gets, how to follow it and where

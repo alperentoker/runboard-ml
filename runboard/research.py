@@ -156,10 +156,57 @@ def sets_of(protocol: dict) -> dict[str, str]:
     return {a.strip(): b.strip() for a, b in pairs}
 
 
+def _questions_and_hypotheses(r: dict, runs, sets: list, groups: dict) -> tuple[list, list, dict]:
+    """The questions and hypotheses as plan.yaml holds them, and each criterion's problem against the planned runs."""
+    from .hypotheses import check
+    questions = [{"id": str(q["id"]).strip(), "text": q.get("text") or ""} for q in r.get("questions") or [] if str(q.get("id") or "").strip()]
+    hyps, problems = [], {}
+    for h in r.get("hypotheses") or []:
+        if not str(h.get("id") or "").strip():
+            continue
+        item = {"id": str(h["id"]).strip(), **({"question": h["question"]} if h.get("question") else {}),
+                "text": h.get("text") or "", **({"criterion": h["criterion"].strip()} if (h.get("criterion") or "").strip() else {})}
+        if item.get("criterion"):
+            try:
+                check(item["criterion"], runs, sets, groups)
+            except Invalid as e:
+                problems[item["id"]] = str(e)
+        hyps.append(item)
+    return questions, hyps, problems
+
+
+def plan_for_code(spec: dict, files: dict, m: dict, runs: dict) -> dict:
+    """A pre-registered project around your own training code: the runs are your script's runs, the evaluation sets
+    are names your evaluation script writes results for (rb.resample_plan, rb.write_eval or rb.write_samples), and
+    plan.yaml holds the questions and hypotheses. Nothing is written for the evaluation: that is your code."""
+    r = spec.get("research") or {}
+    pr = r.get("protocol") or {}
+    raw = pr.get("sets") or ""
+    sets = list(sets_of(pr)) if "=" in str(raw) else [s.strip() for s in str(raw).replace(";", ",").split(",") if s.strip()]
+    sealed = [s.strip() for s in str(pr.get("sealed") or "").split(",") if s.strip()]
+    if not sets:
+        raise Invalid("research", problem="name at least one evaluation set (val, test, ...)")
+    if any(s not in sets for s in sealed):
+        raise Invalid("research", problem="a sealed set must be one of the evaluation sets")
+    questions, hyps, problems = _questions_and_hypotheses(r, runs, sets, {})
+    pl = {"questions": questions, "hypotheses": hyps,
+          "protocol": {"dir": "eval", "metric": str(pr.get("metric") or "score"),
+                       "sets": {s: ({"sealed": True} if s in sealed else {}) for s in sets} if sealed else sets}}
+    files["plan.yaml"] = ("# The science of this project: questions, hypotheses and how they are checked. Lock it before\n"
+                          "# training (Hypotheses page or `runboard lock`); after that every change is a deviation.\n"
+                          "# Your evaluation script writes eval/<run>/<set>.json with rb.write_eval or rb.write_samples.\n"
+                          + yaml.safe_dump(pl, sort_keys=False, allow_unicode=True, width=110))
+    ev = str(pr.get("script") or "").strip()
+    if ev:
+        m.setdefault("jobs", {})["evaluate"] = {"title": {"en": "Evaluate the finished runs", "tr": "Biten koşuları değerlendir"},
+                                                 "cmd": f'"{{python}}" -u {ev}'}
+    return {"runs": [{"id": k, **v} for k, v in runs.items()], "groups": {}, "sets": sets, "designs": [],
+            "suggest": [], "problems": problems, "slug": slugify(m.get("id") or "")}
+
+
 def build(spec: dict, files: dict, m: dict, root: Path, train_script: str, runs_file: str) -> dict:
     """Adds the research parts to the wizard's YOLO project: runs, plan.yaml, templates. Returns what the wizard shows."""
     from . import templating
-    from .hypotheses import check
     r = spec.get("research") or {}
     plan = plan_runs(r, root)
     pr = r.get("protocol") or {}
@@ -170,19 +217,7 @@ def build(spec: dict, files: dict, m: dict, root: Path, train_script: str, runs_
     if any(s not in sets for s in sealed):
         raise Invalid("research", problem="a sealed set must be one of the evaluation sets")
 
-    questions = [{"id": str(q["id"]).strip(), "text": q.get("text") or ""} for q in r.get("questions") or [] if str(q.get("id") or "").strip()]
-    hyps, problems = [], {}
-    for h in r.get("hypotheses") or []:
-        if not str(h.get("id") or "").strip():
-            continue
-        item = {"id": str(h["id"]).strip(), **({"question": h["question"]} if h.get("question") else {}),
-                "text": h.get("text") or "", **({"criterion": h["criterion"].strip()} if (h.get("criterion") or "").strip() else {})}
-        if item.get("criterion"):
-            try:
-                check(item["criterion"], plan["runs"], list(sets), plan["groups"])
-            except Invalid as e:
-                problems[item["id"]] = str(e)
-        hyps.append(item)
+    questions, hyps, problems = _questions_and_hypotheses(r, plan["runs"], list(sets), plan["groups"])
 
     defaults = {"epochs": int(r.get("epochs", 100)), "imgsz": int(r.get("imgsz", 640)), "batch": int(r.get("batch", 16)),
                 "seed": 0}

@@ -126,16 +126,24 @@ durur.
 
 ## Kendi eğitim betiğin
 
-Sihirbazdaki *Kendi eğitim kodum* herhangi bir betiği koşu başına argümanlarla çalıştırır. Canlı ilerleme için her
-olayda bir satır yazdır ya da `rb.py`'yi kullan (yalnızca standart kütüphane; sihirbaz ve demo onu betiklerinin yanına
-kopyalar):
+Sihirbazdaki *Kendi eğitim kodum* hangi çerçeveyle yazılmış olursa olsun herhangi bir betiği koşu başına
+argümanlarla çalıştırır. Canlı ilerleme için her olayda bir satır yazdır ya da `rb.py`'yi kullan (yalnızca standart
+kütüphane; sihirbaz ve demo onu betiklerinin yanına kopyalar):
 
 ```python
 import rb
-rb.ultralytics(model)            # Ultralytics: tek satır aşağıdakilerin hepsini ekler
-rb.start(epochs=100, batches=798)
-rb.epoch(3, epochs=100, metrics={"map": 48.2}, best=48.2)
+rb.start(epochs=100)
+rb.epoch(3, epochs=100, accuracy=0.91, val_accuracy=0.88, loss=0.31)   # her sayı kendi adıyla bir eğri olur
+rb.report(score=88.4, best_epoch=37)                                   # sonuç tablosunun gösterdiği sonuç
+rb.ultralytics(model)            # Ultralytics: tek satır yukarıdakilerin hepsini bildirir
 ```
+
+Her koşuya çıktılarının nereye gideceği söylenir: `rb.out()` (ya da `RUNBOARD_OUT` değişkeni) runboard'un eve
+getirdiği ve sonuçları okuduğu klasördür; yerelde, Kaggle'da, SSH'de ve SLURM'da aynı. `RUNBOARD_RUN` koşunun adıdır.
+Betiğin oraya her epoch'a bir satır olan bir CSV yazıyorsa onu eğri dosyası olarak verebilirsin: her sayısal sütun bir
+eğri olur. *Ön kayıtlı* işaretlenirse sihirbaz soruları, değerlendirme kümelerini ve hipotezleri de sorar; değerlendirme
+betiğin her koşunun sonuçlarını `rb.resample_plan` ve `rb.write_samples` (ya da `rb.write_eval`) ile yazar, runboard
+hipotezleri her projede olduğu gibi karara bağlar.
 
 Elle kurulan bir proje kısa bir `runboard.yaml`'dır:
 

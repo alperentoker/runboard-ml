@@ -51,6 +51,9 @@ def test_yolo_project_end_to_end(folder):
     kb.build(p, "yolo11n-s0", p.info("yolo11n-s0"), folder_k, "someone")
     code = (folder_k / "run.py").read_text()
     compile(code, "run.py", "exec")
+    # the run is told its name and its output folder, inside /kaggle/working that comes home into output_dir
+    assert "os.environ['RUNBOARD_RUN'] = \"yolo11n-s0\"" in code
+    assert f"os.environ['RUNBOARD_OUT'] = \"/kaggle/working/{p.info('yolo11n-s0')['name']}\"" in code
     files = json.loads(json.loads(re.search(r"FILES = json.loads\((.*)\)\n", code)[1]))
     assert set(files) == {"runboard_train.py", "rb.py", "runboard_runs.yaml"}
     meta = json.loads((folder_k / "kernel-metadata.json").read_text())

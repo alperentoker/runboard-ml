@@ -213,12 +213,14 @@ def build_all(spec: dict) -> tuple[dict[str, str], dict | None]:
                             + yaml.safe_dump({"runs": runs}, sort_keys=False, allow_unicode=True))
         m["runs"] = {"file": RUNS_FILE, "section": "runs", "name": "{id}", "fields": ["args"]}
         m["backends"] = {}
+        if not (root / "rb.py").exists():  # the helper the script reports progress and results with; yours is kept
+            files["rb.py"] = (HERE / "rb.py").read_text(encoding="utf-8")
         if "local" in backends:
             m["backends"]["local"] = {"command": f'"{{python}}" -u {script} {{args}}', "output_dir": s.get("output_dir") or "runs/local"}
         if "kaggle" in backends:
             extra = [f for f in s.get("files", []) if (root / f).is_file()]
             m["backends"]["kaggle"] = {
-                "kernel": f"{key[:30]}-" + "{id|lower}", "files": {f: f for f in [script, *extra]},
+                "kernel": f"{key[:30]}-" + "{id|lower}", "files": {f: f for f in [script, *extra, "rb.py"]},
                 "setup": [f"pip install -q {p}" for p in s.get("pip", []) if re.fullmatch(r"[\w.\-\[\],=<>~ ]+", p)],
                 "command": f"python -u {script} {{args}}", "accelerator": "NvidiaTeslaT4", "internet": True,
                 "output_dir": "runs/kaggle"}
@@ -227,9 +229,14 @@ def build_all(spec: dict) -> tuple[dict[str, str], dict | None]:
                 m["data"] = {"field": "dataset", "packages": [{"key": dk, "dir": s["data_dir"]}], "dataset_prefix": f"{key[:30]}-"}
                 files[RUNS_FILE] = files[RUNS_FILE].replace("runs:\n", f"defaults:\n  dataset: {dk}\nruns:\n", 1)
                 m["runs"]["defaults"] = "defaults"
-        if s.get("report"):
-            m["results"] = {"report": s["report"], "metrics": {"primary": s.get("metric", "score")},
-                            "labels": {"primary": s.get("metric", "score")}}
+        res = {}
+        if s.get("report"):  # rb.report() writes {out}/summary.json; any JSON the script writes works
+            res |= {"report": s["report"], "metrics": {"primary": s.get("metric", "score")},
+                    "labels": {"primary": s.get("metric", "score")}}
+        if s.get("curves"):  # a CSV the script writes, one row an epoch: every column a curve under its name
+            res["curves"] = {"file": s["curves"], "epoch": s.get("epoch_column") or "epoch"}
+        if res:
+            m["results"] = res
     r = spec.get("remote") or {}
     for name in ("ssh", "slurm"):  # a machine over SSH, a SLURM cluster's login node (backends/remote.py)
         if name not in backends:
@@ -253,6 +260,10 @@ def build_all(spec: dict) -> tuple[dict[str, str], dict | None]:
     if kind == "research":
         from . import research
         research_meta = research.build(spec, files, m, root, "runboard_train.py", RUNS_FILE)
+        m = {"version": 2, **{k: v for k, v in m.items() if k != "version"}}
+    elif kind == "script" and spec.get("research"):  # your own code, pre-registered: plan.yaml around your runs
+        from . import research
+        research_meta = research.plan_for_code(spec, files, m, yaml.safe_load(files[RUNS_FILE])["runs"])
         m = {"version": 2, **{k: v for k, v in m.items() if k != "version"}}
     m["default_backend"] = spec.get("default_backend") if spec.get("default_backend") in m["backends"] else next(iter(m["backends"]))
     files[MANIFEST] = ("# runboard project (written by the wizard). Reference: docs/manifest.md in the runboard repository.\n"
