@@ -17,12 +17,38 @@ from ..proc import pid_alive, popen_detached
 from .base import Backend
 
 
+def nvidia_smi() -> dict | None:
+    """The first GPU as nvidia-smi sees it, or None without one (no NVIDIA driver, or it does not answer)."""
+    try:
+        r = subprocess.run(["nvidia-smi", "--query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu",
+                            "--format=csv,noheader,nounits"], capture_output=True, text=True, timeout=5,
+                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    except (OSError, subprocess.SubprocessError):
+        return None
+    line = r.stdout.strip().splitlines()[0] if r.returncode == 0 and r.stdout.strip() else ""
+    parts = [p.strip() for p in line.split(",")]
+    if len(parts) != 5:
+        return None
+    num = lambda s: float(s) if s.replace(".", "", 1).isdigit() else None  # "[N/A]" on some cards
+    load, used, total, temp = (num(p) for p in parts[1:])
+    if not total:
+        return None
+    return {"gpu": parts[0], "load_pct": None if load is None else int(load),
+            "used_gb": round((used or 0) / 1024, 1), "free_gb": round((total - (used or 0)) / 1024, 1),
+            "total_gb": round(total / 1024, 1), "temp_c": None if temp is None else int(temp)}
+
+
 class LocalBackend(Backend):
     name = "local"
     label = "Local GPU"
     can_cancel = True
 
     def info(self) -> dict:
+        """The GPU and how busy it is: load, memory in use, temperature. From nvidia-smi when there is one (it knows
+        the load, and asking it does not make the dashboard take GPU memory of its own); otherwise from torch."""
+        smi = nvidia_smi()
+        if smi:
+            return smi
         try:
             import torch
         except ImportError:
@@ -30,7 +56,8 @@ class LocalBackend(Backend):
         if not torch.cuda.is_available():
             return {"gpu": None}
         free, total = torch.cuda.mem_get_info()
-        return {"gpu": torch.cuda.get_device_name(0), "free_gb": round(free / 2**30, 1), "total_gb": round(total / 2**30, 1)}
+        return {"gpu": torch.cuda.get_device_name(0), "used_gb": round((total - free) / 2**30, 1),
+                "free_gb": round(free / 2**30, 1), "total_gb": round(total / 2**30, 1)}
 
     def _files(self, project, run_id):
         d = project.state.dir / "local"

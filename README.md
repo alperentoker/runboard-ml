@@ -205,6 +205,10 @@ projects, code, the project file and the folder browser stay on this computer, a
 command is checked first. The Kaggle token is kept in `~/.kaggle`. Outside your home network, use a VPN such as
 Tailscale. See [SECURITY.md](https://github.com/alperentoker/runboard-ml/blob/main/SECURITY.md).
 
+**Browsers.** The dashboard needs a browser from 2023 or later: Chrome or Edge 111, Safari 16.2 (iOS 16.2), Firefox
+121. An older tablet can open `/mini`, the one-screen view of the active runs, which needs only a browser from 2020
+on (Chrome 80, Safari 13.1, Firefox 74).
+
 ## Running it permanently
 
 *System → Start runboard when I sign in to this computer* sets it up the way each system does: a startup script on
@@ -213,6 +217,9 @@ Windows, a systemd user service on Linux (`~/.config/systemd/user/runboard.servi
 start at boot without signing in, run `loginctl enable-linger` once. `runboard serve` starts a watchdog that
 restarts the dashboard if it stops answering (under systemd and launchd the service manager does that instead), and
 writes every start, stop and error to `~/.runboard/server.log`.
+
+Local runs and jobs (validation, tests, an evaluation …) run on their own: when the dashboard restarts, crashes or
+is stopped with `runboard stop`, they go on, and the next dashboard shows them where they are, with their whole log.
 
 ## Development
 

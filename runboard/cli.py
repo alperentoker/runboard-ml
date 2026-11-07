@@ -106,7 +106,7 @@ def main(argv: list[str] | None = None) -> int:
         f = home.HOME / "server.pid"
         pid = int(f.read_text().strip()) if f.exists() and f.read_text().strip().isdigit() else None
         if pid and pid_alive(pid):
-            stop_pid(pid)
+            stop_pid(pid, tree=False)  # runs and jobs started from it go on
             print(f"stopped the dashboard (pid {pid})")
         else:
             print("the dashboard was not running")

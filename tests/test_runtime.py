@@ -324,3 +324,80 @@ def test_one_dashboard_per_home(tmp_path):
     assert subprocess.run([sys.executable, "-c", probe, str(lock)]).returncode == 3
     held.close()
     assert subprocess.run([sys.executable, "-c", probe, str(lock)]).returncode == 0
+
+
+def _wait(fn, timeout=30):
+    import time
+    end = time.time() + timeout
+    while time.time() < end:
+        if fn():
+            return True
+        time.sleep(0.2)
+    return False
+
+
+def test_a_job_outlives_the_dashboard(setup):
+    """A job runs on its own: a dashboard started afterwards (a new Runtime) finds it running, follows its log and
+    sees it end; its log and exit code are files, not memory of the process that started it."""
+    import sys
+    rt, p, _ = setup
+    p.m["jobs"] = {"count": {"title": "Count", "cmd": f'"{sys.executable}" -u -c "import time; '
+                                                       f'[print(i, flush=True) or time.sleep(0.4) for i in range(8)]"'}}
+    job = rt.start_job(p, "count")
+    assert job.status == "running" and (p.state.dir / "jobs" / "count.json").exists()
+    assert _wait(lambda: len(job.view()["lines"]) >= 2)
+
+    later = Runtime()  # the dashboard after a restart: it knows nothing in memory
+    later.restore_jobs()
+    again = later.jobs[(p.key, "count")]
+    assert again is not job and again.status == "running"
+    assert _wait(lambda: again.status == "ok")
+    v = again.view()
+    assert v["lines"] == [str(i) for i in range(8)] and v["code"] == 0 and v["title"] == "Count"
+    later.restore_jobs()
+    assert later.jobs[(p.key, "count")] is again  # a job it already knows is kept
+
+
+def test_a_lost_job_says_so_and_a_new_one_can_start(setup):
+    """No exit code, no heartbeat and no process (the computer was switched off): an error, not "running" forever."""
+    import json
+    import os
+    import sys
+    import time
+    rt, p, _ = setup
+    d = p.state.dir / "jobs"
+    d.mkdir(parents=True)
+    (d / "old.log").write_text("half way\n")
+    (d / "old.alive").write_text("")
+    long_ago = time.time() - 3600
+    os.utime(d / "old.alive", (long_ago, long_ago))
+    (d / "old.json").write_text(json.dumps({"key": "old", "title": "Old", "cwd": str(p.root), "started": long_ago - 60,
+                                            "pid": 2 ** 22 + 7}))
+    rt.restore_jobs()
+    v = rt.jobs[(p.key, "old")].view()
+    assert v["status"] == "error" and v["lines"][0] == "half way" and "without an exit code" in v["lines"][-1]
+    assert v["seconds"] == 60
+    p.m["jobs"] = {"quick": {"title": "Quick", "cmd": f'"{sys.executable}" -c "print(1)"'}}
+    assert rt.start_job(p, "quick").status in ("running", "ok")  # a lost job does not block the next
+
+
+def test_one_job_at_a_time_per_project(setup):
+    import sys
+    from runboard.errors import Busy
+    rt, p, _ = setup
+    p.m["jobs"] = {k: {"title": k, "cmd": f'"{sys.executable}" -c "import time; time.sleep(3)"'} for k in ("a", "b")}
+    rt.start_job(p, "a")
+    with pytest.raises(Busy):
+        rt.start_job(p, "b")
+
+
+def test_runboard_stop_ends_the_dashboard_alone(monkeypatch):
+    """On Windows the dashboard's runs and jobs are its children; stopping it must not end them."""
+    import subprocess
+    from runboard import proc
+    calls = []
+    monkeypatch.setattr(proc.os, "name", "nt")
+    monkeypatch.setattr(subprocess, "run", lambda args, **k: calls.append(args))
+    proc.stop_pid(123, tree=False)
+    proc.stop_pid(456)
+    assert calls == [["taskkill", "/PID", "123", "/F"], ["taskkill", "/PID", "456", "/T", "/F"]]

@@ -39,7 +39,7 @@ function renderHome() {
     <div class="kpi"><div class="l">${t("projects_count")}</div><div class="v">${PS.projects.length}</div></div>
     <div class="kpi"><div class="l">${t("active_runs")}</div><div class="v">${act}</div></div>
     <div class="kpi"><div class="l">Kaggle · ${t("gpu_quota")}</div><div class="v">${k?.quota ? `${k.quota.used_h}<small> / ${k.quota.total_h} h</small>` : "—"}</div>${k?.quota ? `<div class="bar"><i style="width:${Math.min(100, k.quota.used_h / k.quota.total_h * 100)}%"></i></div>` : `<div class="s">${esc(k?.error || "")}</div>`}</div>
-    <div class="kpi"><div class="l">${t("local_gpu")}</div><div class="v" style="font-size:18px">${l?.gpu ? esc(l.gpu.replace("NVIDIA GeForce ", "")) : "—"}</div><div class="s">${l?.gpu ? th("gpu_mem", {f: l.free_gb, t: l.total_gb}) : ""}</div></div>
+    <div class="kpi"><div class="l">${t("local_gpu")}</div><div class="v" style="font-size:18px">${l?.gpu ? esc(l.gpu.replace("NVIDIA GeForce ", "")) : "—"}</div><div class="s">${esc(gpuUse(l))}</div></div>
   </div>
   ${Object.entries(PS.errors).map(([p, e]) => `<div class="msg bad" style="margin-top:16px">${t("broken")}: <span class="mono">${esc(p)}</span> — ${esc(e)}</div>`).join("")}
   ${queueCard()}

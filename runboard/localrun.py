@@ -24,7 +24,9 @@ def main() -> int:
 
     threading.Thread(target=heartbeat, daemon=True).start()
     with open(log, "ab", buffering=0) as out:
-        proc = subprocess.Popen(cmd, shell=True, stdout=out, stderr=subprocess.STDOUT, env=env)
+        # no console window: this runner has none (it is detached), so a shell would open one of its own
+        proc = subprocess.Popen(cmd, shell=True, stdout=out, stderr=subprocess.STDOUT, env=env,
+                                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         rc = proc.wait()
     stop.set()
     if not Path(code).exists():  # "cancelled" is written by the dashboard

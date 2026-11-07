@@ -121,8 +121,8 @@ def test_job_lines_stream_once(tmp_path):
     import sys
     from runboard import server
     from runboard.runtime import Job
-    code = "import time\nfor i in range(6):\n    print('line', i, flush=True)\n    time.sleep(0.3)"
-    job = Job("demo", "Demo", [sys.executable, "-c", code], tmp_path)
+    code = "import time; [print('line', i, flush=True) or time.sleep(0.3) for i in range(6)]"  # one shell line
+    job = Job("demo", "Demo", [sys.executable, "-c", code], tmp_path, folder=tmp_path / "jobs")
     server.rt.jobs[("demo-proj", "demo")] = job
     S, got = {}, []
     try:
@@ -238,3 +238,17 @@ def test_saved_log_clock_times_are_read_against_when_it_was_written():
     at = p._clock("22:00:00 epoch 1/2", datetime.fromtimestamp(written, timezone.utc))
     assert at == datetime(2026, 10, 30, 22, 0, tzinfo=timezone.utc).timestamp()
     assert p.parse(["22:00:00 epoch 1/2"], written) == p.parse(["22:00:00 epoch 1/2"], written)
+
+
+def test_gpu_info_from_nvidia_smi(monkeypatch):
+    """Load, memory in use and temperature come from nvidia-smi; a card that says [N/A] still gives the rest."""
+    import subprocess
+    from runboard.backends import local
+    out = {"text": "NVIDIA GeForce RTX 3050 Ti Laptop GPU, 27, 1498, 4096, 78\n"}
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, out["text"], ""))
+    assert local.nvidia_smi() == {"gpu": "NVIDIA GeForce RTX 3050 Ti Laptop GPU", "load_pct": 27, "used_gb": 1.5,
+                                  "free_gb": 2.5, "total_gb": 4.0, "temp_c": 78}
+    out["text"] = "Tesla T4, [N/A], 0, 15360, [N/A]\n"
+    assert local.nvidia_smi()["load_pct"] is None and local.nvidia_smi()["temp_c"] is None
+    out["text"] = ""
+    assert local.nvidia_smi() is None

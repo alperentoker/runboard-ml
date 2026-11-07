@@ -3,6 +3,10 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 // t() for HTML: the text is the translation's own, the filled-in values (names, paths, versions) are escaped
 const th = (k, vars = {}) => t(k, Object.fromEntries(Object.entries(vars).map(([x, v]) => [x, esc(v)])));
+// How busy a GPU is, in plain text (load, memory in use, temperature), for the overview and the system page
+const gpuUse = g => !g?.gpu ? "" : [g.load_pct != null ? t("gpu_load", {p: g.load_pct}) : "",
+  t("gpu_mem", {u: g.used_gb ?? Math.round((g.total_gb - g.free_gb) * 10) / 10, t: g.total_gb}),
+  g.temp_c != null ? `${g.temp_c} °C` : ""].filter(Boolean).join(" · ");
 const fmt = (v, d = 2) => v == null || v === "" || Number.isNaN(+v) ? "—" : Number(v).toFixed(d);
 const short = v => String(v ?? "").replace(/\.(pt|pth|ckpt)$/, "");
 const en = s => `<span lang="en">${esc(s)}</span>`;  // English terms keep their letters under Turkish uppercase (size ≠ SİZE)

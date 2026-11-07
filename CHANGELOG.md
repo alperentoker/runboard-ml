@@ -2,11 +2,27 @@
 
 All notable changes to runboard. Versions follow [semantic versioning](https://semver.org/).
 
-## Unreleased
+## 0.4.1 — 2026-11-07
 
-Fixes from a review of 0.4.0. Upgrade if other devices are paired with your dashboard.
+Fixes from two reviews of 0.4.0, and jobs that no longer end with the dashboard. Upgrade if other devices are
+paired with your dashboard, or if you run long jobs (an evaluation, packaging) from it.
+
+### Changed
+- Jobs (validation, tests, packaging, uploads, an evaluation …) run on their own, like local runs: when the
+  dashboard restarts, crashes or is stopped, they go on, and the next dashboard shows them where they are. Their
+  log and exit code are files in the project's state folder (`jobs/`) instead of the dashboard's memory; a job whose
+  process disappeared without an exit code is shown as an error, not as running forever.
+- The local GPU card shows how busy the GPU is: load, memory in use and temperature (from `nvidia-smi`), instead
+  of the free memory alone, which read like the amount in use. Asking `nvidia-smi` also keeps the dashboard from
+  taking GPU memory of its own.
 
 ### Fixed
+- Windows: `runboard stop` ended the dashboard together with every process it had started, local runs included,
+  which are meant to go on without it. It now ends the dashboard alone.
+- A finished run's notification is given before the run stops counting as "being collected", and a notification
+  that fails can no longer leave it in that state. (This also made two notification tests fail now and then.)
+- Two clicks on a job no longer start it twice.
+- A local run or job no longer opens a console window of its own on Windows.
 - Security: a paired device could read any `.log` file on the computer through the run log page, with a run name
   that climbs out of the logs folder (`..%5C..`). A run name from the address is now checked before it reaches
   a file.
@@ -21,6 +37,10 @@ Fixes from a review of 0.4.0. Upgrade if other devices are paired with your dash
   into the same work folder.
 - Names, paths and versions shown in the page (protocol, export folder, template version, Kaggle status) are
   escaped; the compare list no longer carries runs of another project with the same name.
+
+### Documentation
+- The browsers the dashboard needs (2023 or later; `/mini` works from 2020 on), and that runs and jobs outlive the
+  dashboard.
 
 ## 0.4.0 — 2026-11-05
 

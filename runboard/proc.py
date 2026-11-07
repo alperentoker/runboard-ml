@@ -52,9 +52,11 @@ def hold_lock(path: Path):
     return f
 
 
-def stop_pid(pid: int) -> None:
+def stop_pid(pid: int, tree: bool = True) -> None:
+    """Ends a process; on Windows with its children unless tree=False. The dashboard is stopped alone: local runs and
+    jobs are its children there, but are meant to go on without it (its watchdog ends by itself, see watch.py)."""
     if os.name == "nt":
-        subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True,
+        subprocess.run(["taskkill", "/PID", str(pid), *(["/T"] if tree else []), "/F"], capture_output=True,
                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     else:
         import signal

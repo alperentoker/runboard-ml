@@ -9,7 +9,7 @@ async function renderSystem() {
   <div class="card"><div class="ch"><h2>${t("connections")}</h2></div><div class="cb"><p class="desc">${t("connections_desc")}</p><div id="kbox">${kb.html}</div></div></div>
   <div class="card"><div class="ch"><h2>${t("backends")}</h2></div><div class="cb flush tw"><table>
     ${Object.values(s.backends).map(b => `<tr><td><b>${esc(b.label)}</b></td><td>${b.ok ? chip("COMPLETE", t("available")) : chip("ERROR", t("unavailable"))}</td>
-      <td class="muted">${b.ok ? [b.user, b.quota ? `${t("gpu_quota")} ${b.quota.used_h} / ${b.quota.total_h} h` : "", b.gpu ? `${b.gpu} · ${t("gpu_mem", {f: b.free_gb, t: b.total_gb})}` : (b.name === "local" ? t("no_gpu") : "")].filter(Boolean).map(esc).join(" · ") : esc(b.error || "")}</td></tr>`).join("")}
+      <td class="muted">${b.ok ? [b.user, b.quota ? `${t("gpu_quota")} ${b.quota.used_h} / ${b.quota.total_h} h` : "", b.gpu ? `${b.gpu} · ${gpuUse(b)}` : (b.name === "local" ? t("no_gpu") : "")].filter(Boolean).map(esc).join(" · ") : esc(b.error || "")}</td></tr>`).join("")}
     <tr><td><b>Colab</b></td><td>${chip("", t("planned"))}</td><td class="muted">${t("w_colab_desc")}</td></tr></table></div></div>
   <div class="cols" style="margin-top:16px">
     <div class="card"><div class="ch"><h2>${t("tablet_access")}</h2>${s.lan_on ? chip("COMPLETE", t("on")) : chip("", t("off"))}</div><div class="cb">

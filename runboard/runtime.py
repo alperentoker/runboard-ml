@@ -24,37 +24,120 @@ NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
 class Job:
-    """A local command with a live log (validation, tests, packaging, uploads …)."""
+    """A local command with a live log (validation, tests, packaging, uploads, an evaluation …).
 
-    def __init__(self, key: str, title, cmd: list[str] | str, cwd: Path, shell: bool = False):
-        self.key, self.title, self.cmd, self.cwd, self.shell = key, title, cmd, cwd, shell
-        self.lines: list[str] = []
-        self.status, self.started, self.ended, self.code = "running", time.time(), None, None
-        threading.Thread(target=self._run, daemon=True).start()
+    It runs detached through runboard.localrun, like a local run: it goes on when the dashboard restarts, crashes or
+    is stopped, and its log, exit code, heartbeat and record are files in the project's state folder (jobs/), so a
+    dashboard started again shows it where it is (Runtime.restore_jobs). An evaluation of a held-out test set that
+    runs for an hour must not end because the dashboard did."""
 
-    def _run(self) -> None:
+    KEEP = 2000  # lines kept for the page; the whole log stays in the file
+    LOST_AFTER = 45  # seconds without a heartbeat (localrun touches it every 10 s) and no process: it is gone
+
+    def __init__(self, key: str, title, cmd: list[str] | str, cwd: Path, shell: bool = True,
+                 folder: Path | None = None, _record: dict | None = None):
+        self.key, self.title = key, title
+        self.folder = Path(folder) if folder else home.HOME / "jobs"
+        name = re.sub(r"[^A-Za-z0-9_.-]", "_", key)
+        self.log, self.code_file, self.alive, self.record = (self.folder / f"{name}.{x}" for x in ("log", "code", "alive", "json"))
+        self._lock = threading.Lock()
+        self._pos, self._buf, self.lines = 0, b"", []
+        if _record is not None:  # a job started before the dashboard restarted
+            self.started, self.pid = float(_record.get("started") or 0), _record.get("pid")
+            return
+        self.folder.mkdir(parents=True, exist_ok=True)
+        for p in (self.log, self.code_file, self.alive):
+            p.unlink(missing_ok=True)
+        if not isinstance(cmd, str):  # a list: one shell line, each part quoted
+            import shlex
+            cmd = subprocess.list2cmdline(cmd) if os.name == "nt" else shlex.join(cmd)
+        self.started = time.time()
+        self.log.touch()
+        self.alive.touch()
+        from .proc import popen_detached
+        self.pid = popen_detached([sys.executable, "-m", "runboard.localrun", str(self.log), str(self.code_file),
+                                   str(self.alive), sys.executable, cmd], cwd=str(cwd)).pid
+        home.write_json(self.record, {"key": key, "title": title, "cmd": cmd, "cwd": str(cwd),
+                                      "started": self.started, "pid": self.pid})
+
+    @classmethod
+    def restore(cls, record: Path) -> Job | None:
         try:
-            proc = subprocess.Popen(self.cmd, cwd=self.cwd, shell=self.shell, stdout=subprocess.PIPE,
-                                    stderr=subprocess.STDOUT, creationflags=NO_WINDOW,
-                                    env={**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1"})
-            buf = b""
-            while chunk := proc.stdout.read1(4096):
-                buf += chunk
-                *done, buf = re.split(rb"[\r\n]+", buf)
+            r = json.loads(record.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+        return cls(r["key"], r.get("title") or r["key"], "", Path(r.get("cwd") or "."), folder=record.parent, _record=r) \
+            if r.get("key") else None
+
+    def _exit(self) -> str | None:
+        try:
+            return self.code_file.read_text().strip() or None
+        except OSError:
+            return None
+
+    def _beating(self) -> bool:
+        from .proc import pid_alive
+        try:
+            if time.time() - self.alive.stat().st_mtime < self.LOST_AFTER:
+                return True
+        except OSError:
+            pass
+        return pid_alive(self.pid)
+
+    @property
+    def code(self) -> int | None:
+        c = self._exit()
+        return int(c) if c and c.lstrip("-").isdigit() else None
+
+    @property
+    def status(self) -> str:
+        c = self._exit()
+        if c is None:
+            return "running" if self._beating() else "error"  # no exit code and no heartbeat: lost
+        return "ok" if c == "0" else "error"
+
+    @property
+    def ended(self) -> float | None:
+        try:
+            return self.code_file.stat().st_mtime
+        except OSError:
+            pass
+        if self.status == "running":
+            return None
+        try:  # lost: when it last gave a sign of life
+            return self.alive.stat().st_mtime
+        except OSError:
+            return self.started
+
+    def _read(self) -> None:
+        """The lines written since the last look (the log is read once, then only what was added)."""
+        with self._lock:
+            try:
+                size = self.log.stat().st_size
+            except OSError:
+                return
+            if size < self._pos:  # started again over the same file
+                self._pos, self._buf, self.lines = 0, b"", []
+            if size > self._pos:
+                with open(self.log, "rb") as f:
+                    f.seek(self._pos)
+                    chunk = f.read(size - self._pos)
+                self._pos += len(chunk)
+                *done, self._buf = re.split(rb"[\r\n]+", self._buf + chunk)
                 self.lines.extend(x.decode("utf-8", "replace") for x in done if x.strip())
-                del self.lines[:-2000]
-            if buf.strip():
-                self.lines.append(buf.decode("utf-8", "replace"))
-            self.code = proc.wait()
-            self.status = "ok" if self.code == 0 else "error"
-        except Exception as e:
-            self.lines.append(f"ERROR: {e}")
-            self.status = "error"
-        self.ended = time.time()
+                del self.lines[:-self.KEEP]
 
     def view(self, tail: int = 400) -> dict:
-        return {"key": self.key, "title": self.title, "status": self.status, "code": self.code,
-                "seconds": round((self.ended or time.time()) - self.started), "lines": [redact(x) for x in self.lines[-tail:]]}
+        self._read()
+        status, exit_ = self.status, self._exit()
+        lines = list(self.lines)
+        if status != "running" and self._buf.strip():  # the last line had no newline
+            lines.append(self._buf.decode("utf-8", "replace"))
+        if status == "error" and exit_ is None:
+            lines.append("ERROR: the job stopped without an exit code (its process is gone)")
+        return {"key": self.key, "title": self.title, "status": status, "code": self.code,
+                "seconds": round((self.ended or time.time()) - self.started),
+                "lines": [redact(x) for x in (lines[-tail:] if tail else [])]}
 
 
 class Runtime:
@@ -70,6 +153,7 @@ class Runtime:
         self._saved_len: dict[tuple[str, str], int] = {}
         self.streams: dict[tuple[str, str], threading.Thread] = {}
         self.jobs: dict[tuple[str, str], Job] = {}
+        self.job_lock = threading.Lock()
         self.backend_info: dict[str, dict] = {}
         self.errors: dict[str, str] = {}
 
@@ -325,10 +409,18 @@ class Runtime:
         except Exception as e:
             project.state.update(run_id, check={"error": f"collect: {e}"})
         finally:
-            self._collecting.discard((project.key, run_id))
-            notify.run_ended(project, run_id, "COMPLETE")  # with its score, now that the outputs are here
+            # told first, then no longer "collecting": whoever waits for the collection to end (a page, a test) sees
+            # the notice already given; and a notice that fails never leaves the run marked as collecting
+            try:
+                notify.run_ended(project, run_id, "COMPLETE")  # with its score, now that the outputs are here
+            finally:
+                self._collecting.discard((project.key, run_id))
 
     def loop(self) -> None:
+        try:
+            self.restore_jobs()  # what was running when the dashboard stopped is shown again, still running
+        except Exception as e:
+            print("restoring jobs:", e, file=sys.stderr)
         last = 0.0
         while True:
             try:
@@ -502,27 +594,37 @@ class Runtime:
 
     # ------------------------------------------------------------ jobs
 
+    def _new_job(self, project: Project, kind: str, title, cmd: list[str] | str) -> Job:
+        """One job at a time per project; checked and started under a lock, so two clicks start one."""
+        with self.job_lock:
+            running = [j for (k, _), j in self.jobs.items() if k == project.key and j.status == "running"]
+            if running:
+                raise Busy("job_running", job=running[0].key)
+            job = Job(kind, title, cmd, project.root, folder=project.state.dir / "jobs")
+            self.jobs[(project.key, kind)] = job
+            return job
+
     def start_job(self, project: Project, kind: str, run_id: str | None = None) -> Job:
         jobs = project.m.get("jobs") or {}
         if kind not in jobs:
             raise Invalid("unknown_job")
-        running = [j for (k, _), j in self.jobs.items() if k == project.key and j.status == "running"]
-        if running:
-            raise Busy("job_running", job=running[0].key)
         spec = jobs[kind]
         ctx = {}
         if spec.get("per_run"):
             info = project.info(run_id or "")
             ctx = {**info, "out": project.output_dir(run_id, info)}
-        job = Job(kind, spec.get("title", kind), project.render(spec["cmd"], ctx, shell=True), project.root, shell=True)
-        self.jobs[(project.key, kind)] = job
-        return job
+        return self._new_job(project, kind, spec.get("title", kind), project.render(spec["cmd"], ctx, shell=True))
 
     def upload_job(self, project: Project, keys: list[str]) -> Job:
-        running = [j for (k, _), j in self.jobs.items() if k == project.key and j.status == "running"]
-        if running:
-            raise Busy("job_running", job=running[0].key)
-        job = Job("upload", {"en": "Upload to Kaggle", "tr": "Kaggle'a yükleme"},
-                  [sys.executable, "-u", "-m", "runboard", "upload", str(project.root), *keys], project.root)
-        self.jobs[(project.key, "upload")] = job
-        return job
+        return self._new_job(project, "upload", {"en": "Upload to Kaggle", "tr": "Kaggle'a yükleme"},
+                             [sys.executable, "-u", "-m", "runboard", "upload", str(project.root), *keys])
+
+    def restore_jobs(self) -> None:
+        """Jobs started before this dashboard: they ran on by themselves; their records are in each project's
+        state folder. A job this dashboard already knows is left as it is."""
+        for p in self.projects().values():
+            for rec in sorted((p.state.dir / "jobs").glob("*.json")):
+                job = Job.restore(rec)
+                if job:
+                    with self.job_lock:
+                        self.jobs.setdefault((p.key, job.key), job)
