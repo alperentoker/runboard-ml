@@ -71,7 +71,7 @@ def main(argv: list[str] | None = None) -> int:
                                                                           default=Path("."))
     dm = sub.add_parser("demo", help="set up the five-minute demo study (numpy, any CPU) and add it to the dashboard")
     dm.add_argument("path", type=Path, nargs="?", default=Path.home() / "runboard-demo")
-    tp = sub.add_parser("template", help="write a script from a template (split, check, subsets, evaluate)")
+    tp = sub.add_parser("template", help="write a script from a template (convert, split, check, subsets, evaluate, speed)")
     tp.add_argument("name")
     tp.add_argument("path", type=Path, nargs="?", default=Path("."), help="the project folder")
     tp.add_argument("--to", help="where in the project (default: scripts/<name>.py)")

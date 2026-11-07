@@ -2,6 +2,36 @@
 
 All notable changes to runboard. Versions follow [semantic versioning](https://semver.org/).
 
+## 0.4.2 — 2026-11-07
+
+Fixes from an independent review of 0.4.1. Upgrade if you use Kaggle, edit runs files by hand or pair devices.
+
+### Fixed
+- A provider that never answers no longer freezes the dashboard. Each call to a backend (a run's status, its
+  availability, the Kaggle quota) gets 60 seconds in a thread of its own: the Kaggle client sets no timeout, and a
+  half-open connection used to stop the status of every project and the queue until the dashboard was restarted
+  (while the page, and so the watchdog, saw nothing wrong). A call still stuck is not made again; why a run's status
+  cannot be read is written to `~/.runboard/server.log`.
+- A runs file broken by hand no longer takes the whole project list down (a 500 with no projects shown): that
+  project is listed with its error, the others as usual.
+- A status the Kaggle client does not know is an error naming it, instead of a state outside runboard's contract
+  that the page showed raw.
+- Status chips and verdicts escape what the server sends.
+- A plan's evaluation folder (`protocol.dir`) must be inside the project: `plan.yaml` can be edited from a paired
+  device, and the folder could point anywhere on the computer.
+- An error message missing one of its values is still an error message, not a crash (a 500).
+- Local runs and jobs start whether or not runboard is installed where they start: their runner is started by its
+  file, isolated, not as `python -m runboard.localrun` from the project folder (where a folder named `runboard`,
+  or a source checkout that was not installed, broke it).
+
+### Changed
+- Turning on tablet access says that the connection is plain HTTP, not encrypted, and to use it only on a network
+  you trust or through a VPN; README says so too.
+- A release waits for the real-machine tests (SSH, SLURM, systemd) as well, not only the unit tests.
+
+### Tests
+- Cancelling a local run is tested for real: the run and a process it started are both gone afterwards.
+
 ## 0.4.1 — 2026-11-07
 
 Fixes from two reviews of 0.4.0, and jobs that no longer end with the dashboard. Upgrade if other devices are

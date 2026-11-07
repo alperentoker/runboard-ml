@@ -12,6 +12,16 @@ FLAGS = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE
 BREAKAWAY = getattr(subprocess, "CREATE_BREAKAWAY_FROM_JOB", 0)
 
 
+LOCALRUN = Path(__file__).with_name("localrun.py")
+
+
+def localrun_argv(*args: str) -> list[str]:
+    """The detached runner of local runs and jobs, started by its file in isolated mode (-I): it needs only the
+    standard library, so it works whether or not runboard is installed where the run starts (a run starts in its
+    project folder), and nothing of runboard's own is put on the path of the user's command."""
+    return [sys.executable, "-I", str(LOCALRUN), *args]
+
+
 def popen_detached(args: list[str], **kw) -> subprocess.Popen:
     """A process that outlives this one. On Windows a terminal or app (an editor, an AI assistant) may hold its
     children in a job that ends them all when it closes, so the child leaves that job; a job that forbids leaving

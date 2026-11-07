@@ -11,12 +11,14 @@ import sys
 import threading
 import time
 from pathlib import Path
+from typing import Callable
 
 from . import home, notify
 from .backends import ACTIVE, BACKENDS, DONE
 from .errors import Busy, Invalid, Missing
 from .progress import Parser, redact
 from .project import MANIFEST, Project
+from .watch import note
 
 POLL_SECONDS = 20  # remote backends (an API call or an ssh round trip per run)
 LOCAL_SECONDS = 2  # local runs and the queue while one is going: reading a few files
@@ -54,9 +56,9 @@ class Job:
         self.started = time.time()
         self.log.touch()
         self.alive.touch()
-        from .proc import popen_detached
-        self.pid = popen_detached([sys.executable, "-m", "runboard.localrun", str(self.log), str(self.code_file),
-                                   str(self.alive), sys.executable, cmd], cwd=str(cwd)).pid
+        from .proc import localrun_argv, popen_detached
+        self.pid = popen_detached(localrun_argv(str(self.log), str(self.code_file), str(self.alive), sys.executable, cmd),
+                                  cwd=str(cwd)).pid
         home.write_json(self.record, {"key": key, "title": title, "cmd": cmd, "cwd": str(cwd),
                                       "started": self.started, "pid": self.pid})
 
@@ -147,6 +149,8 @@ class Runtime:
         self.queue_lock = threading.Lock()  # the queue file: held only while reading and writing it
         self.queue_run_lock = threading.Lock()  # one pass of run_queue at a time
         self._collecting: set[tuple[str, str]] = set()
+        self._stuck: dict[tuple, threading.Thread] = {}  # backend calls that did not answer in time
+        self._poll_errors: dict[tuple, str] = {}  # (project, run) -> why its status could not be read
         self.logs: dict[tuple[str, str], list[str]] = {}
         self._files: dict[Path, tuple] = {}
         self._parsed: dict[tuple[str, str], tuple] = {}
@@ -351,17 +355,61 @@ class Runtime:
                 if project.state.get(run_id).get("status") not in ACTIVE:
                     return
 
+    CALL_SECONDS = 60  # one call to a backend (a run's status, its availability, the quota) gets this long
+
+    def _call(self, key: tuple, fn: Callable, *args):
+        """fn(*args) in a thread of its own, waited for at most CALL_SECONDS. A provider that never answers (a
+        half-open connection: the Kaggle client sets no timeout) then costs this one call, not the whole poll loop,
+        which every project's status and the queue depend on. While an earlier call with the same key is still
+        stuck it is not made again, so stuck threads do not pile up; it ends by itself or with the process."""
+        stuck = self._stuck.get(key)
+        if stuck is not None and stuck.is_alive():
+            raise TimeoutError(f"still no answer from an earlier call (over {self.CALL_SECONDS} s)")
+        box: dict = {}
+
+        def run():
+            try:
+                box["value"] = fn(*args)
+            except BaseException as e:  # noqa: BLE001 — handed to the caller below
+                box["error"] = e
+
+        t = threading.Thread(target=run, name=f"call {key}", daemon=True)
+        t.start()
+        t.join(self.CALL_SECONDS)
+        if t.is_alive():
+            self._stuck[key] = t
+            raise TimeoutError(f"no answer within {self.CALL_SECONDS} s")
+        self._stuck.pop(key, None)
+        if "error" in box:
+            raise box["error"]
+        return box["value"]
+
+    def _poll_error(self, key: tuple, e: Exception | None) -> None:
+        """A run whose status cannot be read is written to server.log once per new reason (and once when it can
+        be read again), so a run that seems frozen has an explanation."""
+        msg = f"{type(e).__name__}: {e}" if e is not None else None
+        if self._poll_errors.get(key) == msg:
+            return
+        if msg:
+            self._poll_errors[key] = msg
+            note(f"status of {key[0]}/{key[1]} could not be read: {msg}")
+        elif self._poll_errors.pop(key, None):
+            note(f"status of {key[0]}/{key[1]} can be read again")
+
     def poll_once(self, only: set[str] | None = None) -> None:
         """Every backend's availability and every unfinished run's status; `only` limits it to those backends' runs
         (without asking the backends again)."""
         for name, b in BACKENDS.items():
             if only is not None:
                 break
-            ok, why = b.available()
+            try:
+                ok, why = self._call(("available", name), b.available)
+            except Exception as e:
+                ok, why = False, str(e)
             info = {}
             if ok:
                 try:
-                    info = b.info()
+                    info = self._call(("info", name), b.info)
                 except Exception as e:
                     why = str(e)
             self.backend_info[name] = {"name": name, "label": b.label, "ok": ok, "error": why, **info,
@@ -376,9 +424,11 @@ class Runtime:
                 if not b or not self.backend_info.get(b.name, {}).get("ok"):
                     continue
                 try:
-                    status, failure = b.status(project, run_id, st)
-                except Exception:
+                    status, failure = self._call(("status", project.key, run_id), b.status, project, run_id, st)
+                except Exception as e:  # this round goes on with the next run; the reason is written down
+                    self._poll_error((project.key, run_id), e)
                     continue
+                self._poll_error((project.key, run_id), None)
                 project.state.update(run_id, status=status, failure=failure)
                 key = (project.key, run_id)
                 if status in ("ERROR", "CANCELLED") and st.get("status") not in DONE:  # a finished run: after collection

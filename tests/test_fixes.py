@@ -196,3 +196,94 @@ def test_cli_add_list_remove(tmp_path):
     assert str(proj.resolve()) in run("list").stdout
     assert run("remove", str(proj)).returncode == 0
     assert run("list").stdout.strip() == ""
+
+
+# ---------------------------------------------------------------- review of 0.4.1 (INCELEME_RAPORU)
+
+def test_a_broken_runs_file_does_not_hide_the_other_projects(rb):
+    """A runs.yaml broken by hand: that project is listed with its error, the others as usual (not a 500)."""
+    from fastapi.testclient import TestClient
+    good, bad = rb / "good", rb / "bad"
+    for p in (good, bad):
+        p.mkdir()
+        make(p, name=p.name, id=p.name)
+    (bad / "runs.yaml").write_text("runs:\n  a: {x: [\n", encoding="utf-8")
+    home.save_config({"projects": [str(good), str(bad)], "port": 8000})
+    from runboard import server
+    r = TestClient(server.app, base_url="http://127.0.0.1:8000", client=("127.0.0.1", 1)).get("/api/projects")
+    assert r.status_code == 200
+    assert [p["key"] for p in r.json()["projects"]] == ["good"]
+    assert "Error" in r.json()["errors"][str(bad)]
+
+
+def test_a_backend_that_never_answers_costs_one_call_not_the_poll(rb, monkeypatch):
+    """A status call that hangs (no timeout in the provider's client) is given up after CALL_SECONDS; the round
+    goes on with the next run, and the stuck call is not made again while it hangs."""
+    import time
+    from runboard.backends import BACKENDS
+    from runboard.backends.base import Backend
+    from runboard.runtime import Runtime
+    release = threading.Event()
+    calls = []
+
+    class Hangs(Backend):
+        name, label = "hangs", "Hangs"
+
+        def available(self):
+            return True, None
+
+        def status(self, project, run_id, st):
+            calls.append(run_id)
+            if run_id == "a":
+                release.wait(30)
+            return "COMPLETE", None
+
+        def may_still_run(self, project, run_id, st):
+            return False
+
+    monkeypatch.setitem(BACKENDS, "hangs", Hangs())
+    monkeypatch.setattr(Runtime, "CALL_SECONDS", 0.5)
+    p = make(rb, runs="runs:\n  a: {x: 1}\n  b: {x: 2}\n", backends={"hangs": {}})
+    rt = Runtime()
+    rt.add_project(rb)
+    for r in ("a", "b"):
+        p.state.update(r, status="RUNNING", backend="hangs", collected=True)
+    t0 = time.time()
+    rt.poll_once()
+    assert time.time() - t0 < 5
+    assert p.state.get("b")["status"] == "COMPLETE" and p.state.get("a")["status"] == "RUNNING"
+    rt.poll_once()  # "a" still hangs: not asked again
+    assert calls.count("a") == 1
+    release.set()
+    time.sleep(0.2)
+    rt.poll_once()
+    assert p.state.get("a")["status"] == "COMPLETE"
+
+
+def test_an_unknown_kaggle_status_is_an_error_with_its_name(monkeypatch):
+    from types import SimpleNamespace
+    from runboard.backends import kaggle
+    monkeypatch.setattr(kaggle, "api", lambda: SimpleNamespace(
+        kernels_status=lambda ref: SimpleNamespace(status="SOME_NEW_STATE", failure_message=None)))
+    monkeypatch.setattr(kaggle.KaggleBackend, "ref", lambda self, *a: "me/k")
+    state, why = kaggle.KaggleBackend().status(None, "a", {})
+    assert state == "ERROR" and "SOME_NEW_STATE" in why
+    monkeypatch.setattr(kaggle, "api", lambda: SimpleNamespace(
+        kernels_status=lambda ref: SimpleNamespace(status="RUNNING", failure_message=None)))
+    assert kaggle.KaggleBackend().status(None, "a", {}) == ("RUNNING", None)
+
+
+def test_the_protocol_folder_must_be_inside_the_project(tmp_path):
+    from runboard.errors import Invalid
+    from runboard.hypotheses import Evidence
+    (tmp_path / "proj").mkdir()
+    Evidence(tmp_path / "proj", {"dir": "reports/eval"})
+    for bad in ("..", "../elsewhere", str(tmp_path)):
+        with pytest.raises(Invalid):
+            Evidence(tmp_path / "proj", {"dir": bad})
+
+
+def test_an_error_missing_a_value_is_still_an_error():
+    from runboard.errors import Invalid
+    e = Invalid("kaggle_error")
+    assert "{problem}" in str(e) and e.body()["code"] == "kaggle_error"

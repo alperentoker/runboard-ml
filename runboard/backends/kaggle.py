@@ -154,7 +154,9 @@ class KaggleBackend(Backend):
     def status(self, project, run_id, st):
         res = api().kernels_status(self.ref(project, run_id, st))
         s = res.status.name if hasattr(res.status, "name") else str(res.status)
-        return STATUS.get(s, s), res.failure_message or None
+        if s not in STATUS:  # a newer client or API: stop here and say so instead of a status runboard cannot follow
+            return "ERROR", f"Kaggle reported a status runboard does not know: {s[:60]} (see the kernel on Kaggle)"
+        return STATUS[s], res.failure_message or None
 
     def stream(self, project, run_id, st, sink, alive: Callable[[], bool]):
         for ev in api().kernels_logs_stream(self.ref(project, run_id, st)):

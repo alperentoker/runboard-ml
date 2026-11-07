@@ -19,7 +19,8 @@ const COLORS = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)", "var(--s5)"]
 const PALETTE = ["#2c6b5a", "#2558a8", "#b0562b", "#7a4fa3", "#8a6d1f", "#1f7a8a"];
 // An empty page invites the next step instead of saying there is nothing: what goes here, and a button to get there.
 const invite = (h, p, href, label) => `<div class="invite"><b>${h}</b><p>${p}</p>${href ? `<button class="btn primary" data-go="${href}">${label}</button>` : ""}</div>`;
-const chip = (st, txt) => `<span class="chip ${st || ""}">${txt || (st ? t(st) : t("st_none"))}</span>`;
+// a status chip; `txt` is HTML the caller built (escaped there), the status itself comes from the server: escaped here
+const chip = (st, txt) => `<span class="chip ${String(st || "").replace(/[^\w-]/g, "")}">${txt || esc(st ? t(st) : t("st_none"))}</span>`;
 const okColor = c => /^#[0-9a-f]{3,8}$|^[a-z]{3,20}$/i.test(c || "") ? c : null;  // only a colour reaches style=""
 const avatar = (p, size) => p.logo ? `<span class="avatar"${size ? ` style="width:${size}px;height:${size}px"` : ""}><img src="/api/p/${p.key}/logo" alt=""></span>`
   : `<span class="avatar" style="background:${okColor(p.color) || PALETTE[[...p.key].reduce((a, c) => a + c.charCodeAt(0), 0) % PALETTE.length]}${size ? `;width:${size}px;height:${size}px` : ""}">${esc((p.name || p.key).split(/[\s\-_]+/).map(w => w[0]).join("").slice(0, 2).toLocaleUpperCase(LANG))}</span>`;

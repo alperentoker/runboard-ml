@@ -115,6 +115,10 @@ class Evidence:
 
     def __init__(self, root: Path, protocol: dict):
         self.dir = Path(root) / str(protocol.get("dir") or "eval")
+        # plan.yaml can be edited from a paired device: its evaluation folder must not lead out of the project
+        inside, top = self.dir.resolve(), Path(root).resolve()
+        if inside != top and top not in inside.parents:
+            raise Invalid("evidence", file=str(protocol.get("dir")), problem="the protocol's folder must be inside the project")
         self.metric = str(protocol.get("metric") or "map50_95")
         sets = protocol.get("sets") or []
         self.sets = {str(s): {} for s in sets} if isinstance(sets, list) else {str(k): dict(v or {}) for k, v in sets.items()}

@@ -401,3 +401,45 @@ def test_runboard_stop_ends_the_dashboard_alone(monkeypatch):
     proc.stop_pid(123, tree=False)
     proc.stop_pid(456)
     assert calls == [["taskkill", "/PID", "123", "/F"], ["taskkill", "/PID", "456", "/T", "/F"]]
+
+
+def test_local_cancel_ends_the_run_and_everything_it_started(tmp_path, monkeypatch):
+    """Cancelling a local run really stops it: the training process and a process it started itself."""
+    import json
+    import sys
+    from runboard.backends.local import LocalBackend
+    from runboard.proc import pid_alive
+    monkeypatch.setattr(home, "HOME", tmp_path / ".rb")
+    monkeypatch.setattr(home, "CONFIG", tmp_path / ".rb" / "config.yaml")
+    (tmp_path / "runs.yaml").write_text("runs:\n  a: {x: 1}\n")
+    (tmp_path / "train.py").write_text(
+        "import json, os, subprocess, sys, time\n"
+        "kid = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(120)'])\n"
+        "json.dump([os.getpid(), kid.pid], open('pids.json', 'w'))\n"
+        "time.sleep(120)\n")
+    (tmp_path / "runboard.yaml").write_text(yaml.safe_dump({"name": "T", "runs": {"file": "runs.yaml"},
+                                                            "backends": {"local": {"command": '"{python}" -u train.py'}}}))
+    p = Project(tmp_path)
+    b = LocalBackend()
+    st = b.submit(p, "a", p.info("a"))
+    assert _wait(lambda: (tmp_path / "pids.json").exists())
+    pids = json.loads((tmp_path / "pids.json").read_text())
+    assert all(pid_alive(x) for x in pids)
+    b.cancel(p, "a", st)
+    assert _wait(lambda: not any(pid_alive(x) for x in pids), 20)
+    assert _wait(lambda: b.status(p, "a", st)[0] == "CANCELLED", 20)
+
+
+def test_a_job_starts_whatever_the_project_folder_holds(setup):
+    """The runner of jobs and local runs is started by its file, isolated: a folder of the project named like
+    runboard (or anything on the user's path) cannot replace it."""
+    import sys
+    rt, p, _ = setup
+    fake = p.root / "runboard"
+    fake.mkdir()
+    (fake / "__init__.py").write_text("raise SystemExit('the project folder was imported instead of runboard')\n")
+    p.m["jobs"] = {"hi": {"title": "Hi", "cmd": f'"{sys.executable}" -c "print(42)"'}}
+    job = rt.start_job(p, "hi")
+    assert _wait(lambda: job.status != "running")
+    v = job.view()
+    assert v["status"] == "ok" and v["lines"] == ["42"]

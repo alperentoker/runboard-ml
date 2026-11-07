@@ -50,7 +50,7 @@ klasörlere dağılmış günlükler ve elle tutulan bir sonuç tablosu demek. r
 ```bash
 pip install runboard-ml numpy
 runboard demo        # ~/runboard-demo içine küçük bir demo proje kurar ve panele ekler
-runboard             # paneli açar: http://localhost:8000
+runboard             # paneli başlatır; http://localhost:8000 adresini aç
 ```
 
 Demo GPU istemez, hiçbir şey indirmez: sentetik veride iki model (doğrusal ve kübik), her biri üç tohumla. Altı
@@ -203,8 +203,13 @@ runboard varsayılan olarak yalnızca bu bilgisayarı dinler (`127.0.0.1`) ve hi
 tabletten izlemek için **Sistem → Tablet erişimi**'ni aç, **Cihaz eşleştir**'e bas ve QR kodu okut ya da 6 haneli kodu
 yaz (iki dakika geçerli, tek kullanımlık). Eşleşmiş cihazlar koşuları izleyebilir, başlatıp durdurabilir ve koşuları
 düzenleyebilir; anahtarlar, yeni projeler, kod, proje dosyası ve klasör gezgini bu bilgisayarda kalır, komuta giren
-her değer önce denetlenir. Kaggle anahtarı `~/.kaggle` içinde durur. Ev ağının dışında Tailscale gibi bir VPN kullan.
+her değer önce denetlenir. Kaggle anahtarı `~/.kaggle` içinde durur. Bağlantı düz HTTP'dir, şifreli değildir: tablet erişimini yalnızca güvendiğin bir ağda aç; onun dışında Tailscale gibi bir VPN
+kullan.
 Ayrıntılar [SECURITY.md](https://github.com/alperentoker/runboard-ml/blob/main/SECURITY.md)'de.
+
+**Tarayıcılar.** Panel 2023 ve sonrası bir tarayıcı ister: Chrome veya Edge 111, Safari 16.2 (iOS 16.2), Firefox 121.
+Eski bir tablet, etkin koşuların tek ekranlık görünümü `/mini`'yi açabilir; o 2020 ve sonrası bir tarayıcıyla da çalışır
+(Chrome 80, Safari 13.1, Firefox 74).
 
 ## Sürekli çalıştırmak
 
@@ -214,6 +219,9 @@ launchd ajanı (`~/Library/LaunchAgents/io.github.runboard.plist`). Bir sonraki 
 oturum açmadan açılışta başlaması için bir kez `loginctl enable-linger` çalıştır. `runboard serve` panel yanıt
 vermezse onu yeniden başlatan bir bekçi çalıştırır (systemd ve launchd altında bunu servis yöneticisi yapar) ve
 her başlatma, durma ve hatayı `~/.runboard/server.log`'a yazar.
+
+Yerel koşular ve işler (doğrulama, testler, bir değerlendirme …) kendi başlarına çalışır: panel yeniden başlasa, çökse
+ya da `runboard stop` ile durdurulsa da sürerler ve sonraki panel onları kaldıkları yerde, bütün kayıtlarıyla gösterir.
 
 ## Geliştirme
 

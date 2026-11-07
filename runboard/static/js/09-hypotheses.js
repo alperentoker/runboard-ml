@@ -3,7 +3,7 @@
 // every comparison on the whole set and its 95 % interval over the shared bootstrap replicates.
 // Each verdict has its own colour and its own mark, so the two never depend on colour alone.
 const VERDICT_MARK = {supported: "✓", refuted: "✕", indistinguishable: "≈", not_ready: "◷", invalid: "!", no_criterion: "–"};
-const verdictChip = v => `<span class="vchip ${esc(v)}"><b aria-hidden="true">${VERDICT_MARK[v] || ""}</b>${t("v_" + v)}</span>`;
+const verdictChip = v => `<span class="vchip ${esc(v)}"><b aria-hidden="true">${VERDICT_MARK[v] || ""}</b>${esc(t("v_" + v))}</span>`;
 const num = v => v == null ? "—" : (+v).toFixed(2);
 const sgn = v => v == null ? "—" : (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(2);
 const extent = p => Math.max(Math.abs(p.margin ?? 0), ...(p.ci || []).map(Math.abs)) || 0;

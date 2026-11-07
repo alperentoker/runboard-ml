@@ -13,7 +13,7 @@ import time
 from typing import Callable
 
 from ..errors import Invalid
-from ..proc import pid_alive, popen_detached
+from ..proc import localrun_argv, pid_alive, popen_detached
 from .base import Backend
 
 
@@ -79,8 +79,7 @@ class LocalBackend(Backend):
             out.mkdir(parents=True, exist_ok=True)
         # the run is told where its outputs go (rb.out(), rb.report()) and which run it is
         env = {**os.environ, "RUNBOARD_RUN": run_id, **({"RUNBOARD_OUT": str(out)} if out else {})}
-        proc = popen_detached([sys.executable, "-m", "runboard.localrun", str(log), str(code), str(alive), python, cmd],
-                              cwd=project.root, env=env)
+        proc = popen_detached(localrun_argv(str(log), str(code), str(alive), python, cmd), cwd=project.root, env=env)
         return {"pid": proc.pid, "command": cmd, "url": None, "status": "RUNNING"}  # it has started: no queue in between
 
     def status(self, project, run_id, st):

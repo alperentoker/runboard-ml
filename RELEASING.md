@@ -1,7 +1,7 @@
 # Releasing
 
 runboard is published on PyPI as **runboard-ml** (the name `runboard` belongs to another project). A version tag
-publishes it: `.github/workflows/publish.yml` checks that the tag matches `pyproject.toml`, runs the tests, builds the
+publishes it: `.github/workflows/publish.yml` checks that the tag matches `pyproject.toml`, runs the tests (the real-machine ones too), builds the
 sdist and the wheel, and uploads them with PyPI's trusted publishing, so no token is kept in the repository or in
 GitHub secrets.
 
@@ -22,8 +22,8 @@ GitHub secrets.
 2. Commit and push, then tag and push the tag:
 
    ```bash
-   git tag v0.4.0
-   git push origin v0.4.0
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
    ```
 
 3. Follow *Actions → publish*. When it is green, <https://pypi.org/project/runboard-ml/> has the release and

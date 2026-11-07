@@ -1,6 +1,6 @@
 name: publish
 
-# A version tag (v0.4.0) builds runboard-ml, runs the tests and publishes it to PyPI through trusted publishing:
+# A version tag (vX.Y.Z) builds runboard-ml, runs the tests (also against real machines) and publishes it to PyPI through trusted publishing:
 # no token is stored anywhere. PyPI knows this repository and workflow as the project's publisher (see RELEASING.md).
 on:
   push:
@@ -34,8 +34,24 @@ jobs:
           name: dist
           path: dist/
 
+  # The same real-machine tests as on every push (tests.yml): a release never goes out with SSH, SLURM or the Linux
+  # autostart broken.
+  real-machines:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Install
+        run: python -m pip install -e ".[dev]"
+      - name: Test
+        env:
+          RUNBOARD_TEST_DOCKER: "1"
+        run: python -m pytest -q tests/test_docker_remote.py
+
   publish:
-    needs: build
+    needs: [build, real-machines]
     runs-on: ubuntu-latest
     environment:
       name: pypi

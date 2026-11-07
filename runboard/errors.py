@@ -121,6 +121,11 @@ MESSAGES = {
 }
 
 
+class _Keep(dict):
+    def __missing__(self, key):
+        return "{" + key + "}"
+
+
 class Err(Exception):
     """An error with a code. `run` names the run it is about: used in the text, or else shown in front of it."""
     status = 400
@@ -129,7 +134,7 @@ class Err(Exception):
         self.code, self.run = code, run
         self.params = {k: _plain(v) for k, v in params.items()} | ({"run": run} if run else {})
         tpl = MESSAGES.get(code, code)  # a code without a text still reaches the page as an error, not a crash
-        text = tpl.format(**self.params)
+        text = tpl.format_map(_Keep(self.params))  # a value not given stays "{name}": an error, never a crash
         super().__init__(f"{run}: {text}" if run and "{run}" not in tpl else text)
 
     def at(self, run: str) -> "Err":

@@ -50,7 +50,7 @@ folders and a spreadsheet of results kept by hand. runboard puts that in one pla
 ```bash
 pip install runboard-ml numpy
 runboard demo        # a small demo project in ~/runboard-demo, added to the dashboard
-runboard             # opens the dashboard at http://localhost:8000
+runboard             # starts the dashboard; open http://localhost:8000
 ```
 
 The demo needs no GPU and downloads nothing: two models (linear and cubic) on synthetic data, three seeds each. Queue
@@ -202,8 +202,8 @@ By default runboard listens only on this computer (`127.0.0.1`) and asks for not
 the same Wi-Fi, turn on **System → Tablet access**, press **Pair a device** and scan the QR code, or type the 6-digit
 code (valid once, for two minutes). Paired devices can follow, start and stop runs and edit the runs; tokens, new
 projects, code, the project file and the folder browser stay on this computer, and every value that goes into a
-command is checked first. The Kaggle token is kept in `~/.kaggle`. Outside your home network, use a VPN such as
-Tailscale. See [SECURITY.md](https://github.com/alperentoker/runboard-ml/blob/main/SECURITY.md).
+command is checked first. The Kaggle token is kept in `~/.kaggle`. The connection is plain HTTP, not encrypted: turn tablet access on only on a network you trust; outside it, use a
+VPN such as Tailscale. See [SECURITY.md](https://github.com/alperentoker/runboard-ml/blob/main/SECURITY.md).
 
 **Browsers.** The dashboard needs a browser from 2023 or later: Chrome or Edge 111, Safari 16.2 (iOS 16.2), Firefox
 121. An older tablet can open `/mini`, the one-screen view of the active runs, which needs only a browser from 2020

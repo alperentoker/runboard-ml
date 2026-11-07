@@ -206,8 +206,16 @@ def card(p: Project) -> dict:
 
 @app.get("/api/projects")
 def api_projects():
+    """Every project's card. One that cannot be read (a runs file broken by hand, say) is listed under errors
+    with what is wrong; the others are shown as usual."""
     ps = rt.projects()
-    return {"projects": [card(p) for p in ps.values()], "errors": rt.errors, "backends": rt.backend_info,
+    cards, errors = [], dict(rt.errors)
+    for p in ps.values():
+        try:
+            cards.append(card(p))
+        except Exception as e:  # noqa: BLE001 — written down for the page, never the whole list
+            errors[str(p.root)] = f"{type(e).__name__}: {e}"
+    return {"projects": cards, "errors": errors, "backends": rt.backend_info,
             "version": __version__, "queue": rt.queue_view()}
 
 
