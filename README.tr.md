@@ -10,12 +10,13 @@ alırsın, karşılaştırırsın, planı ve kodu düzenlersin, sonuçları yan 
 Her şey proje klasöründe okunabilir dosyalar olarak durur ve git'e girer: hesap yok, sunucu yok, gizli veritabanı yok.
 
 [![tests](https://github.com/alperentoker/runboard-ml/actions/workflows/tests.yml/badge.svg)](https://github.com/alperentoker/runboard-ml/actions/workflows/tests.yml)
+· [Belgeler](https://alperentoker.github.io/runboard-ml/tr/)
 · [English](https://github.com/alperentoker/runboard-ml/blob/main/README.md)
 · [Rehber (İngilizce)](https://github.com/alperentoker/runboard-ml/blob/main/docs/tutorial.md)
 · [Başvuru](https://github.com/alperentoker/runboard-ml/blob/main/docs/manifest.md)
 · [Değişiklikler](https://github.com/alperentoker/runboard-ml/blob/main/CHANGELOG.md)
 
-![Bir projenin genel bakışı: çalışan koşu, canlı eğrisi, kuyruk ve plan](https://raw.githubusercontent.com/alperentoker/runboard-ml/main/docs/images/tutorial-4-running.png)
+![Paneldeki demo çalışması: bir koşu canlı eğitiliyor, eğrisi büyüyor, sıradakiler kuyrukta bekliyor](https://raw.githubusercontent.com/alperentoker/runboard-ml/main/docs/images/demo.gif)
 
 ## İçindekiler
 
@@ -44,6 +45,8 @@ klasörlere dağılmış günlükler ve elle tutulan bir sonuç tablosu demek. r
 | sırada ne koşacağını değiştirmek | koşuları düzenle, kopyala, ekle, sil, değer taramaları; kaydetmeden önce farkını gör |
 | kodu düzeltmek | projenin dosyalarını panelde oku ve düzenle |
 | nerede olduğunu görmek | sonuç tabloları, tohum özetleri, sınıf panelleri, koşu karşılaştırması, ne zaman ne koştuğunun zaman çizelgesi |
+
+![Demonun sonuçları: her koşu skoru ve en iyi epoch'uyla, her modelin tohum özeti](https://raw.githubusercontent.com/alperentoker/runboard-ml/main/docs/images/results.png)
 
 ## Beş dakikada dene
 

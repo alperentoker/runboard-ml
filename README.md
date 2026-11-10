@@ -10,12 +10,13 @@ see the results side by side.
 Everything is a readable file in your project folder and goes into git: no account, no server, no hidden database.
 
 [![tests](https://github.com/alperentoker/runboard-ml/actions/workflows/tests.yml/badge.svg)](https://github.com/alperentoker/runboard-ml/actions/workflows/tests.yml)
+· [Documentation](https://alperentoker.github.io/runboard-ml/)
 · [Türkçe](https://github.com/alperentoker/runboard-ml/blob/main/README.tr.md)
 · [Tutorial](https://github.com/alperentoker/runboard-ml/blob/main/docs/tutorial.md)
 · [Reference](https://github.com/alperentoker/runboard-ml/blob/main/docs/manifest.md)
 · [Changelog](https://github.com/alperentoker/runboard-ml/blob/main/CHANGELOG.md)
 
-![The overview of a project: the active run, its live curve, the queue and the plan](https://raw.githubusercontent.com/alperentoker/runboard-ml/main/docs/images/tutorial-4-running.png)
+![The demo study in the dashboard: a run trains live, its curve grows, the next ones wait in the queue](https://raw.githubusercontent.com/alperentoker/runboard-ml/main/docs/images/demo.gif)
 
 ## Contents
 
@@ -44,6 +45,8 @@ folders and a spreadsheet of results kept by hand. runboard puts that in one pla
 | change what runs next | edit, copy, add and remove runs, sweeps over values, with a diff before anything is saved |
 | fix the code | read and edit the project's files in the dashboard |
 | see where you stand | results tables, seed summaries, per-class panels, run comparison, a timeline of what ran when |
+
+![The results of the demo: every run with its score and best epoch, and the seed summary of each model](https://raw.githubusercontent.com/alperentoker/runboard-ml/main/docs/images/results.png)
 
 ## Try it in five minutes
 

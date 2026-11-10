@@ -1,0 +1,49 @@
+# The documentation site (GitHub Pages, .github/workflows/docs.yml). Its pages are made from the repository's own
+# files by tools/build_docs.py into site_src/; edit README.md, docs/*.md and the rest, never site_src/.
+site_name: runboard
+site_description: A local dashboard and working environment for machine-learning training runs
+site_url: https://alperentoker.github.io/runboard-ml/
+repo_url: https://github.com/alperentoker/runboard-ml
+repo_name: alperentoker/runboard-ml
+edit_uri: ""
+docs_dir: site_src
+copyright: MIT License · Alperen Toker
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: teal
+      toggle: {icon: material/brightness-4, name: Light}
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: teal
+      toggle: {icon: material/brightness-7, name: Dark}
+  features: [navigation.sections, navigation.top, search.highlight, content.code.copy, toc.follow]
+
+nav:
+  - Home: index.md
+  - Tutorial: tutorial.md
+  - The project files: manifest.md
+  - Security: security.md
+  - Roadmap: roadmap.md
+  - Changelog: changelog.md
+  - Türkçe: tr.md
+  - For maintainers:
+      - Design of manifest v2: design-v2.md
+      - Releasing: releasing.md
+
+markdown_extensions:
+  - tables
+  - admonition
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+      # anchors as GitHub makes them (Turkish letters kept), so the same links work on GitHub and here
+      slugify: !!python/object/apply:pymdownx.slugs.slugify {kwds: {case: lower}}
+  - pymdownx.highlight
+  - pymdownx.superfences

@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use runboard in your research, please cite it as below."
+type: software
+title: "runboard: a local dashboard and working environment for machine-learning training runs"
+abstract: >-
+  runboard starts, queues, follows and compares training runs on this computer, Kaggle, a machine over SSH or a
+  SLURM cluster, and keeps every result as a readable file in the project. Optionally, it runs pre-registered
+  experiments: hypotheses decided with confidence intervals, a locked plan with recorded deviations, and paper
+  output.
+authors:
+  - family-names: Toker
+    given-names: Alperen
+version: 0.4.2
+date-released: 2026-11-07
+license: MIT
+repository-code: "https://github.com/alperentoker/runboard-ml"
+url: "https://alperentoker.github.io/runboard-ml/"
+keywords:
+  - machine learning
+  - experiment management
+  - training dashboard
+  - kaggle
+  - slurm
+  - pre-registration
+  - reproducibility

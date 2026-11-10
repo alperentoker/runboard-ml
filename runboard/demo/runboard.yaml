@@ -25,7 +25,7 @@ backends:
 
 results:
   report: "{out}/summary.json"
-  metrics: {primary: acc, epochs: epochs, hours: hours}
+  metrics: {primary: acc, best_epoch: best_epoch, epochs: epochs, hours: hours}
   labels: {primary: val accuracy (%)}
   curves:
     file: "{out}/history.csv"

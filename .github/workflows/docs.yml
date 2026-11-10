@@ -1,0 +1,50 @@
+name: docs
+
+# The documentation site on GitHub Pages, made from README, docs/ and the other Markdown files (tools/build_docs.py).
+# Pull requests only build it (with --strict, so a broken link fails); a push to main also publishes it.
+# Once, in the repository: Settings -> Pages -> Source: GitHub Actions.
+on:
+  push:
+    branches: [main]
+    paths: ["docs/**", "*.md", "mkdocs.yml", "tools/build_docs.py", ".github/workflows/docs.yml"]
+  pull_request:
+    paths: ["docs/**", "*.md", "mkdocs.yml", "tools/build_docs.py", ".github/workflows/docs.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Build
+        run: |
+          python -m pip install "mkdocs-material>=9.5,<10"
+          python tools/build_docs.py
+          mkdocs build --strict
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

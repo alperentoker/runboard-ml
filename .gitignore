@@ -14,3 +14,7 @@ access_token
 kaggle.json
 password.txt
 *.log
+
+# the documentation site: made by tools/build_docs.py and mkdocs, never edited
+site_src/
+site/

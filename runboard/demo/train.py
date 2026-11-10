@@ -57,14 +57,15 @@ def main() -> int:
     rb.start(epochs=epochs, batches=1, optimizer="gradient descent", lr0=float(spec["lr"]))
     out = HERE / "out" / a.run
     out.mkdir(parents=True, exist_ok=True)
-    hist, best, t0 = [], 0.0, time.time()
+    hist, best, best_epoch, t0 = [], 0.0, 0, time.time()
     for e in range(1, epochs + 1):
         te = time.time()
         p = 1 / (1 + np.exp(-f @ w))
         loss = float(-np.mean(y * np.log(p + 1e-9) + (1 - y) * np.log(1 - p + 1e-9)))
         w -= float(spec["lr"]) * f.T @ (p - y) / len(y)
         acc = float(100 * np.mean((fv @ w > 0) == yv))
-        best = max(best, acc)
+        if acc > best:
+            best, best_epoch = acc, e
         time.sleep(nap)
         hist.append({"epoch": e, "val_acc": round(acc, 2), "loss": round(loss, 4)})
         rb.epoch(e, epochs=epochs, secs=round(time.time() - te, 2), best=round(best, 2), loss={"loss": round(loss, 4)},
@@ -76,7 +77,7 @@ def main() -> int:
         wr = csv.DictWriter(fh, fieldnames=["epoch", "val_acc", "loss"])
         wr.writeheader()
         wr.writerows(hist)
-    (out / "summary.json").write_text(json.dumps({"acc": round(acc, 2), "best": round(best, 2), "epochs": epochs,
+    (out / "summary.json").write_text(json.dumps({"acc": round(acc, 2), "best": round(best, 2), "best_epoch": best_epoch, "epochs": epochs,
                                                   "hours": round((time.time() - t0) / 3600, 4)}), encoding="utf-8")
     rb.done(f"val accuracy {acc:.1f} %")
     return 0
