@@ -20,6 +20,10 @@ Notifications on Linux and macOS, and an easy way to report a problem.
   README's pictures made from the real dashboard (`tools/capture_docs.py`), and `CITATION.cff`.
 
 ### Fixed
+- The files the dashboard reads while it runs (`runs.yaml`, `plan.yaml`, `runboard.yaml`, `config.yaml`, the lock
+  record, and what `rb.py` writes: a run's summary, the resampling plan, evaluations) are written aside and then
+  moved in. A save used to empty the file first, and a read in that instant saw it empty or half written: the
+  project looked broken for a moment, and a browser test failed now and then on Linux because of it.
 - The demo records each run's best epoch, so its results table shows it.
 
 ## 0.4.2 — 2026-11-07

@@ -189,7 +189,8 @@ def migrate(root: Path, backup_dir: Path | None = None) -> dict:
     if backup_dir:
         backup_dir.mkdir(parents=True, exist_ok=True)
         (backup_dir / f"runboard-v1-{datetime.now():%Y%m%d-%H%M%S}.yaml").write_bytes(raw)
-    plan_path.write_bytes(plan_text.replace("\n", nl).encode("utf-8"))
-    mf.write_bytes(new_manifest.replace("\n", nl).encode("utf-8"))
+    from .home import write_atomic
+    write_atomic(plan_path, plan_text.replace("\n", nl).encode("utf-8"))
+    write_atomic(mf, new_manifest.replace("\n", nl).encode("utf-8"))
     return {"plan": plan_path.relative_to(root).as_posix(), "moved": [k for k in SCIENCE if k in old] +
             (["runs.locked"] if locked_line else [])}

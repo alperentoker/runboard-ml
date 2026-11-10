@@ -127,7 +127,8 @@ def lock(project, who: str = "") -> dict:
            "runs_sha256": runs_hash(project),
            "resample": {s: (ev.plan(s) or {}).get("ids_sha256") for s in ev.sets}, "code": code_hashes(project),
            "git": git_info(project.root)}
-    lock_file(project).write_text(json.dumps(rec, indent=1, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
+    from .home import write_atomic
+    write_atomic(lock_file(project), (json.dumps(rec, indent=1, ensure_ascii=False) + "\n").encode("utf-8"))
     return rec
 
 

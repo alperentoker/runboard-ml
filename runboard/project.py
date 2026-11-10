@@ -172,7 +172,8 @@ class Project:
     def _write(self, content: str) -> None:
         nl = self._newline()
         self.backup()
-        self.runs_file.write_text(content, encoding="utf-8", newline=nl)
+        from .home import write_atomic
+        write_atomic(self.runs_file, content.replace("\r\n", "\n").replace("\n", nl).encode("utf-8"))
 
     def add_extra(self, values: dict, note: str = "") -> str:
         """Appends an extra run (prefix + number). Pre-registered runs and shared settings are never touched."""

@@ -181,5 +181,6 @@ class RunsFile:
         now = self.path.read_bytes() if self.path.exists() else b""
         if expected_version and version_of(now) != expected_version:
             raise Conflict("conflict", file=self.path.name)
-        self.path.write_bytes(new.replace("\n", self.nl).encode("utf-8"))
+        from .home import write_atomic
+        write_atomic(self.path, new.replace("\n", self.nl).encode("utf-8"))  # the dashboard reads it at any moment
         return version_of(self.path.read_bytes())

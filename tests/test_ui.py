@@ -358,11 +358,19 @@ def test_errors_are_shown_in_the_interface_language(page):
 
 
 def test_keyboard_reaches_everything_a_mouse_can(page):
-    go(page, "#/", "document.querySelector('.pcard[data-go]')")
-    assert page.js("document.querySelector('.pcard[data-go]').tabIndex") == 0
-    page.js("""(() => { const c = document.querySelector('.pcard[data-go]'); c.focus();
-        c.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true})); })()""")
-    page.until("location.hash === '#/p/demo/overview'")
+    # the demo's own card, not the first one: the page also has the "New project" card (#/new)
+    card = "document.querySelector('.pcard[data-go=\"#/p/demo/overview\"]')"
+    go(page, "#/", card)
+    assert page.js(f"{card}.tabIndex") == 0
+    page.js(f"""(() => {{ const c = {card}; c.focus();
+        c.dispatchEvent(new KeyboardEvent('keydown', {{key: 'Enter', bubbles: true}})); }})()""")
+    try:
+        page.until("location.hash === '#/p/demo/overview'")
+    except AssertionError:  # what the page was doing, for a failure seen only on CI
+        raise AssertionError("Enter on the demo card did not open it: " + json.dumps(page.js(
+            "({hash: location.hash, focused: document.activeElement?.outerHTML.slice(0, 120),"
+            " projects: PS && PS.projects.map(p => p.key), errors: PS && PS.errors,"
+            " dialogs: [...document.querySelectorAll('dialog[open]')].map(d => d.id || d.className), errs: __errors})"))) from None
     assert page.js("[...document.querySelectorAll('[data-go]')].every(el => el.tabIndex >= 0)")
     assert page.js("__errors") == []
 

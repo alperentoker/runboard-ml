@@ -44,6 +44,18 @@ def read_json(p: Path, default):
     return _retry(lambda: json.loads(p.read_text(encoding="utf-8")) if p.exists() else default)
 
 
+def write_atomic(p: Path, data: bytes) -> None:
+    """A file other threads and processes read at any moment (runs.yaml, plan.yaml, the manifest, config.yaml):
+    written aside, then moved in, so a reader sees the old file or the new one, never an empty or half one."""
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_name(f".{p.name}.{os.getpid()}.{threading.get_ident()}.tmp")
+    tmp.write_bytes(data)
+    try:
+        _retry(lambda: tmp.replace(p))
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
 def write_json(p: Path, data) -> None:
     p.parent.mkdir(parents=True, exist_ok=True)
     with file_lock(p):
@@ -79,7 +91,7 @@ def config() -> dict:
 
 def save_config(cfg: dict) -> None:
     HOME.mkdir(parents=True, exist_ok=True)
-    CONFIG.write_text(yaml.safe_dump(cfg, allow_unicode=True, sort_keys=False), encoding="utf-8")
+    write_atomic(CONFIG, yaml.safe_dump(cfg, allow_unicode=True, sort_keys=False).encode("utf-8"))
 
 
 def project_paths() -> list[Path]:

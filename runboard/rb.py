@@ -58,6 +58,14 @@ def out():
     return p
 
 
+def _write(f: Path, text: str) -> None:
+    """Written aside, then moved in: the dashboard reads these files while the run is still writing them."""
+    import os
+    tmp = f.with_name(f".{f.name}.{os.getpid()}.tmp")
+    tmp.write_text(text, encoding="utf-8")
+    os.replace(tmp, f)
+
+
 def report(**values) -> None:
     """The run's results, in <out>/summary.json (added to what is there): the wizard's projects read the score and
     the results table from it."""
@@ -66,7 +74,7 @@ def report(**values) -> None:
         old = json.loads(f.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         old = {}
-    f.write_text(json.dumps({**old, **values}, ensure_ascii=False, indent=1), encoding="utf-8")
+    _write(f, json.dumps({**old, **values}, ensure_ascii=False, indent=1))
 
 
 def ultralytics(model, every: float = 15.0) -> None:
@@ -153,7 +161,7 @@ def resample_plan(set_name: str, ids=None, seed: int = 0, replicates: int = 200,
             "replicates": replicates, "seed": seed,
             "generator": "numpy.random.default_rng(seed).integers(0, n, n) per replicate"}
     f.parent.mkdir(parents=True, exist_ok=True)
-    f.write_text(json.dumps(plan, ensure_ascii=False), encoding="utf-8")
+    _write(f, json.dumps(plan, ensure_ascii=False))
     return plan
 
 
@@ -175,7 +183,7 @@ def write_eval(run: str, set_name: str, metrics: dict, root: str = "eval", **ext
                        for k, (p, reps) in metrics.items()}, "n": len(plan["ids"]), **extra}
     f = Path(root) / run / f"{set_name}.json"
     f.parent.mkdir(parents=True, exist_ok=True)
-    f.write_text(json.dumps(out, ensure_ascii=False), encoding="utf-8")
+    _write(f, json.dumps(out, ensure_ascii=False))
 
 
 def write_samples(run: str, set_name: str, metrics: dict, root: str = "eval", **extra) -> None:
@@ -191,8 +199,8 @@ def write_samples(run: str, set_name: str, metrics: dict, root: str = "eval", **
         out[k] = {"point": sum(values) / len(values), "samples": values}
     f = Path(root) / run / f"{set_name}.json"
     f.parent.mkdir(parents=True, exist_ok=True)
-    f.write_text(json.dumps({"format": "runboard-eval/1", "run": run, "set": set_name, "resample": plan["ids_sha256"],
-                             "metrics": out, "n": len(plan["ids"]), **extra}, ensure_ascii=False), encoding="utf-8")
+    _write(f, json.dumps({"format": "runboard-eval/1", "run": run, "set": set_name, "resample": plan["ids_sha256"],
+                          "metrics": out, "n": len(plan["ids"]), **extra}, ensure_ascii=False))
 
 
 def sealed(set_name: str, run: str, weights_sha256: str, root: str = "eval", again: bool = False) -> None:

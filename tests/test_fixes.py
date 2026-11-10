@@ -287,3 +287,29 @@ def test_an_error_missing_a_value_is_still_an_error():
     from runboard.errors import Invalid
     e = Invalid("kaggle_error")
     assert "{problem}" in str(e) and e.body()["code"] == "kaggle_error"
+
+
+def test_a_reader_never_sees_a_runs_file_half_written(rb):
+    """The dashboard reads runs.yaml every few seconds, also while a save is going on: it sees the old file or the
+    new one, never an empty or half one (a half one made a project look broken for a moment)."""
+    p = make(rb)
+    a = "runs:\n" + "".join(f"  r{i}: {{x: {i}}}\n" for i in range(400))
+    b = a.replace("x:", "y:")
+    seen, stop = set(), threading.Event()
+
+    def read():
+        while not stop.is_set():
+            try:
+                seen.add(p.runs_file.read_text(encoding="utf-8"))
+            except (PermissionError, FileNotFoundError):  # Windows, for the instant of the swap
+                pass
+
+    t = threading.Thread(target=read)
+    t.start()
+    try:
+        for i in range(150):
+            p._write(a if i % 2 else b)
+    finally:
+        stop.set()
+        t.join()
+    assert seen and seen <= {a, b, "runs:\n  a: {x: 1}\n"}, sorted(len(s) for s in seen)
