@@ -30,7 +30,12 @@ def machine(tmp_path_factory):
     d = tmp_path_factory.mktemp("ssh")
     key = d / "key"
     sh("ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(key))
-    sh("docker", "build", "-q", "-t", IMAGE, str(HERE), timeout=1800)
+    for attempt in (1, 2):  # the image downloads packages: a mirror that fails for a moment gets a second try
+        r = sh("docker", "build", "-q", "-t", IMAGE, str(HERE), timeout=1800, check=False)
+        if r.returncode == 0:
+            break
+    else:
+        raise AssertionError("the test image does not build:\n" + (r.stderr or r.stdout)[-3000:])
     sh("docker", "rm", "-f", NAME, check=False)
     # --privileged: slurmd makes its own cgroup inside the container (tests/docker/cgroup.conf)
     sh("docker", "run", "-d", "--privileged", "--name", NAME, "--hostname", "rbnode", "-p", "127.0.0.1::22",

@@ -5,8 +5,9 @@
 # checks there that runboard's user service starts when the user's session does.
 FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update \
- && apt-get install -y --no-install-recommends openssh-server python3 tar procps munge slurm-wlm slurmdbd mariadb-server \
+# Acquire::Retries: a package mirror that does not answer for a moment does not fail the build
+RUN apt-get -o Acquire::Retries=5 update \
+ && apt-get -o Acquire::Retries=5 install -y --no-install-recommends openssh-server python3 tar procps munge slurm-wlm slurmdbd mariadb-server \
     systemd dbus libpam-systemd \
  && rm -rf /var/lib/apt/lists/*
 RUN useradd -m -s /bin/bash rb && mkdir -p /run/sshd /home/rb/.ssh && chown rb:rb /home/rb/.ssh && chmod 700 /home/rb/.ssh
