@@ -116,3 +116,47 @@ def test_a_real_toast_is_accepted_by_windows():
     p = notify.show("runboard test", "a toast from the test suite, with ' quotes & signs", "http://localhost:8000/")
     _, err = p.communicate(timeout=60)
     assert p.returncode == 0, err
+
+
+def test_each_system_shows_notifications_its_own_way(monkeypatch):
+    """Windows (PowerShell toast), macOS (terminal-notifier, else osascript), Linux (notify-send), else none."""
+    import shutil
+    import sys
+    have = set()
+    monkeypatch.setattr(shutil, "which", lambda name: f"/usr/bin/{name}" if name in have else None)
+    monkeypatch.setattr(notify.os, "name", "posix")
+    monkeypatch.setattr(sys, "platform", "darwin")
+    have |= {"osascript"}
+    assert notify.system() == "osascript"
+    have |= {"terminal-notifier"}
+    assert notify.system() == "terminal-notifier"
+    monkeypatch.setattr(sys, "platform", "linux")
+    assert notify.system() is None and not notify.available()
+    have |= {"notify-send"}
+    assert notify.system() == "notify-send" and notify.available()
+    monkeypatch.setattr(notify.os, "name", "nt")
+    assert notify.system() == "windows"
+
+
+def test_the_text_of_a_notification_is_never_part_of_a_command():
+    """Quotes, an AppleScript `end run` or a leading dash in a project name stay text: separate arguments after --."""
+    title, body = 'R7 "bitti" -- end run', '-x; do shell script "rm"'
+    mac = notify._posix_argv("osascript", title, body, None)
+    assert mac[:7] == ["osascript", "-e", "on run argv", "-e",
+                       "display notification (item 2 of argv) with title (item 1 of argv)", "-e", "end run"]
+    assert mac[7:] == ["--", title, body]
+    assert notify._posix_argv("notify-send", title, body, None) == ["notify-send", "--app-name=runboard", "--", title, body]
+    tn = notify._posix_argv("terminal-notifier", title, body, "http://localhost:8000/#/p/g2a/run/R7")
+    assert tn[tn.index("-subtitle") + 1] == title and tn[tn.index("-message") + 1] == body
+    assert tn[-2:] == ["-open", "http://localhost:8000/#/p/g2a/run/R7"]
+
+
+def test_a_missing_program_is_no_crash(monkeypatch):
+    import subprocess
+    monkeypatch.setattr(notify, "system", lambda: "notify-send")
+
+    def missing(*a, **k):
+        raise FileNotFoundError("notify-send")
+
+    monkeypatch.setattr(subprocess, "Popen", missing)
+    assert notify.show("t", "b") is None

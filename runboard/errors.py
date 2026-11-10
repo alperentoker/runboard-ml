@@ -111,7 +111,7 @@ MESSAGES = {
     "unknown_device": "Unknown device",
     "bad_token": "That does not look like a Kaggle API token (Settings → API Tokens → Generate New Token)",
     "token_rejected": "Kaggle rejected the token: {why}",
-    "notify_windows": "Notifications outside the page are shown on Windows only",
+    "notify_windows": "Notifications outside the page need Windows, macOS, or notify-send on Linux (libnotify-bin)",
     "autostart_unsupported": "Starting with the computer is set up on Windows, Linux (systemd) and macOS only",
     # new-project wizard
     "not_folder": "Not a folder: {path}",

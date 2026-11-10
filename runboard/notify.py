@@ -1,15 +1,23 @@
-"""A Windows notification when a run ends, failed or was cancelled: shown even when no dashboard page is open.
+"""A notification when a run ends, failed or was cancelled: shown even when no dashboard page is open.
 
 The dashboard's own loop (runtime.poll_once) sees every run of every backend end, so the notice comes from there.
-It is a toast through PowerShell and the Windows notification API (no extra package), shown as Windows PowerShell's;
-a click opens the run in the browser. Switched with `notify` in ~/.runboard/config.yaml (on by default), worded in
-the language the dashboard was last used in (`lang`).
+Each system shows it its own way, with nothing to install where the system has it:
+
+- Windows: a toast through PowerShell and the Windows notification API, shown as Windows PowerShell's; a click
+  opens the run in the browser.
+- macOS: terminal-notifier when it is installed (a click opens the run), otherwise `osascript` (always there).
+- Linux and other systems: `notify-send` (libnotify; on most desktops already, else `libnotify-bin` / `libnotify`).
+
+Switched with `notify` in ~/.runboard/config.yaml (on by default), worded in the language the dashboard was last
+used in (`lang`).
 """
 from __future__ import annotations
 
 import base64
 import os
+import shutil
 import subprocess
+import sys
 from xml.sax.saxutils import escape
 
 from . import home
@@ -24,8 +32,17 @@ WORDS = {
 }
 
 
+def system() -> str | None:
+    """How notifications are shown here: "windows", "terminal-notifier", "osascript", "notify-send", or None."""
+    if os.name == "nt":
+        return "windows"
+    if sys.platform == "darwin":
+        return "terminal-notifier" if shutil.which("terminal-notifier") else "osascript" if shutil.which("osascript") else None
+    return "notify-send" if shutil.which("notify-send") else None
+
+
 def available() -> bool:
-    return os.name == "nt"
+    return system() is not None
 
 
 def enabled() -> bool:
@@ -61,9 +78,12 @@ def run_ended(project, run_id: str, status: str, failure: str | None = None) -> 
 
 
 def show(title: str, body: str, url: str | None = None) -> subprocess.Popen | None:
-    """Shows one toast without waiting for it; None where there is no Windows."""
-    if not available():
+    """Shows one notification without waiting for it; None where notifications cannot be shown."""
+    how = system()
+    if how is None:
         return None
+    if how != "windows":
+        return _popen(_posix_argv(how, title, body, url))
     launch = f' activationType="protocol" launch="{escape(url, {chr(34): "&quot;"})}"' if url else ""
     xml = (f"<toast{launch}><visual><binding template=\"ToastGeneric\"><text>{escape(title)}</text>"
            f"<text>{escape(body)}</text></binding></visual></toast>")
@@ -75,8 +95,24 @@ def show(title: str, body: str, url: str | None = None) -> subprocess.Popen | No
               "[Windows.UI.Notifications.ToastNotification]::new($x))\n")
     # -EncodedCommand: the script reaches PowerShell as it is, whatever quotes a project name holds
     enc = base64.b64encode(script.encode("utf-16-le")).decode()
+    return _popen(["powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", enc])
+
+
+def _posix_argv(how: str, title: str, body: str, url: str | None) -> list[str]:
+    """The command for macOS and Linux. The title and the text are separate arguments, never part of a script, so
+    no quote in a project's name can change what runs."""
+    if how == "terminal-notifier":
+        return ["terminal-notifier", "-title", "runboard", "-subtitle", title, "-message", body or " ", "-group",
+                "runboard", *(["-open", url] if url else [])]
+    if how == "osascript":
+        return ["osascript", "-e", "on run argv", "-e", "display notification (item 2 of argv) with title (item 1 of argv)",
+                "-e", "end run", "--", title, body or " "]
+    return ["notify-send", "--app-name=runboard", "--", title, body]
+
+
+def _popen(argv: list[str]) -> subprocess.Popen | None:
     try:
-        return subprocess.Popen(["powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", enc],
-                                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, creationflags=NO_WINDOW)
+        return subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                                creationflags=NO_WINDOW)
     except OSError:
         return None

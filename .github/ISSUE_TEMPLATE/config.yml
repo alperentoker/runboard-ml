@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: A security problem
+    url: https://github.com/alperentoker/runboard-ml/security/advisories/new
+    about: Reported privately, through a security advisory; it stays private until it is fixed.
+  - name: The documentation
+    url: https://alperentoker.github.io/runboard-ml/
+    about: The tutorial, every setting of the project files, and the answers to the usual questions.

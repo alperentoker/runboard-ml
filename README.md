@@ -83,8 +83,8 @@ against a real machine: sshd and a one-node SLURM cluster with accounting, in a 
 - One queue across projects: each backend starts its next entry when it is free; Kaggle entries wait when the weekly
   quota would not cover them.
 - Live progress between log lines, resume after a stop, stop and restart from the run page.
-- A Windows notification when a run finishes (with its score), fails or is stopped, even with no page open; a
-  click opens the run.
+- A notification when a run finishes (with its score), fails or is stopped, even with no page open: on Windows (a
+  click opens the run), macOS (with `terminal-notifier` installed, a click opens it too) and Linux (`notify-send`).
 - Smoke test: one short epoch on a little data before a real run uses cloud quota.
 
 **Watching**
@@ -195,6 +195,7 @@ the evaluation format and the lock are described in the
 | `runboard stop` | stop both |
 | `runboard demo [folder]` | set up the five-minute demo project |
 | `runboard add PATH` / `remove PATH` / `list` | manage the projects on the dashboard |
+| `runboard doctor` | a report to paste into an issue: versions, setup, the end of the log, nothing personal |
 | `runboard template NAME [folder] --set key=value` | write a script from a template |
 | `runboard lock` / `verdicts` / `export [folder]` | pre-registered projects: lock the plan, print the verdicts, write `paper/` |
 | `runboard migrate [folder]` | move an older project's decisions and lock into `plan.yaml` |

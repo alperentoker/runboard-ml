@@ -2,6 +2,26 @@
 
 All notable changes to runboard. Versions follow [semantic versioning](https://semver.org/).
 
+## 0.4.3 — 2026-11-10
+
+Notifications on Linux and macOS, and an easy way to report a problem.
+
+### Added
+- Notifications when a run finishes, fails or is stopped on Linux (`notify-send`) and macOS (`osascript`, or
+  `terminal-notifier` when it is installed, which also opens the run on a click), as on Windows. The text is passed
+  as arguments, never as part of a script, so no quote in a project's name can change what runs.
+- `runboard doctor`: a report to paste into an issue — the versions, the system, the settings that matter, whether
+  the dashboard and its watchdog run, each project (or why it cannot be read), the backends, the GPU, notifications
+  and the end of the dashboard's log. Keys and tokens are masked; the user folder, the user name, e-mail and network
+  addresses are replaced.
+- Issue forms on GitHub for a problem (asking for the `runboard doctor` output) and for an idea; security problems
+  are sent to a private advisory instead.
+- The documentation site, https://alperentoker.github.io/runboard-ml/ (built from the repository's own files), the
+  README's pictures made from the real dashboard (`tools/capture_docs.py`), and `CITATION.cff`.
+
+### Fixed
+- The demo records each run's best epoch, so its results table shows it.
+
 ## 0.4.2 — 2026-11-07
 
 Fixes from an independent review of 0.4.1. Upgrade if you use Kaggle, edit runs files by hand or pair devices.

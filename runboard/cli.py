@@ -58,6 +58,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("add").add_argument("path", type=Path)
     sub.add_parser("remove").add_argument("path", type=Path)
     sub.add_parser("list")
+    sub.add_parser("doctor", help="a report to paste into an issue (versions, setup, the end of the log; nothing personal)")
     a = sub.add_parser("attach")
     for n in ("path", "run", "kernel"):
         a.add_argument(n)
@@ -127,6 +128,10 @@ def main(argv: list[str] | None = None) -> int:
         for p in home.project_paths():
             print(p)
         return 0
+    if args.cmd == "doctor":
+        from .doctor import main as doctor
+
+        return doctor()
     if args.cmd == "migrate":
         from .errors import Err
         from .planfile import migrate

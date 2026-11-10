@@ -84,8 +84,8 @@ kümesi (`tests/docker`).
   bekler.
 - Günlük satırları arasında bile canlı ilerleme, durduktan sonra devam etme, koşu sayfasından durdurma ve yeniden
   başlatma.
-- Bir koşu bitince (skoruyla), hata verince ya da durdurulunca Windows bildirimi; hiçbir sayfa açık olmasa da
-  gelir, tıklayınca koşuyu açar.
+- Bir koşu bitince (skoruyla), hata verince ya da durdurulunca bildirim, hiçbir sayfa açık olmasa da: Windows'ta
+  (tıklayınca koşuyu açar), macOS'ta (`terminal-notifier` kuruluysa tıklayınca o da açar) ve Linux'ta (`notify-send`).
 - Duman testi: gerçek koşu bulut kotası harcamadan önce az veriyle kısa bir epoch.
 
 **İzleme**
@@ -196,6 +196,7 @@ olmayan projelerde bu sayfalar görünmez.
 | `runboard stop` | ikisini durdurur |
 | `runboard demo [klasör]` | beş dakikalık demo projeyi kurar |
 | `runboard add YOL` / `remove YOL` / `list` | paneldeki projeleri yönetir |
+| `runboard doctor` | bir issue'ya yapıştırılacak rapor: sürümler, kurulum, kaydın sonu; kişisel bilgi yok |
 | `runboard template AD [klasör] --set anahtar=değer` | bir şablondan betik yazar |
 | `runboard lock` / `verdicts` / `export [klasör]` | ön kayıtlı projeler: planı kilitler, kararları yazdırır, `paper/` yazar |
 | `runboard migrate [klasör]` | eski bir projenin kararlarını ve kilidini `plan.yaml`'a taşır |

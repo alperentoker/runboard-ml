@@ -125,7 +125,7 @@ const ERR_TR = {
   sweep_empty: "Taranan her alan için en az bir değer seç", sweep_too_many: "{n} koşu oluşacaktı; sınır {limit}",
   local_only: "Yalnızca runboard'un çalıştığı bilgisayardan yapılabilir", not_paired: "Bu cihaz eşleşmemiş", wrong_code: "Kod yanlış ya da süresi dolmuş",
   lan_off: "Önce tablet erişimini aç", unknown_device: "Böyle bir cihaz yok", bad_token: "Bu bir Kaggle API anahtarına benzemiyor (Settings → API Tokens → Generate New Token)",
-  token_rejected: "Kaggle anahtarı reddetti: {why}", notify_windows: "Sayfa dışındaki bildirimler yalnızca Windows'ta gösteriliyor", autostart_unsupported: "Bilgisayarla birlikte başlatma yalnızca Windows, Linux (systemd) ve macOS'ta kurulabiliyor",
+  token_rejected: "Kaggle anahtarı reddetti: {why}", notify_windows: "Sayfa dışındaki bildirimler için Windows, macOS ya da Linux'ta notify-send (libnotify-bin) gerekir", autostart_unsupported: "Bilgisayarla birlikte başlatma yalnızca Windows, Linux (systemd) ve macOS'ta kurulabiliyor",
   not_folder: "Klasör değil: {path}", choose_dataset: "Veri setinin YAML dosyasını seç (sınıfları ve train/val klasörlerini listeler)",
   choose_script: "Eğitim betiğini seç", add_run: "En az bir koşu ekle",
 };

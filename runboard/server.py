@@ -962,7 +962,7 @@ def api_autostart(body: dict = Body(...)):
 
 @app.post("/api/system/notify", dependencies=LOCAL)
 def api_notify(body: dict = Body(...)):
-    """Windows notifications when a run ends (notify.py); body {"on": bool} switches them, {"test": true} shows one."""
+    """Notifications when a run ends (notify.py); body {"on": bool} switches them, {"test": true} shows one."""
     if not notify.available():
         raise Invalid("notify_windows")
     if "on" in body:
