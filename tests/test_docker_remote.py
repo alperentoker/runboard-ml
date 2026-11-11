@@ -98,6 +98,18 @@ def test_ssh_failure_and_cancel_on_a_real_machine(machine, tmp_path):
     assert docker_exec("pgrep -f 'train.py B'").stdout.strip() == ""  # the whole run stopped, not only its shell
 
 
+def test_a_run_that_ignores_sigterm_stops_on_a_real_machine(machine, tmp_path, monkeypatch):
+    # setsid makes the run's process group on Linux; SIGKILL ends it when it ignores SIGTERM
+    from runboard.backends.remote import SSHBackend
+    monkeypatch.setattr(SSHBackend, "GRACE", 2)
+    p, b = project(tmp_path, "sshk", "ssh", machine, "sh -c \"trap '' TERM; while true; do sleep 1; done\" stubborn-C"), SSHBackend()
+    st = b.submit(p, "B", p.info("B"))
+    assert wait(lambda: b.status(p, "B", st), {"RUNNING"}, 30)[0] == "RUNNING"
+    b.cancel(p, "B", st)
+    assert b.status(p, "B", st) == ("CANCELLED", None)
+    assert docker_exec("pgrep -f stubborn-C").stdout.strip() == ""
+
+
 def test_slurm_on_a_real_cluster(machine, tmp_path):
     from runboard.backends.remote import SlurmBackend
     p, b = project(tmp_path, "slurmp", "slurm", machine, '"{python}" -u train.py {id}'), SlurmBackend()

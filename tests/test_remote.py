@@ -68,7 +68,7 @@ def test_ssh_submit_sends_the_code_and_starts_a_detached_run(rb, monkeypatch):
     assert 'mkdir -p "$HOME"/runboard/p/.runboard && tar xzf - -C "$HOME"/runboard/p' == push
     names = tarfile.open(fileobj=io.BytesIO(tar)).getnames()
     assert "train.py" in names and "runs.yaml" in names and not any(n.startswith("data") for n in names)
-    assert "; set -m; nohup sh -c" in start and "pip install x && ( \"python3\" -u train.py A ); c=$?" in start
+    assert "then nohup setsid sh -c" in start and "else set -m; nohup sh -c" in start and "pip install x && ( \"python3\" -u train.py A ); c=$?" in start
     assert "< /dev/null &" in start
 
 

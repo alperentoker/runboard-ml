@@ -189,12 +189,16 @@ class SSHBackend(Backend):
         cmd, setup = self.command(project, run_id, info), self.setup(project)
         rm = self.push(project, run_id)
         body = self.run_env(project, run_id, info) + (f"{setup} && " if setup else "") + f"( {cmd} ); {write_code(f['code'])}"
-        # its own process group (set -m), all output to the log and no terminal: ssh returns at once and the run
-        # outlives the connection; cancel ends the whole group
+        # its own process group, all output to the log and no terminal: ssh returns at once and the run outlives
+        # the connection; cancel ends the whole group. setsid makes the group where it exists (Linux): set -m does
+        # not in a shell without a terminal, such as dash under ssh. Without set -m the background job does not
+        # lead a group, so setsid does not fork and $! is the run's own process. set -m is for systems without
+        # setsid (macOS).
         # only the run goes to the background (a backgrounded `a && b &` list would keep ssh's output open, and
         # with it the connection, until the run ends)
-        out = rm.check(f"cd {rpath(d)} || exit 1; rm -f {rpath(f['code'])} {rpath(f['log'])}; set -m; "
-                       f"nohup sh -c {shlex.quote(body)} > {rpath(f['log'])} 2>&1 < /dev/null & "
+        run = f"sh -c {shlex.quote(body)} > {rpath(f['log'])} 2>&1 < /dev/null &"
+        out = rm.check(f"cd {rpath(d)} || exit 1; rm -f {rpath(f['code'])} {rpath(f['log'])}; "
+                       f"if command -v setsid >/dev/null 2>&1; then nohup setsid {run} else set -m; nohup {run} fi; "
                        f"echo $! > {rpath(f['pid'])}; cat {rpath(f['pid'])}")
         pid = out.strip().splitlines()[-1] if out.strip() else ""
         return {"pid": int(pid) if pid.isdigit() else None, "host": rm.host, "command": cmd, "url": None}
@@ -246,14 +250,15 @@ class SSHBackend(Backend):
     def cancel(self, project, run_id, st):
         # "cancelled" goes first, so the run's own exit code (143 after SIGTERM) is not written over it; it is taken
         # back when the run cannot be stopped. A run that ignores SIGTERM gets SIGKILL: CANCELLED means it is gone.
+        # The group is named as `kill -SIG -PID`, not `kill -SIG -- -PID`: dash's kill takes `--` for a number.
         f = self.files(project, run_id)
         code = rpath(f["code"])
         out = self.remote(project).check(
             f"echo cancelled > {code}; p=$(cat {rpath(f['pid'])} 2>/dev/null); "
-            'alive() { kill -0 -- -"$p" 2>/dev/null || kill -0 "$p" 2>/dev/null; }; '
-            'if [ -n "$p" ]; then kill -TERM -- -"$p" 2>/dev/null || kill -TERM "$p" 2>/dev/null; i=0; '
+            'alive() { kill -0 -"$p" 2>/dev/null || kill -0 "$p" 2>/dev/null; }; '
+            'if [ -n "$p" ]; then kill -TERM -"$p" 2>/dev/null || kill -TERM "$p" 2>/dev/null; i=0; '
             f'while alive && [ $i -lt {self.GRACE} ]; do sleep 1; i=$((i+1)); done; '
-            'if alive; then kill -KILL -- -"$p" 2>/dev/null; kill -KILL "$p" 2>/dev/null; sleep 1; fi; '
+            'if alive; then kill -KILL -"$p" 2>/dev/null; kill -KILL "$p" 2>/dev/null; sleep 1; fi; '
             f'if alive; then rm -f {code}; echo STILL_RUNNING; fi; fi; true')
         if "STILL_RUNNING" in out:
             raise Invalid("cancel_failed", run=run_id, problem=f"process {st.get('pid')} on {st.get('host')} does not stop")

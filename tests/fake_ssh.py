@@ -11,4 +11,4 @@ host, cmd = args[0], args[1]
 home = os.environ["FAKE_SSH_HOME"]
 os.makedirs(home, exist_ok=True)
 env = {**os.environ, "HOME": home}
-sys.exit(subprocess.run(["sh", "-c", cmd], cwd=home, env=env, stdin=sys.stdin.buffer).returncode)
+sys.exit(subprocess.run([os.environ.get("FAKE_SSH_SHELL", "sh"), "-c", cmd], cwd=home, env=env, stdin=sys.stdin.buffer).returncode)

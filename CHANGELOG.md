@@ -13,7 +13,9 @@ Fixes from a review: what the lock guarantees, what "cancelled" means, and five 
 - A change through runboard while another file had been changed outside it is refused until that change is recorded
   with its reason. The new deviation used to carry the other file's fingerprint, approving it without its diff.
 - Cancelling an SSH run stops it: a run that ignores SIGTERM gets SIGKILL after five seconds, and a run that still
-  does not stop is not marked cancelled. Before, the run showed CANCELLED while it kept running.
+  does not stop is not marked cancelled. Before, the run showed CANCELLED while it kept running. The run's process
+  group is made with `setsid` where it exists: `set -m` makes none in a shell without a terminal (dash under ssh), and
+  dash's `kill` did not take the group as `-- -PID`, so only the run's outer shell was stopped there.
 - A SLURM run is marked cancelled only when `scancel` succeeds. A job that neither `sacct` nor `squeue` knows and that
   wrote no exit code (killed for its time limit or by a node failure, on a cluster without accounting) becomes an
   error five minutes after its start instead of waiting forever.
