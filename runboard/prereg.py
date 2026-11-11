@@ -208,5 +208,5 @@ def hypotheses(project) -> dict:
         out.append(item)
     return {"questions": [{"id": str(q["id"]), "text": q.get("text")} for q in pl.get("questions") or []],
             "hypotheses": out, "protocol": {"dir": ev.dir.relative_to(project.root).as_posix(), "metric": ev.metric,
-                                            "sets": ev.sets},
+                                            "sets": ev.sets, "rule": ev.rule},
             "status": status(project)}

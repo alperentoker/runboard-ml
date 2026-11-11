@@ -120,6 +120,9 @@ class Evidence:
         if inside != top and top not in inside.parents:
             raise Invalid("evidence", file=str(protocol.get("dir")), problem="the protocol's folder must be inside the project")
         self.metric = str(protocol.get("metric") or "map50_95")
+        self.rule = str(protocol.get("rule") or "paired")
+        if self.rule not in RULES:
+            raise Invalid("criterion", problem=f"the protocol's rule must be one of {', '.join(RULES)}, not {self.rule!r}")
         sets = protocol.get("sets") or []
         self.sets = {str(s): {} for s in sets} if isinstance(sets, list) else {str(k): dict(v or {}) for k, v in sets.items()}
         self.missing: list[str] = []
@@ -307,7 +310,7 @@ class Planned(Evidence):
     before any run exists. sets None accepts any set name."""
 
     def __init__(self, runs, sets=None, metric: str = "map50_95"):
-        self.runs, self.metric, self.missing, self.dir = set(map(str, runs)), metric, [], Path(".")
+        self.runs, self.metric, self.missing, self.dir, self.rule = set(map(str, runs)), metric, [], Path("."), "paired"
         self.sets = {str(s): {} for s in sets} if sets else {}
 
     def get(self, run: str, s: str, metric: str | None) -> Vec:
@@ -321,6 +324,27 @@ class Planned(Evidence):
 def check(criterion: str, runs, sets=None, groups: dict | None = None) -> None:
     """Raises Invalid("criterion") if the criterion cannot be read or names a run, group or set that does not exist."""
     decide(criterion, Planned(runs, sets), groups or {})
+
+
+# How a comparison is decided. paired: the margin (left − right, replicate by replicate on the same resampled images)
+# has its whole 95 % interval on one side of zero. separate: the two sides' own 95 % intervals do not overlap; stricter,
+# it ignores that both sides were measured on the same images, as studies that compare confidence intervals do.
+RULES = ("paired", "separate")
+
+
+def _bounds(v: Vec) -> list[float]:
+    """A side's 95 % interval; a constant (no replicates) is its own interval."""
+    return v.interval() or [v.point, v.point]
+
+
+def separate_verdict(left: Vec, right: Vec, op: str) -> str:
+    (llo, lhi), (rlo, rhi) = _bounds(left), _bounds(right)
+    if any(math.isnan(x) for x in (llo, lhi, rlo, rhi)):
+        return "indistinguishable"
+    above, below = llo > rhi, lhi < rlo
+    if op in ("<", "<="):
+        above, below = below, above
+    return "supported" if above else "refuted" if below else "indistinguishable"
 
 
 def verdict_of(margin: Vec) -> str:
@@ -347,10 +371,13 @@ def decide(criterion: str, ev: Evidence, groups: dict) -> dict:
         ci = margin.interval()
         share = None if margin.reps is None else \
             round(100 * sum(1 for x in margin.reps if not math.isnan(x) and x > 0) / len(margin.reps), 1)
+        left, right = Vec.of(left), Vec.of(right)
+        sides = {"left_ci": [_r(x) for x in _bounds(left)], "right_ci": [_r(x) for x in _bounds(right)]}             if ev.rule == "separate" else {}
         parts.append({"text": ast.get_source_segment(src, cmp), "op": op,
                       "left": _r(left.point), "right": _r(right.point), "margin": _r(margin.point),
-                      "ci": [_r(x) for x in ci] if ci else None, "share": share, "verdict": verdict_of(margin),
-                      "hist": _hist(margin.reps)})
+                      "ci": [_r(x) for x in ci] if ci else None, "share": share,
+                      "verdict": separate_verdict(left, right, op) if ev.rule == "separate" else verdict_of(margin),
+                      "rule": ev.rule, **sides, "hist": _hist(margin.reps)})
     missing = sorted(set(ev.missing))
     if missing:
         verdict = "not_ready"

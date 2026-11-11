@@ -244,6 +244,7 @@ protocol:
   dir: eval                   # where the evaluation files are (the default)
   metric: map50_95            # what R4.aerial means
   sets: [ground, aerial]      # or {ground: {}, test: {sealed: true}}
+  rule: paired                # how a comparison is decided: paired (the default) or separate, see below
 groups:
   ground_only: [R4, R9, R10]  # seed repeats; a group name can stand where a run does
 decisions:                    # as above
@@ -278,6 +279,13 @@ bootstrap replicate: **supported** if the whole 95 % interval of the margin is a
 **indistinguishable** otherwise; a criterion is refuted if any comparison is, supported if all are. A missing
 evaluation makes it **waiting**. The project's Hypotheses page and `runboard verdicts` show each comparison's
 values, margin, interval and the share of replicates above 0.
+
+`protocol: {rule: separate}` decides each comparison on the two sides' own 95 % intervals instead, as studies that
+compare confidence intervals do: **supported** if they do not overlap and the left side lies where the comparison
+says, **refuted** if they do not overlap the other way round, **indistinguishable** if they overlap. A side without
+replicates (a number) is its own interval. It is stricter than the paired margin, which uses that both sides were
+measured on the same images: two runs can differ clearly, image by image, while their own intervals overlap. The
+margin is still shown beside it. Choose the rule before the results: the lock covers it with the rest of `plan.yaml`.
 
 ### Evaluation files
 

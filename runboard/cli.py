@@ -180,8 +180,10 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"{h['id']:<8} {h['verdict']:<18} {h.get('criterion') or ''}")
                 for part in h.get("parts") or []:
                     ci = part["ci"]
+                    sides = (f" (left {part['left']} [{part['left_ci'][0]}, {part['left_ci'][1]}], right {part['right']}"
+                             f" [{part['right_ci'][0]}, {part['right_ci'][1]}], separate intervals)") if "left_ci" in part else ""
                     print(f"         {part['text']}: margin {part['margin']}" + (f" [{ci[0]}, {ci[1]}]" if ci else "")
-                          + f" -> {part['verdict']}")
+                          + sides + f" -> {part['verdict']}")
                 if h.get("missing"):
                     print(f"         waiting for: {', '.join(h['missing'])}")
                 if h.get("error"):

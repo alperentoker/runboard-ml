@@ -35,5 +35,8 @@ Stages RB-0 to RB-9 were planned around pre-registration; their design is in [do
 
 Not planned: a hosted service, accounts, multi-user lab features (unless real users ask for them).
 
-Reference project: Ground2Air-LWIR, a thermal-detection study whose fourteen Kaggle runs were managed with runboard; its
-hand-made verdicts are reproduced exactly by the pre-registration part.
+Reference project: Ground2Air-LWIR, a thermal-detection study whose fourteen Kaggle runs were managed with runboard.
+On its held-out test, the pre-registration part reproduces the study's own numbers exactly (10 of 10 comparisons: both
+sides' intervals and the paired differences, to two decimals). With the rule the study was pre-registered on
+(non-overlapping separate intervals, `protocol: {rule: separate}`), runboard also gives its verdicts, 10 of 10; with
+the default paired rule four of them differ (`scripts/12_runboard_check.py` in that study).

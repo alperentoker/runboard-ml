@@ -86,6 +86,42 @@ def test_each_comparison_carries_the_histogram_of_its_replicates(g2a):
     assert verdicts(g2a)["open"].get("parts") is None  # no criterion, nothing to draw
 
 
+def test_separate_intervals_rule_as_the_study_preregistered_it(g2a):
+    """Ground2Air decided on non-overlapping separate 95 % intervals; plan.yaml can say so (protocol: rule: separate)."""
+    from runboard.hypotheses import Evidence, decide
+    paired = Evidence(g2a, {"sets": ["ground", "aerial"]})
+    sep = Evidence(g2a, {"sets": ["ground", "aerial"], "rule": "separate"})
+    # each side keeps its own run's bootstrap interval; a constant is its own interval
+    p = decide("R4.ground > 50", sep, {})["parts"][0]
+    assert (p["left_ci"], p["right_ci"], p["verdict"], p["rule"]) == ([55.354, 57.155], [50.0, 50.0], "supported", "separate")
+    assert decide("R4.ground < 50", sep, {})["verdict"] == "refuted"
+    # the paired margin excludes zero, the two runs' own intervals still overlap: stricter
+    crit = "R1.ground > R4.ground - 0.2"
+    assert decide(crit, paired, {})["verdict"] == "supported"
+    p = decide(crit, sep, {})["parts"][0]
+    assert p["ci"] == [0.074, 0.601] and p["verdict"] == "indistinguishable"
+    assert p["left_ci"][0] < p["right_ci"][1]
+    # on S1 the article's verdicts are the same under both rules
+    assert [x["verdict"] for x in decide(H1A, sep, {})["parts"]] == ["supported", "indistinguishable"]
+    assert [x["verdict"] for x in decide(H1B, sep, {})["parts"]] == ["indistinguishable", "refuted"]
+    assert "left_ci" not in decide(crit, paired, {})["parts"][0]  # the default stays the paired margin
+
+
+def test_the_rule_comes_from_the_plan_and_an_unknown_one_is_refused(g2a):
+    from runboard import prereg
+    from runboard.errors import Invalid
+    from runboard.planfile import check_plan
+    doc = yaml.safe_load((g2a / "plan.yaml").read_text(encoding="utf-8"))
+    doc["protocol"]["rule"] = "separate"
+    (g2a / "plan.yaml").write_text(yaml.safe_dump(doc, sort_keys=False), encoding="utf-8")
+    out = prereg.hypotheses(project(g2a))
+    assert out["protocol"]["rule"] == "separate"
+    assert all(p["rule"] == "separate" for h in out["hypotheses"] for p in h.get("parts") or [])
+    doc["protocol"]["rule"] = "overlap"
+    with pytest.raises(Invalid):
+        check_plan(doc, {"R1", "R4", "R5", "R9"})
+
+
 def test_one_runs_interval_is_its_bootstrap_interval(g2a):
     from runboard.hypotheses import Evidence, decide
     ev = Evidence(g2a, {"sets": ["ground", "aerial"]})

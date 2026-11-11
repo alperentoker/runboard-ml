@@ -10,8 +10,8 @@ abstract: >-
 authors:
   - family-names: Toker
     given-names: Alperen
-version: 0.4.3
-date-released: 2026-11-10
+version: 0.4.4
+date-released: 2026-11-11
 license: MIT
 repository-code: "https://github.com/alperentoker/runboard-ml"
 url: "https://alperentoker.github.io/runboard-ml/"

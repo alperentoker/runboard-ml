@@ -48,7 +48,9 @@ function histCard(p) {
     <div class="hx"><span>${sgn(hs.lo)}</span><span>${p.ci ? `${t("h_inside")}: ${sgn(a)} … ${sgn(b)}` : ""}</span><span>${sgn(hs.hi)}</span></div></div>`;
 }
 function hypothesisCard(h) {
-  const parts = (h.parts || []).map(p => `<tr><td class="mono">${esc(p.text)}</td><td class="n">${num(p.left)}</td><td class="n">${num(p.right)}</td>
+  // under the separate rule a side's own interval decides: shown under its value
+  const side = (v, ci) => `${num(v)}${ci && ci[0] !== ci[1] ? `<br><span class="desc">[${num(ci[0])}, ${num(ci[1])}]</span>` : ""}`;
+  const parts = (h.parts || []).map(p => `<tr><td class="mono">${esc(p.text)}</td><td class="n">${side(p.left, p.left_ci)}</td><td class="n">${side(p.right, p.right_ci)}</td>
     <td class="n"><b>${sgn(p.margin)}</b></td><td class="n">${p.ci ? `[${sgn(p.ci[0])}, ${sgn(p.ci[1])}]` : "—"}</td>
     <td class="n">${p.share == null ? "—" : p.share + " %"}</td><td>${verdictChip(p.verdict)}</td></tr>`).join("");
   const groups = !(h.parts || []).length ? "" : Object.entries(h.groups || {}).map(([k, g]) => `<div class="desc">${esc(k)}: ${g.runs.map((r, i) => `${esc(r)} ${num(g.points[i])}`).join(" · ")} · ${t("h_seed_sd")} ${num(g.sd)}</div>`).join("");
@@ -97,7 +99,7 @@ async function renderHypotheses() {
   const exp = ME?.local ? `<div class="toolbar" style="margin:0 0 12px"><span class="desc" style="margin:0">${t("x_desc")}</span><span class="sp"><button class="btn" id="hexport">${t("x_export")}</button></span></div><div id="hxout" data-keep></div>` : "";
   const order = d.questions.flatMap(q => byQ[q.id] || []).concat(loose);
   morph($("#content"), `${exp}${forestCard(order)}${lockCard(d.status)}
-    <p class="desc">${th("h_protocol", {metric: pr.metric, sets: Object.keys(pr.sets).join(", ") || "—", dir: pr.dir})}</p>
+    <p class="desc">${th("h_protocol", {metric: pr.metric, sets: Object.keys(pr.sets).join(", ") || "—", dir: pr.dir})} ${t(pr.rule === "separate" ? "h_rule_separate" : "h_rule_paired")}</p>
     ${qs}${loose.length ? `<h3 class="qhead">${t("h_other")}</h3>${loose.map(hypothesisCard).join("")}` : ""}
     ${!d.hypotheses.length ? invite(t("h_empty_h"), t("h_empty_p"), `#/p/${P.key}/settings`, t("go_plan")) : ""}
     ${ledgerCard(d.status)}`);

@@ -88,7 +88,9 @@ def hypotheses_rows(h: dict) -> list[list[str]]:
     rows = []
     for i, p in enumerate(parts):
         ci = p.get("ci")
-        rows.append([h["id"] if i == 0 else "", p.get("text") or h.get("criterion") or "–", _num(p.get("margin")),
+        sides = (f" (left [{_num(p['left_ci'][0])}, {_num(p['left_ci'][1])}], right [{_num(p['right_ci'][0])}, "
+                 f"{_num(p['right_ci'][1])}])") if p.get("left_ci") else ""  # the separate rule: these decide
+        rows.append([h["id"] if i == 0 else "", (p.get("text") or h.get("criterion") or "–") + sides, _num(p.get("margin")),
                      f"[{_num(ci[0])}, {_num(ci[1])}]" if ci else "–", MARK.get(p.get("verdict") or h["verdict"], h["verdict"])])
     if len(parts) > 1:
         rows.append(["", "all", "", "", MARK.get(h["verdict"], h["verdict"])])
@@ -151,9 +153,16 @@ def methods(project, hyp: dict) -> str:
               f"`{pr['metric']}`. Uncertainty comes from an image-level bootstrap: each set has one resampling plan "
               f"({'; '.join(plans) or 'not written yet'}), shared by every run, so the k-th replicate of every run is "
               "measured on the same images and comparisons between runs are paired. "
-              "A criterion is computed on the full set (the reported value) and on every replicate; for a comparison "
-              "the margin (left − right for > and ≥) is *supported* when its whole 95 % percentile interval is above "
-              "zero, *refuted* when it is below zero and *indistinguishable* otherwise. A criterion joined with *and* "
+              "A criterion is computed on the full set (the reported value) and on every replicate; "
+              + ("for a comparison each side has its own 95 % percentile interval over the replicates (a constant is its "
+                 "own interval), and the comparison is *supported* when the two intervals do not overlap and the left "
+                 "side is on the side the hypothesis states, *refuted* when they do not overlap the other way round and "
+                 "*indistinguishable* when they overlap; this separate-interval rule was chosen before the results and "
+                 "is stricter than deciding on the paired margin, which is reported beside it. "
+                 if ev.rule == "separate" else
+                 "for a comparison the margin (left − right for > and ≥) is *supported* when its whole 95 % percentile "
+                 "interval is above zero, *refuted* when it is below zero and *indistinguishable* otherwise. ")
+              + "A criterion joined with *and* "
               "is refuted if any part is and supported only if all parts are. For seed groups the replicate value is "
               "the mean over the group's runs; the spread over seeds is reported beside the verdict."]
     if sealed:

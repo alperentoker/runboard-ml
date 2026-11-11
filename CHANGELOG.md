@@ -2,6 +2,21 @@
 
 All notable changes to runboard. Versions follow [semantic versioning](https://semver.org/).
 
+## 0.4.4 — 2026-11-11
+
+A decision rule for studies that pre-registered separate confidence intervals.
+
+### Added
+- A decision rule chosen in the plan: `protocol: {rule: separate}` decides a comparison on the two sides' own 95 %
+  intervals (supported or refuted only when they do not overlap), as studies that compare confidence intervals are
+  pre-registered; `paired`, the margin's interval, stays the default. The Hypotheses page, `runboard verdicts` and the
+  exported methods and tables show both sides' intervals and say which rule decided. An unknown rule is refused when
+  the plan is saved. On Ground2Air-LWIR's held-out test it gives the study's own verdicts in 10 of 10 comparisons.
+
+### Changed
+- The tests on a real machine build their Docker image a second time when a package mirror fails for a moment,
+  and show Docker's output when the build still fails.
+
 ## 0.4.3 — 2026-11-10
 
 Notifications on Linux and macOS, and an easy way to report a problem.

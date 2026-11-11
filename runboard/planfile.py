@@ -86,6 +86,9 @@ def check_plan(doc: dict, runs: set[str]) -> None:
                 raise Invalid("plan_ref", item=d["id"], ref=r)
     if not isinstance(doc.get("protocol") or {}, dict):
         raise Invalid("plan_shape", what="protocol", shape="a mapping")
+    from .hypotheses import RULES
+    if str((doc.get("protocol") or {}).get("rule") or "paired") not in RULES:
+        raise Invalid("plan_shape", what="protocol: rule", shape=" or ".join(RULES))
     if "locked" in doc and not isinstance(doc["locked"], bool):
         raise Invalid("plan_shape", what="locked", shape="true or false")
 
