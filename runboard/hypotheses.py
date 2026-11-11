@@ -94,6 +94,14 @@ def ids_hash(ids: list[str]) -> str:
     return hashlib.sha256("\n".join(ids).encode("utf-8")).hexdigest()
 
 
+def plan_fingerprint(p: dict | None) -> str | None:
+    """A resampling plan's images, seed and replicate count: everything that decides the intervals."""
+    if not p:
+        return None
+    key = {"ids_sha256": p.get("ids_sha256"), "seed": p.get("seed"), "replicates": p.get("replicates")}
+    return hashlib.sha256(json.dumps(key, sort_keys=True).encode()).hexdigest()
+
+
 _JSON: dict[str, tuple] = {}
 
 
@@ -151,6 +159,8 @@ class Evidence:
             raise Invalid("evidence", file=rel, problem="not runboard-eval/1")
         if d.get("resample") != plan["ids_sha256"]:
             raise Invalid("evidence", file=rel, problem=f"measured on other images than resample-{s}.json")
+        if "draws" in d and d["draws"] != {"seed": plan.get("seed"), "replicates": plan.get("replicates")}:
+            raise Invalid("evidence", file=rel, problem=f"resample-{s}.json changed after this evaluation (seed or replicates)")
         m = (d.get("metrics") or {}).get(metric)
         if m is None:
             raise Invalid("evidence", file=rel, problem=f"no metric '{metric}' (has {', '.join(d.get('metrics') or {})})")

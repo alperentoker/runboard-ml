@@ -16,7 +16,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .errors import Err, Invalid
-from .hypotheses import Evidence, decide
+from .hypotheses import Evidence, decide, plan_fingerprint
 
 LOCK = "plan.lock.json"
 DEVIATIONS = "deviations.md"
@@ -45,6 +45,12 @@ def code_hashes(project) -> dict[str, str | None]:
     from .home import load_yaml
     m = load_yaml(project.root / "runboard.yaml") or {}
     return {str(p): text_hash(project.root / str(p)) for p in (m.get("templates") or {})}
+
+
+def resample_prints(project) -> dict[str, str | None]:
+    """The fingerprint of each evaluation set's resampling plan (None: not written yet)."""
+    ev = Evidence(project.root, project.pl.get("protocol") or {})
+    return {s: plan_fingerprint(ev.plan(s)) for s in ev.sets}
 
 
 def git_info(root: Path) -> dict | None:
@@ -125,7 +131,8 @@ def lock(project, who: str = "") -> dict:
            "by": who, "plan": project.plan_file.relative_to(project.root).as_posix(),
            "plan_sha256": text_hash(project.plan_file), "runs": project.runs_file.relative_to(project.root).as_posix(),
            "runs_sha256": runs_hash(project),
-           "resample": {s: (ev.plan(s) or {}).get("ids_sha256") for s in ev.sets}, "code": code_hashes(project),
+           "resample": {s: (ev.plan(s) or {}).get("ids_sha256") for s in ev.sets}, "resample_plans": resample_prints(project),
+           "code": code_hashes(project),
            "git": git_info(project.root)}
     from .home import write_atomic
     write_atomic(lock_file(project), (json.dumps(rec, indent=1, ensure_ascii=False) + "\n").encode("utf-8"))
@@ -142,7 +149,7 @@ def add_deviation(project, file: str, reason: str, diff: str, who: str) -> None:
     f = project.root / DEVIATIONS
     entry = {"time": datetime.now().astimezone().isoformat(timespec="seconds"), "file": file, "who": who,
              "reason": reason.strip(), "plan_sha256": text_hash(project.plan_file), "runs_sha256": runs_hash(project),
-             "code": code_hashes(project)}
+             "code": code_hashes(project), "resample_plans": resample_prints(project)}
     head = "" if f.exists() else ("# Deviations from the pre-registered plan\n\nEvery change of the plan or the runs "
                                   "after the lock, with its reason. Written by runboard.\n")
     with open(f, "a", encoding="utf-8", newline="\n") as out:
@@ -156,10 +163,17 @@ def record_deviation(project, reason: str, who: str = "") -> None:
         raise Invalid("not_locked")
     if len((reason or "").strip()) < 10:
         raise Invalid("deviation_reason")
+    add_deviation(project, ", ".join(unrecorded(project)) or "(nothing changed)", reason, "(changed outside runboard)", who)
+
+
+def unrecorded(project) -> list[str]:
+    """The files that differ from the lock and its last deviation: changed outside runboard, without a reason yet."""
     st = status(project)
-    changed = ([project.plan_file.name] if not st.get("plan_ok") else []) + \
-        ([project.runs_file.name] if not st.get("runs_ok") else []) + st.get("code_changed", [])
-    add_deviation(project, ", ".join(changed) or "(nothing changed)", reason, "(changed outside runboard)", who)
+    if not st.get("record"):
+        return []
+    return ([project.plan_file.name] if not st.get("plan_ok") else []) + \
+        ([project.runs_file.name] if not st.get("runs_ok") else []) + st.get("code_changed", []) + \
+        [f"resample-{s}.json" for s in st.get("resample_changed", [])]
 
 
 def ledger(ev: Evidence) -> list[dict]:
@@ -187,6 +201,15 @@ def status(project) -> dict:
             now = code_hashes(project)
             out["code_ok"] = now == code
             out["code_changed"] = sorted(k for k in set(now) | set(code) if now.get(k) != code.get(k))
+        if "resample_plans" in rec:
+            # a plan written after the lock (the usual order: lock, train, evaluate) is fixed by the first deviation
+            # that sees it; until then its evaluations carry its seed and replicate count instead (Evidence.get)
+            fixed = dict(rec["resample_plans"])
+            for d in devs:
+                fixed.update({s: v for s, v in (d.get("resample_plans") or {}).items() if v})
+            now = resample_prints(project)
+            out["resample_changed"] = sorted(s for s, v in fixed.items() if v and now.get(s) != v)
+            out["resample_ok"] = not out["resample_changed"]
     return out
 
 

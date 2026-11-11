@@ -87,6 +87,11 @@ def test_cancel_unstarted_run_and_logo_outside_the_project(rb):
     key = next(iter(server.rt.projects()))
     r = c.post(f"/api/p/{key}/cancel/a")
     assert r.status_code == 400 and r.json()["code"] == "not_launched"
+    # recorded as STARTING, with no process or job id yet: a cancel would miss it, the start would then overwrite it
+    server.rt.projects()[key].state.set("a", {"backend": "local", "status": "STARTING"})
+    r = c.post(f"/api/p/{key}/cancel/a")
+    assert r.status_code == 400 and r.json()["code"] == "still_starting"
+    assert server.rt.projects()[key].state.get("a")["status"] == "STARTING"
     assert c.get(f"/api/p/{key}/logo").status_code == 404
 
 

@@ -2,6 +2,28 @@
 
 All notable changes to runboard. Versions follow [semantic versioning](https://semver.org/).
 
+## 0.4.5 — 2026-11-11
+
+Fixes from a review: what the lock guarantees, what "cancelled" means, and five small mistakes on the pages.
+
+### Fixed
+- The lock now checks the resampling plans too. Their fingerprint (images, seed, replicate count) was recorded but
+  never compared, so a plan edited after the lock changed the intervals while the page stayed green. A plan written
+  after the lock is pinned by the evaluations made with it: each records the seed and replicate count it used.
+- A change through runboard while another file had been changed outside it is refused until that change is recorded
+  with its reason. The new deviation used to carry the other file's fingerprint, approving it without its diff.
+- Cancelling an SSH run stops it: a run that ignores SIGTERM gets SIGKILL after five seconds, and a run that still
+  does not stop is not marked cancelled. Before, the run showed CANCELLED while it kept running.
+- A SLURM run is marked cancelled only when `scancel` succeeds. A job that neither `sacct` nor `squeue` knows and that
+  wrote no exit code (killed for its time limit or by a node failure, on a cluster without accounting) becomes an
+  error five minutes after its start instead of waiting forever.
+- A run that is still starting cannot be cancelled yet: it has no process or job id, and the start overwrote the mark.
+- The comparison ticks on the Results page no longer carry over to another project with the same run names, and a
+  project that loads slowly no longer replaces the one the user moved to meanwhile.
+- The research plan editor shows its own description (two texts shared a name; so did "ok" and "on").
+- The overview's live chart follows the run's main curve under its own name, not only YOLO's mAP.
+- A plan section whose name has a quote or a bracket can be saved.
+
 ## 0.4.4 — 2026-11-11
 
 A decision rule for studies that pre-registered separate confidence intervals.

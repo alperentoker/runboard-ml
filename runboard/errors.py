@@ -55,6 +55,7 @@ MESSAGES = {
     "already_locked": "The plan is already locked",
     "deviation_reason": "The plan is locked: say why it changes (at least 10 characters); the change is recorded as a deviation",
     "not_locked": "The plan is not locked",
+    "unrecorded_change": "{files} changed outside runboard after the lock: record that deviation with its reason first (Hypotheses page)",
     "research": "Research plan: {problem}",
     # code in the dashboard
     "bad_code_path": "{path}: not a code file of this project",
@@ -94,6 +95,8 @@ MESSAGES = {
     "unsafe_value": "{field} = '{value}' cannot go into a command: use letters, digits, spaces and . , : = + @ / \\ % ~ [ ] - only",
     "only_finished_delete": "Only finished runs can be deleted",
     "not_launched": "Not started yet: there is nothing to stop",
+    "still_starting": "{run} is still starting: stop it once it has started",
+    "cancel_failed": "{run} could not be stopped: {problem}",
     "foreign_kernel": "This run is linked to a notebook runboard did not create; delete it on Kaggle",
     "unknown_project": "Unknown project",
     "not_run_yet": "Not run yet",

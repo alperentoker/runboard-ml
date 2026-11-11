@@ -53,8 +53,12 @@ async function render() {
   route = parseRoute();
   if (route.view === "project") {
     if (!P || P.key !== route.key) {
-      compare = new Set(); compCache = {};  // run names repeat across projects: another project's runs are not these
-      try { P = await api(`/api/p/${route.key}`); } catch (e) { $("#content").innerHTML = `<div class="msg bad">${esc(e.message)}</div>`; return; }
+      compare = new Set(); compCache = {}; CMP.clear();  // run names repeat across projects: another project's runs are not these
+      const want = route.key;
+      let got;
+      try { got = await api(`/api/p/${want}`); } catch (e) { if (parseRoute().key === want) $("#content").innerHTML = `<div class="msg bad">${esc(e.message)}</div>`; return; }
+      if (parseRoute().key !== want) return;  // the user went elsewhere meanwhile: that render draws the page
+      P = got;
     }
     const onRun = route.tab === "run";
     setTitle(onRun ? route.run : t(route.tab), `<a href="#/">${t("projects")}</a> / <a href="#/p/${P.key}/overview">${esc(P.name)}</a>${onRun ? ` / <a href="#/p/${P.key}/runs">${t("runs")}</a>` : ""}`);

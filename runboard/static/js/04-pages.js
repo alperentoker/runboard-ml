@@ -58,6 +58,13 @@ function renderHome() {
 }
 
 /* ================= project: overview ================= */
+// The curve the overview follows live: map for YOLO, otherwise the first number the run reports (not a loss
+// or a validation twin when something else is there), as the run page charts it under its own name.
+const liveKey = H => {
+  if (!H.length || H.some(x => x.map != null)) return "map";
+  const keys = [...new Set(H.flatMap(x => Object.keys(x)))].filter(k => !["e", "t", "secs", "lr"].includes(k) && H.some(x => typeof x[k] === "number"));
+  return keys.find(k => !/loss/i.test(k) && !k.startsWith("val_")) || keys.find(k => !k.startsWith("val_")) || keys[0] || "map";
+};
 const valOf = r => r?.metrics?.primary ?? (r?.status === "COMPLETE" ? r?.progress?.best : null);
 function renderOverview() {
   const act = P.runs.find(r => ACTIVE.includes(r.status)), p = act?.progress || {};
@@ -82,7 +89,7 @@ function renderOverview() {
       <div class="cb">${act ? `
         <div class="prog"><div class="lbl"><span ${L_("lbl", P.key, act.id)}></span><span ${L_("pct", P.key, act.id)}></span></div><div class="bar big"><i ${L_("bar", P.key, act.id)}></i></div></div>
         ${p.stage ? `<div class="stage">${esc(p.stage)}${p.its ? ` · ${p.its.toFixed(1)} it/s` : ""} <span class="est" ${L_("epleft", P.key, act.id)}></span></div>` : ""}
-        <div style="margin-top:14px">${activeDetail?.id === act.id ? chart(lab, [{name: act.id, color: COLORS[0], pts: pts(H, "map")}], {h: 220}) : `<div class="chart"><div class="t"><b>${esc(lab)}</b></div><div class="empty" style="padding:90px 0">${t("loading")}</div></div>`}</div>`
+        <div style="margin-top:14px">${activeDetail?.id === act.id ? chart(liveKey(H) === "map" ? lab : liveKey(H), [{name: act.id, color: COLORS[0], pts: pts(H, liveKey(H))}], {h: 220}) : `<div class="chart"><div class="t"><b>${esc(lab)}</b></div><div class="empty" style="padding:90px 0">${t("loading")}</div></div>`}</div>`
         : `<div class="empty">${t("no_active")}<br><button class="btn primary" style="margin-top:12px" data-go="#/p/${P.key}/runs">${t("start_run")}</button></div>`}</div></div>
     <div class="card"><div class="ch"><h2>${t("roadmap")}</h2><span class="muted" style="font-size:12px">${done}/${plan.length}</span></div>
       <div class="cb" style="padding-top:4px;padding-bottom:4px">${phases.map(ph => `<div class="phase"><div class="pn"><b>${esc([ph.id, tx(ph.title)].filter(Boolean).join(" · "))}</b><span>${esc(tx(ph.subtitle))}</span></div>

@@ -292,13 +292,15 @@ margin is still shown beside it. Choose the rule before the results: the lock co
 ```
 eval/resample-ground.json   {"format": "runboard-resample/1", "ids": [...], "ids_sha256": ..., "seed": 0, "replicates": 200}
 eval/R7/ground.json         {"format": "runboard-eval/1", "run": "R7", "set": "ground", "resample": <ids_sha256>,
+                             "draws": {"seed": 0, "replicates": 200},
                              "metrics": {"map50_95": {"point": 47.2, "replicates": [... 200 values]}}}
 ```
 
 `ids_sha256` is the SHA-256 of the ids joined by newlines. Replicate k of every run uses the same images:
 `numpy.random.default_rng(seed).integers(0, n, n)`, drawn k times in order. `rb.py` writes both files
 (`rb.replicates`, `rb.write_eval`); a metric that is a mean over images may give `samples` (one value per id) instead
-of `replicates`, and runboard draws them. Before evaluating a sealed set, `rb.sealed(set, run, weights_sha256)` refuses
+of `replicates`, and runboard draws them. An evaluation records the plan's seed and replicate count (`draws`); if the
+plan says otherwise later, that evaluation is refused instead of quietly giving other intervals. Before evaluating a sealed set, `rb.sealed(set, run, weights_sha256)` refuses
 the same weights twice and writes `eval/ledger.csv`, which the Hypotheses page lists.
 
 ### Lock and deviations
@@ -308,7 +310,10 @@ commit and whether the folder had uncommitted changes, and the fingerprints of `
 runs and without the fields decisions fill) and of each resampling plan. Commit the plan first. After the lock,
 `plan.yaml` and the runs file change only with a reason; each change is appended to `deviations.md` with its diff and
 the fingerprints after it, so the page can tell whether the files on disk are the locked ones plus recorded
-deviations. A version 1 project, or `locked: true` without a record, keeps the older rule: only decisions and extra
+deviations. A resampling plan's fingerprint covers its images, seed and replicate count; one written after the lock is
+covered by its evaluations (above) and by the next deviation. A file changed outside runboard is shown on the
+Hypotheses page and must be recorded there with its reason before runboard accepts another change: otherwise the next
+deviation would carry that file's new fingerprint without its diff. A version 1 project, or `locked: true` without a record, keeps the older rule: only decisions and extra
 runs.
 
 ## The research wizard

@@ -85,6 +85,9 @@ class Project:
             raise Denied("locked")
         if len((reason or "").strip()) < 10:
             raise Invalid("deviation_reason")
+        from .prereg import unrecorded
+        if pending := unrecorded(self):  # its deviation would otherwise carry their fingerprints without their diff
+            raise Invalid("unrecorded_change", files=", ".join(pending))
         return True
 
     def _deviate(self, res: dict, file: Path, reason: str, dry: bool, who: str) -> dict:

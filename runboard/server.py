@@ -317,6 +317,8 @@ def api_cancel(key: str, run_id: str):
     st = p.state.get(run_id)
     if not st or st.get("status") not in ACTIVE:
         raise Invalid("not_launched", run=run_id)
+    if st.get("status") == "STARTING":  # no process or job id yet: a cancel now would miss it, and the start
+        raise Invalid("still_starting", run=run_id)  # that follows would write over the CANCELLING mark
     try:
         BACKENDS[st.get("backend") or p.m.get("default_backend", "kaggle")].cancel(p, run_id, st)
     except Exception as e:

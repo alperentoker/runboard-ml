@@ -241,10 +241,22 @@ class SSHBackend(Backend):
         out = self.remote(project).run(f"cat {rpath(self.files(project, run_id)['log'])}", timeout=120).stdout
         return [ln.rstrip() for ln in out.decode("utf-8", "replace").replace("\r", "\n").split("\n") if ln.strip()]
 
+    GRACE = 5  # seconds a run gets to stop on SIGTERM before SIGKILL
+
     def cancel(self, project, run_id, st):
+        # "cancelled" goes first, so the run's own exit code (143 after SIGTERM) is not written over it; it is taken
+        # back when the run cannot be stopped. A run that ignores SIGTERM gets SIGKILL: CANCELLED means it is gone.
         f = self.files(project, run_id)
-        self.remote(project).check(f"echo cancelled > {rpath(f['code'])}; p=$(cat {rpath(f['pid'])} 2>/dev/null); "
-                                   f'[ -n "$p" ] && (kill -TERM -- -"$p" 2>/dev/null || kill -TERM "$p" 2>/dev/null); true')
+        code = rpath(f["code"])
+        out = self.remote(project).check(
+            f"echo cancelled > {code}; p=$(cat {rpath(f['pid'])} 2>/dev/null); "
+            'alive() { kill -0 -- -"$p" 2>/dev/null || kill -0 "$p" 2>/dev/null; }; '
+            'if [ -n "$p" ]; then kill -TERM -- -"$p" 2>/dev/null || kill -TERM "$p" 2>/dev/null; i=0; '
+            f'while alive && [ $i -lt {self.GRACE} ]; do sleep 1; i=$((i+1)); done; '
+            'if alive; then kill -KILL -- -"$p" 2>/dev/null; kill -KILL "$p" 2>/dev/null; sleep 1; fi; '
+            f'if alive; then rm -f {code}; echo STILL_RUNNING; fi; fi; true')
+        if "STILL_RUNNING" in out:
+            raise Invalid("cancel_failed", run=run_id, problem=f"process {st.get('pid')} on {st.get('host')} does not stop")
 
     def may_still_run(self, project, run_id, st):
         return False
@@ -338,7 +350,20 @@ class SlurmBackend(SSHBackend):
             f's=$(sacct -j {j} -n -X -P -o State,ExitCode 2>/dev/null); if [ -n "$s" ]; then echo "$s"; '
             f'else q=$(squeue -h -j {j} -o %T 2>/dev/null); if [ -n "$q" ]; then echo "$q"; '
             f'elif [ -f {code} ]; then echo "code:$(cat {code})"; fi; fi').strip()
+        if not out and self.started_long_ago(st):
+            # nobody knows the job and it wrote no exit code: killed from outside (time limit, node failure) on a
+            # cluster without accounting. sacct's lag after sbatch is seconds, not minutes.
+            return "ERROR", f"SLURM no longer knows job {j} and it wrote no exit code (time limit or node failure?)"
         return self.read_state(out)
+
+    LOST_AFTER = 300  # seconds after the start an unknown job without an exit code counts as lost
+
+    def started_long_ago(self, st) -> bool:
+        try:
+            started = time.mktime(time.strptime(str(st.get("pushed_at")), "%Y-%m-%dT%H:%M:%S"))
+        except ValueError:
+            return False
+        return time.time() - started > self.LOST_AFTER
 
     @staticmethod
     def read_state(out: str) -> tuple[str, str | None]:
@@ -355,4 +380,5 @@ class SlurmBackend(SSHBackend):
 
     def cancel(self, project, run_id, st):
         f = self.files(project, run_id)
-        self.remote(project).check(f"echo cancelled > {rpath(f['code'])}; scancel {int(st.get('job') or 0)}")
+        # scancel first: when it fails (no such job, no permission) the run is not marked cancelled
+        self.remote(project).check(f"scancel {int(st.get('job') or 0)} && echo cancelled > {rpath(f['code'])}")

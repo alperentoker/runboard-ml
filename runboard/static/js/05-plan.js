@@ -160,7 +160,7 @@ function filesCards() {
   const ro = (title, f, note) => `<div class="card"><div class="ch"><h2>${esc(title)}</h2><span class="muted mono">${esc(f.file)}</span>${chip("lock", t("readonly"))}</div><div class="cb">
     <p class="desc">${note}</p><details><summary>${esc(f.file)}</summary><pre class="raw">${esc(f.text)}</pre></details></div></div>`;
   const plan = !pl ? `<div class="card"><div class="ch"><h2>${t("plan_file")}</h2></div><div class="cb"><p class="desc">${t("plan_v1")}</p></div></div>`
-    : editorCard("pf", t("plan_file"), pl.file, t(FILES.locked ? "plan_dev_desc" : "plan_desc"), FILES.locked ? chip("lock", t("h_locked")) : "", FILES.locked);
+    : editorCard("pf", t("plan_file"), pl.file, t(FILES.locked ? "plan_dev_desc" : "plan_file_desc"), FILES.locked ? chip("lock", t("h_locked")) : "", FILES.locked);
   const man = FILES.can_edit_manifest ? editorCard("mf", t("manifest_file"), mf.file, t("manifest_desc")) : ro(t("manifest_file"), mf, t("manifest_remote"));
   return plan + man;
 }
@@ -186,7 +186,7 @@ function wireShared() {
       if (rm) (out[sec] ??= {})[i.dataset.sk] = null;
       else if (i.value !== i.dataset.orig) (out[sec] ??= {})[i.dataset.sk] = i.value;
     });
-    document.querySelectorAll(".snk").forEach(i => { const v = document.querySelector(`.snv[data-sec="${i.dataset.sec}"]`).value; if (i.value.trim() && v !== "") (out[i.dataset.sec] ??= {})[i.value.trim()] = v; });
+    document.querySelectorAll(".snk").forEach(i => { const v = document.querySelector(`.snv[data-sec="${CSS.escape(i.dataset.sec)}"]`).value; if (i.value.trim() && v !== "") (out[i.dataset.sec] ??= {})[i.value.trim()] = v; });
     return out;
   };
   if (sgo) sgo.onclick = async () => {

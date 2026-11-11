@@ -144,6 +144,11 @@ def _hash(ids) -> str:
     return hashlib.sha256("\n".join(ids).encode("utf-8")).hexdigest()
 
 
+def _draws(plan: dict) -> dict:
+    """What decides the replicates besides the images: an evaluation records it, so a plan edited later is noticed."""
+    return {"seed": plan["seed"], "replicates": plan["replicates"]}
+
+
 def resample_plan(set_name: str, ids=None, seed: int = 0, replicates: int = 200, root: str = "eval") -> dict:
     """The shared resampling plan of a set: written by the first evaluation (with its image ids), read by the rest,
     which must evaluate the same images."""
@@ -178,7 +183,7 @@ def write_eval(run: str, set_name: str, metrics: dict, root: str = "eval", **ext
     """metrics: {name: (value on the whole set, [value per replicate])}; a class as "map50_95@person"."""
     from pathlib import Path
     plan = resample_plan(set_name, root=root)
-    out = {"format": "runboard-eval/1", "run": run, "set": set_name, "resample": plan["ids_sha256"],
+    out = {"format": "runboard-eval/1", "run": run, "set": set_name, "resample": plan["ids_sha256"], "draws": _draws(plan),
            "metrics": {k: {"point": float(p), "replicates": [None if x != x else float(x) for x in reps]}
                        for k, (p, reps) in metrics.items()}, "n": len(plan["ids"]), **extra}
     f = Path(root) / run / f"{set_name}.json"
@@ -200,7 +205,7 @@ def write_samples(run: str, set_name: str, metrics: dict, root: str = "eval", **
     f = Path(root) / run / f"{set_name}.json"
     f.parent.mkdir(parents=True, exist_ok=True)
     _write(f, json.dumps({"format": "runboard-eval/1", "run": run, "set": set_name, "resample": plan["ids_sha256"],
-                          "metrics": out, "n": len(plan["ids"]), **extra}, ensure_ascii=False))
+                          "draws": _draws(plan), "metrics": out, "n": len(plan["ids"]), **extra}, ensure_ascii=False))
 
 
 def sealed(set_name: str, run: str, weights_sha256: str, root: str = "eval", again: bool = False) -> None:

@@ -211,7 +211,7 @@ def checklist(project, hyp: dict) -> list[tuple[str, str, str]]:
     out.append(("A held-out set is evaluated once per model", "✗" if twice else "✓" if sealed else "–",
                 "a model was evaluated twice (see the ledger)" if twice else f"sealed: {', '.join(sealed)}" if sealed else "no sealed set"))
     if rec:
-        clean = st.get("plan_ok") and st.get("runs_ok") and st.get("code_ok") is not False
+        clean = st.get("plan_ok") and st.get("runs_ok") and st.get("code_ok") is not False and st.get("resample_ok") is not False
         out.append(("Every change after the lock is recorded", "✓" if clean else "✗",
                     f"{len(st.get('deviations') or [])} deviation(s)" if clean else "a file changed without a recorded deviation"))
     git = (rec or {}).get("git")

@@ -212,6 +212,56 @@ def test_lock_then_change_only_with_a_reason(g2a):
     assert prereg.status(project(g2a))["plan_ok"] is False
 
 
+def test_a_deviation_does_not_carry_an_unrecorded_change_with_it(g2a):
+    # runs.yaml changed by hand, then the plan through runboard: the plan's deviation would record runs.yaml's new
+    # fingerprint without its diff, and the hand-made change would look approved. Refused until it is recorded.
+    from runboard import prereg
+    prereg.lock(project(g2a), "test")
+    runs = (g2a / "runs.yaml").read_text(encoding="utf-8")
+    (g2a / "runs.yaml").write_text(runs.replace("epochs: 100", "epochs: 150"), encoding="utf-8")
+    text = project(g2a).plan_file.read_text(encoding="utf-8").replace("How far", "How much")
+    with pytest.raises(Invalid) as e:
+        project(g2a).edit_file("plan", text, None, reason="The question was worded loosely")
+    assert e.value.code == "unrecorded_change" and "runs.yaml" in str(e.value)
+    assert "How far" in project(g2a).plan_file.read_text(encoding="utf-8")
+    prereg.record_deviation(project(g2a), "Longer schedule, decided before any run", "test")
+    assert project(g2a).edit_file("plan", text, None, reason="The question was worded loosely")["deviation"]
+    st = prereg.status(project(g2a))
+    assert st["plan_ok"] and st["runs_ok"] and [d["file"] for d in st["deviations"]] == ["runs.yaml", "plan.yaml"]
+
+
+def test_a_resampling_plan_changed_after_the_lock_is_noticed(g2a):
+    from runboard import prereg
+    prereg.lock(project(g2a), "test")
+    f = g2a / "eval" / "resample-ground.json"
+    plan = json.loads(f.read_text(encoding="utf-8"))
+    f.write_text(json.dumps({**plan, "seed": 7}), encoding="utf-8")  # other draws, the same images
+    st = prereg.status(project(g2a))
+    assert st["resample_ok"] is False and st["resample_changed"] == ["ground"]
+    assert prereg.unrecorded(project(g2a)) == ["resample-ground.json"]
+    prereg.record_deviation(project(g2a), "Seed set to the one in the protocol", "test")
+    assert prereg.status(project(g2a))["resample_ok"]
+
+
+def test_an_evaluation_pins_the_draws_it_was_measured_with(tmp_path, monkeypatch):
+    # a plan written after the lock has no fingerprint in it: the evaluations themselves notice a later edit
+    pytest.importorskip("numpy")
+    from runboard import rb
+    from runboard.hypotheses import Evidence, decide
+    monkeypatch.chdir(tmp_path)
+    ids = [f"im{i}" for i in range(20)]
+    rb.resample_plan("val", ids=ids, replicates=50)
+    rb.write_samples("A", "val", {"acc": [i % 2 for i in range(20)]})
+    assert json.loads((tmp_path / "eval" / "A" / "val.json").read_text())["draws"] == {"seed": 0, "replicates": 50}
+    ev = Evidence(tmp_path, {"metric": "acc", "sets": ["val"]})
+    assert decide("A.val > 0.1", ev, {})["verdict"] == "supported"
+    f = tmp_path / "eval" / "resample-val.json"
+    f.write_text(json.dumps({**json.loads(f.read_text()), "seed": 3}))
+    with pytest.raises(Invalid) as e:
+        decide("A.val > 0.1", Evidence(tmp_path, {"metric": "acc", "sets": ["val"]}), {})
+    assert "changed after this evaluation" in str(e.value)
+
+
 def test_decisions_and_extra_runs_keep_the_lock(g2a):
     from runboard import prereg
     p = project(g2a)

@@ -102,6 +102,19 @@ def test_slurm_states(out, state):
     assert "TIMEOUT" in (SlurmBackend.read_state("TIMEOUT|0:0")[1] or "")
 
 
+def test_a_slurm_job_nobody_knows_is_lost_not_queued_forever(rb, monkeypatch):
+    # no accounting, gone from squeue, no exit code: killed from outside. Just after sbatch it is only sacct's lag.
+    from runboard.backends.remote import Remote, SlurmBackend
+    monkeypatch.setattr(Remote, "run", Scripted())
+    p, b = make(rb / "p", {"slurm": {"host": "hpc", "command": "python train.py {id}"}}), SlurmBackend()
+    now = time.strftime("%Y-%m-%dT%H:%M:%S")
+    long_ago = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(time.time() - 3600))
+    assert b.status(p, "A", {"job": 42, "pushed_at": now}) == ("QUEUED", None)
+    state, why = b.status(p, "A", {"job": 42, "pushed_at": long_ago})
+    assert state == "ERROR" and "42" in why
+    assert b.status(p, "A", {"job": 42})[0] == "QUEUED"  # a record without a start time: as before
+
+
 def test_slurm_submits_a_batch_script(rb, monkeypatch):
     from runboard.backends.remote import Remote, SlurmBackend
     p = make(rb / "p", {"slurm": {"host": "login", "command": "python train.py {id}",
@@ -203,6 +216,37 @@ def test_ssh_run_end_to_end(rb, monkeypatch):
     assert wait(lambda: b.status(p, "B", st), {"RUNNING"})[0] == "RUNNING"
     b.cancel(p, "B", st)
     assert wait(lambda: b.status(p, "B", st), {"CANCELLED"})[0] == "CANCELLED"
+
+
+@needs_sh
+def test_a_run_that_ignores_sigterm_is_killed_before_it_is_called_cancelled(rb, monkeypatch):
+    from runboard.backends.remote import SSHBackend
+    monkeypatch.setenv("FAKE_SSH_HOME", str(rb / "remote-home"))
+    monkeypatch.setattr(SSHBackend, "GRACE", 2, raising=False)
+    p = make(rb / "p", {"ssh": {"host": "box", "ssh": [sys.executable, FAKE], "command": "sh beat.sh",
+                                "output": "runs/{name}", "output_dir": "runs/ssh"}})
+    (p.root / "beat.sh").write_text("trap '' TERM\nwhile true; do echo x >> beat.txt; sleep 1; done\n", newline="\n")
+    b = SSHBackend()
+    st = b.submit(p, "A", p.info("A"))
+    beat, end = None, time.time() + 20
+    while (beat is None or not beat.stat().st_size) and time.time() < end:
+        beat = next((rb / "remote-home").rglob("beat.txt"), None)
+        time.sleep(0.2)
+    assert b.status(p, "A", st)[0] == "RUNNING"
+    b.cancel(p, "A", st)
+    assert b.status(p, "A", st) == ("CANCELLED", None)
+    size = beat.stat().st_size
+    time.sleep(2.5)
+    assert beat.stat().st_size == size  # it writes no more: stopped, not only marked
+
+
+def test_slurm_marks_a_run_cancelled_only_after_scancel(rb, monkeypatch):
+    from runboard.backends.remote import Remote, SlurmBackend
+    s = Scripted()
+    monkeypatch.setattr(Remote, "run", s)
+    p = make(rb / "p", {"slurm": {"host": "hpc", "command": "python train.py {id}"}})
+    SlurmBackend().cancel(p, "A", {"job": 42})
+    assert "scancel 42 && echo cancelled" in s.calls[-1][0]
 
 
 @needs_sh

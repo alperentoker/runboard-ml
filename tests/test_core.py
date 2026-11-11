@@ -252,3 +252,16 @@ def test_gpu_info_from_nvidia_smi(monkeypatch):
     assert local.nvidia_smi()["load_pct"] is None and local.nvidia_smi()["temp_c"] is None
     out["text"] = ""
     assert local.nvidia_smi() is None
+
+
+def test_no_text_is_defined_twice_in_a_language():
+    # a second definition silently replaces the first: the research plan once showed the run plan's description
+    import re
+    from collections import Counter
+    from pathlib import Path
+    page = (Path(__file__).parents[1] / "runboard" / "static" / "js" / "01-i18n.js").read_text(encoding="utf-8")
+    en, tr = page[page.index("\n en: {"):page.index("\n tr: {")], page[page.index("\n tr: {"):page.index("\n};")]
+    for lang, block in (("en", en), ("tr", tr)):
+        block = re.sub(r'"(?:[^"\\]|\\.)*"', '""', block)  # keys only, not what the texts contain
+        twice = [k for k, n in Counter(re.findall(r"(\w+)\s*:", block)).items() if n > 1 and k not in ("en", "tr")]
+        assert not twice, (lang, twice)
